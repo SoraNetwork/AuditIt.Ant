@@ -44,7 +44,6 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
-import { message } from 'ant-design-vue';
 
 interface InventoryItem {
   itemDefinitionId: string;
@@ -59,7 +58,7 @@ const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 const itemDefStore = useItemDefinitionStore();
 
-const filterState = reactive({ warehouseId: undefined });
+const filterState = reactive<{ warehouseId: number | undefined }>({ warehouseId: undefined });
 const inventoryData = ref<InventoryItem[]>([]);
 
 const itemDefMap = computed(() => {
@@ -87,7 +86,7 @@ const loadInventory = async () => {
     inventoryData.value = [];
     return;
   }
-  await itemStore.fetchItems(filterState.warehouseId);
+  await itemStore.fetchItems({ warehouseId: filterState.warehouseId });
   
   // Aggregate items
   const aggregated = itemStore.items.reduce((acc, item) => {
@@ -97,8 +96,6 @@ const loadInventory = async () => {
 
   inventoryData.value = Object.keys(aggregated).map(defId => {
     const bookedQuantity = aggregated[defId];
-    const actualQuantity = ref(bookedQuantity); // Default actual to booked
-    const difference = computed(() => actualQuantity.value - bookedQuantity);
     
     return reactive({
       itemDefinitionId: defId,

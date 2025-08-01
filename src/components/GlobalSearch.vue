@@ -29,7 +29,12 @@ if (itemDefStore.itemDefinitions.length === 0) {
   itemDefStore.fetchItemDefinitions();
 }
 
-const itemDefMap = computed(() => itemDefStore.itemDefinitions.reduce((map, def) => ({ ...map, [def.id]: def }), {}));
+const itemDefMap = computed(() => {
+  return itemDefStore.itemDefinitions.reduce((map: Record<number, any>, def) => {
+    map[def.id] = def;
+    return map;
+  }, {});
+});
 
 const options = ref<{ value: string; label: string; id: string }[]>([]);
 
@@ -56,7 +61,7 @@ const onSearch = (query: string) => {
   });
 };
 
-const onSelect = (value: string, option: any) => {
+const onSelect = (_value: string, option: any) => {
   router.push({ name: 'item-details', params: { id: option.id } });
   searchText.value = '';
   options.value = [];

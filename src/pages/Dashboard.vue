@@ -59,8 +59,8 @@ onMounted(() => {
 });
 
 const totalItems = computed(() => itemStore.items.length);
-const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'in_stock').length);
-const loanedOutItems = computed(() => itemStore.items.filter(i => i.status === 'loaned_out').length);
+const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'InStock').length);
+const loanedOutItems = computed(() => itemStore.items.filter(i => i.status === 'LoanedOut').length);
 
 const pieChartData = computed(() => ({
   labels: ['在库', '借出', '处置'],
@@ -69,7 +69,7 @@ const pieChartData = computed(() => ({
     data: [
       inStockItems.value,
       loanedOutItems.value,
-      itemStore.items.filter(i => i.status === 'disposed').length
+      itemStore.items.filter(i => i.status === 'Disposed').length
     ]
   }]
 }));
@@ -77,7 +77,7 @@ const pieChartData = computed(() => ({
 const barChartData = computed(() => {
   const labels = warehouseStore.warehouses.map(w => w.name);
   const data = warehouseStore.warehouses.map(w => 
-    itemStore.items.filter(i => i.warehouseId === w.id && i.status === 'in_stock').length
+    itemStore.items.filter(i => i.warehouseId === w.id && i.status === 'InStock').length
   );
   return {
     labels,

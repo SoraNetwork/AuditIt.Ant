@@ -53,9 +53,7 @@
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
-import GlobalSearch from '../components/GlobalSearch.vue';
 import {
-  UserOutlined,
   DashboardOutlined,
   UndoOutlined,
   DatabaseOutlined,
@@ -66,6 +64,7 @@ import {
   ArrowRightOutlined,
   ArrowLeftOutlined,
   LogoutOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons-vue';
 
 const collapsed = ref<boolean>(false);

@@ -15,10 +15,10 @@
 
         <div v-if="filterState.warehouseId">
           <a-space style="margin-bottom: 16px;">
-            <a-button type="primary" :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('loaned_out')">
+            <a-button type="primary" :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('outbound')">
               借出选中项 ({{ selectedRowKeys.length }})
             </a-button>
-            <a-button type="primary" danger :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('disposed')">
+            <a-button type="primary" danger :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('dispose')">
               处置选中项 ({{ selectedRowKeys.length }})
             </a-button>
           </a-space>
@@ -42,24 +42,31 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemStore, type ItemStatus } from '../stores/itemStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useItemStore } from '../stores/itemStore';
+import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { message, Modal } from 'ant-design-vue';
 
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 const itemDefStore = useItemDefinitionStore();
 
-const filterState = reactive({ warehouseId: undefined });
+const filterState = reactive<{ warehouseId: number | undefined }>({ warehouseId: undefined });
 const selectedRowKeys = ref<string[]>([]);
 
-const itemDefMap = computed(() => itemDefStore.itemDefinitions.reduce((map, def) => ({ ...map, [def.id]: def }), {}));
+const itemDefMap = computed(() =>
+  itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
+    map[def.id] = def;
+    return map;
+  }, {})
+);
 
-const tableData = computed(() => itemStore.items.map(item => ({
-  ...item,
-  name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
-  shortId: item.shortId,
-})));
+const tableData = computed(() =>
+  itemStore.items.map(item => ({
+    ...item,
+    name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
+    shortId: item.shortId,
+  }))
+);
 
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
@@ -74,7 +81,7 @@ onMounted(() => {
 
 const loadItems = () => {
   if (filterState.warehouseId) {
-    itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'in_stock' });
+    itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'InStock' });
   } else {
     itemStore.items = [];
   }
@@ -87,8 +94,8 @@ const onSelectChange = (keys: string[]) => {
 
 const hasSelected = computed(() => selectedRowKeys.value.length > 0);
 
-const showOutboundModal = (status: ItemStatus) => {
-  const actionText = status === 'loaned_out' ? '借出' : '处置';
+const showOutboundModal = (action: 'outbound' | 'dispose') => {
+  const actionText = action === 'outbound' ? '借出' : '处置';
   Modal.confirm({
     title: `确认${actionText}`,
     content: `您确定要将选中的 ${selectedRowKeys.value.length} 件物品状态更新为 "${actionText}" 吗？`,
@@ -96,7 +103,8 @@ const showOutboundModal = (status: ItemStatus) => {
     cancelText: '取消',
     onOk: async () => {
       try {
-        await itemStore.updateItemStatus(selectedRowKeys.value, status);
+        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action));
+        await Promise.all(promises);
         message.success(`成功${actionText} ${selectedRowKeys.value.length} 件物品!`);
         selectedRowKeys.value = [];
         loadItems();

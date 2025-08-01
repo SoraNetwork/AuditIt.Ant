@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useItemStore } from '../stores/itemStore';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import { message } from 'ant-design-vue';
@@ -89,8 +89,8 @@ const isNewItemDefVisible = ref(false);
 const isPrintModalVisible = ref(false);
 
 // Form States
-const form1State = reactive({ itemDefinitionId: undefined, quantity: 1 });
-const form2State = reactive({ warehouseId: undefined });
+const form1State = reactive<{ itemDefinitionId: number | undefined, quantity: number }>({ itemDefinitionId: undefined, quantity: 1 });
+const form2State = reactive<{ warehouseId: number | undefined }>({ warehouseId: undefined });
 
 // Rules
 const rules1 = {
@@ -115,7 +115,7 @@ const handleNewItemDefOk = async () => {
   try {
     const values = await newItemDefFormRef.value?.validate();
     if (!values) return;
-    await itemDefStore.addItemDefinition(values);
+    await itemDefStore.addItemDefinition(values as CreateItemDefinitionPayload);
     message.success('新物品定义创建成功！');
     form1State.itemDefinitionId = itemDefStore.itemDefinitions[0].id;
     isNewItemDefVisible.value = false;

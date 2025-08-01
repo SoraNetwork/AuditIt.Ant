@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useCategoryStore, type Category } from '../stores/categoryStore';
+import { useCategoryStore, type Category, type CreateCategoryPayload } from '../stores/categoryStore';
 import CategoryForm from '../components/CategoryForm.vue';
 import { message } from 'ant-design-vue';
 
@@ -57,10 +57,10 @@ const categoryStore = useCategoryStore();
 const categoryFormRef = ref<InstanceType<typeof CategoryForm> | null>(null);
 
 const isModalVisible = ref(false);
-const editingId = ref<string | null>(null);
-const currentCategory = ref<Partial<Category> | null>(null);
+const editingId = ref<number | null>(null);
+const currentCategory = ref<Partial<Category>>({});
 
-const modalTitle = computed(() => (editingId.value ? '编辑分类' : '添加分类'));
+const modalTitle = computed(() => (editingId.value !== null ? '编辑分类' : '添加分类'));
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
@@ -80,7 +80,7 @@ const showEditModal = (category: Category) => {
   isModalVisible.value = true;
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   await categoryStore.deleteCategory(id);
   if (!categoryStore.error) {
     message.success('分类删除成功');
@@ -94,14 +94,14 @@ const handleOk = async () => {
     const values = await categoryFormRef.value?.validate();
     if (!values) return;
 
-    if (editingId.value) {
+    if (editingId.value !== null) {
       await categoryStore.updateCategory({ id: editingId.value, ...values });
     } else {
-      await categoryStore.addCategory(values);
+      await categoryStore.addCategory(values as CreateCategoryPayload);
     }
 
     if (!categoryStore.error) {
-      message.success(`分类${editingId.value ? '更新' : '添加'}成功`);
+      message.success(`分类${editingId.value !== null ? '更新' : '添加'}成功`);
       isModalVisible.value = false;
     } else {
       message.error(categoryStore.error);

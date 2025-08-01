@@ -34,15 +34,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
-import { useAuditLogStore, type AuditAction } from '../stores/auditLogStore';
+import { reactive, onMounted, computed } from 'vue';
+import { useAuditLogStore, type AuditLog } from '../stores/auditLogStore';
 import dayjs from 'dayjs';
 
 const auditLogStore = useAuditLogStore();
 
 const filters = reactive<{
   dateRange: [dayjs.Dayjs, dayjs.Dayjs] | null;
-  action?: AuditAction;
+  action?: string;
   user?: string;
 }>({
   dateRange: null,
@@ -62,7 +62,7 @@ const filteredLogs = computed(() => {
 });
 
 const columns = [
-  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', sorter: (a, b) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(), defaultSortOrder: 'descend' },
+  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', sorter: (a: AuditLog, b: AuditLog) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(), defaultSortOrder: 'descend' },
   { title: '操作类型', dataIndex: 'action', key: 'action' },
   { title: '物品名称', dataIndex: 'itemName', key: 'itemName' },
   { title: '可视化ID', dataIndex: 'itemShortId', key: 'itemShortId' },

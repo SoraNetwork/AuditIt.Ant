@@ -26,8 +26,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useItemStore } from '../stores/itemStore';
-import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useWarehouseStore, type Warehouse } from '../stores/warehouseStore';
+import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { message, Modal } from 'ant-design-vue';
 
 const itemStore = useItemStore();
@@ -36,14 +36,27 @@ const itemDefStore = useItemDefinitionStore();
 
 const selectedRowKeys = ref<string[]>([]);
 
-const itemDefMap = computed(() => itemDefStore.itemDefinitions.reduce((map, def) => ({ ...map, [def.id]: def }), {}));
-const warehouseMap = computed(() => warehouseStore.warehouses.reduce((map, wh) => ({ ...map, [wh.id]: wh }), {}));
+const itemDefMap = computed(() =>
+  itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
+    map[def.id] = def;
+    return map;
+  }, {})
+);
 
-const tableData = computed(() => itemStore.items.map(item => ({
-  ...item,
-  name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
-  warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
-})));
+const warehouseMap = computed(() =>
+  warehouseStore.warehouses.reduce((map: Record<number, Warehouse>, wh) => {
+    map[wh.id] = wh;
+    return map;
+  }, {})
+);
+
+const tableData = computed(() =>
+  itemStore.items.map(item => ({
+    ...item,
+    name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
+    warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
+  }))
+);
 
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
@@ -51,12 +64,6 @@ const columns = [
   { title: '原属仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: 'UUID', dataIndex: 'id', key: 'id', ellipsis: true },
 ];
-
-onMounted(() => {
-  itemStore.fetchItems({ status: 'loaned_out' });
-  warehouseStore.fetchWarehouses();
-  itemDefStore.fetchItemDefinitions();
-});
 
 const onSelectChange = (keys: string[]) => {
   selectedRowKeys.value = keys;
@@ -72,16 +79,23 @@ const handleReturn = () => {
     cancelText: '取消',
     onOk: async () => {
       try {
-        await itemStore.returnItems(selectedRowKeys.value);
+        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, 'return'));
+        await Promise.all(promises);
         message.success(`成功归还 ${selectedRowKeys.value.length} 件物品!`);
         selectedRowKeys.value = [];
-        itemStore.fetchItems({ status: 'loaned_out' });
+        itemStore.fetchItems({ status: 'LoanedOut' });
       } catch (error) {
         message.error('归还失败');
       }
     },
   });
 };
+
+onMounted(() => {
+  itemStore.fetchItems({ status: 'LoanedOut' });
+  warehouseStore.fetchWarehouses();
+  itemDefStore.fetchItemDefinitions();
+});
 </script>
 
 <style scoped>

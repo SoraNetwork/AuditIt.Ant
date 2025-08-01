@@ -2,7 +2,7 @@
   <div>
     <a-page-header :title="`物品详情: ${item?.shortId}`" @back="router.back()">
       <template #extra>
-        <a-tag :color="statusMap[item?.status || '']?.color">{{ statusMap[item?.status || '']?.text }}</a-tag>
+        <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
       </template>
     </a-page-header>
     <div class="page-container">
@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
+import { useItemStore, type Item } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
@@ -47,7 +47,12 @@ const itemDefStore = useItemDefinitionStore();
 
 const item = ref<Item | null>(null);
 
-const statusMap = STATUS_MAP;
+const statusDisplay = computed(() => {
+  if (item.value?.status) {
+    return STATUS_MAP[item.value.status] || { text: '未知', color: 'gray' };
+  }
+  return { text: '加载中...', color: 'gray' };
+});
 
 const itemName = computed(() => itemDefStore.itemDefinitions.find(d => d.id === item.value?.itemDefinitionId)?.name || '加载中...');
 const warehouseName = computed(() => warehouseStore.warehouses.find(w => w.id === item.value?.warehouseId)?.name || '加载中...');
@@ -61,7 +66,7 @@ onMounted(async () => {
   await itemStore.fetchItems({ id: itemId });
   if (itemStore.items.length > 0) {
     item.value = itemStore.items[0];
-    await auditLogStore.fetchLogs(itemId);
+    await auditLogStore.fetchLogs({ itemId });
   }
 });
 </script>

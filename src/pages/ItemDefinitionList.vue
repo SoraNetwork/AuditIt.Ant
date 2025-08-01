@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
+import { useItemDefinitionStore, type ItemDefinition, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import { message } from 'ant-design-vue';
@@ -57,16 +57,16 @@ const categoryStore = useCategoryStore();
 const itemDefFormRef = ref<InstanceType<typeof ItemDefinitionForm> | null>(null);
 
 const isModalVisible = ref(false);
-const editingId = ref<string | null>(null);
-const currentItemDef = ref<Partial<ItemDefinition> | null>(null);
+const editingId = ref<number | null>(null);
+const currentItemDef = ref<Partial<ItemDefinition>>({});
 
-const modalTitle = computed(() => (editingId.value ? '编辑物品定义' : '添加物品定义'));
+const modalTitle = computed(() => (editingId.value !== null ? '编辑物品定义' : '添加物品定义'));
 
 const categoryMap = computed(() => {
   return categoryStore.categories.reduce((map, cat) => {
     map[cat.id] = cat.name;
     return map;
-  }, {} as Record<string, string>);
+  }, {} as Record<number, string>);
 });
 
 const tableData = computed(() => {
@@ -96,7 +96,7 @@ const showEditModal = (itemDef: ItemDefinition) => {
   isModalVisible.value = true;
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   await itemDefStore.deleteItemDefinition(id);
   if (!itemDefStore.error) {
     message.success('物品定义删除成功');
@@ -110,14 +110,14 @@ const handleOk = async () => {
     const values = await itemDefFormRef.value?.validate();
     if (!values) return;
 
-    if (editingId.value) {
+    if (editingId.value !== null) {
       await itemDefStore.updateItemDefinition({ id: editingId.value, ...values });
     } else {
-      await itemDefStore.addItemDefinition(values);
+      await itemDefStore.addItemDefinition(values as CreateItemDefinitionPayload);
     }
 
     if (!itemDefStore.error) {
-      message.success(`物品定义${editingId.value ? '更新' : '添加'}成功`);
+      message.success(`物品定义${editingId.value !== null ? '更新' : '添加'}成功`);
       isModalVisible.value = false;
     } else {
       message.error(itemDefStore.error);

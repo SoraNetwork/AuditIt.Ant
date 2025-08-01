@@ -11,9 +11,9 @@
           </a-form-item>
           <a-form-item label="物品状态">
             <a-select v-model:value="filters.status" placeholder="所有状态" style="width: 150px" allow-clear>
-              <a-select-option value="in_stock">在库</a-select-option>
-              <a-select-option value="loaned_out">借出</a-select-option>
-              <a-select-option value="disposed">处置</a-select-option>
+              <a-select-option value="InStock">在库</a-select-option>
+              <a-select-option value="LoanedOut">借出</a-select-option>
+              <a-select-option value="Disposed">处置</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
@@ -35,7 +35,7 @@
                 <router-link :to="{ name: 'item-details', params: { id: record.id } }">{{ record.shortId }}</router-link>
               </template>
               <template v-if="column.key === 'status'">
-                <a-tag :color="statusMap[record.status]?.color">{{ statusMap[record.status]?.text || '未知' }}</a-tag>
+                <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
               </template>
             </template>
           </a-table>
@@ -54,10 +54,9 @@ import { reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { STATUS_MAP } from '../utils/constants';
-import { DownloadOutlined } from '@ant-design/icons-vue';
-import Papa from 'papaparse';
+import type { Warehouse } from '../stores/warehouseStore';
 
 const router = useRouter();
 
@@ -65,21 +64,36 @@ const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
 
-const filters = reactive<{ warehouseId?: string; status?: ItemStatus }>({
+const filters = reactive<{ warehouseId?: number; status?: ItemStatus }>({
   warehouseId: undefined,
   status: undefined,
 });
 
-const statusMap = STATUS_MAP;
+const statusDisplay = (status: ItemStatus) => {
+  return STATUS_MAP[status] || { text: '未知', color: 'gray' };
+};
 
-const itemDefMap = computed(() => itemDefStore.itemDefinitions.reduce((map, def) => ({ ...map, [def.id]: def }), {}));
-const warehouseMap = computed(() => warehouseStore.warehouses.reduce((map, wh) => ({ ...map, [wh.id]: wh }), {}));
+const itemDefMap = computed(() =>
+  itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
+    map[def.id] = def;
+    return map;
+  }, {})
+);
 
-const tableData = computed(() => itemStore.items.map(item => ({
-  ...item,
-  name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
-  warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
-})));
+const warehouseMap = computed(() =>
+  warehouseStore.warehouses.reduce((map: Record<number, Warehouse>, wh) => {
+    map[wh.id] = wh;
+    return map;
+  }, {})
+);
+
+const tableData = computed(() =>
+  itemStore.items.map(item => ({
+    ...item,
+    name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
+    warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
+  }))
+);
 
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
@@ -97,29 +111,14 @@ onMounted(() => {
 });
 
 const applyFilters = () => {
-  itemStore.fetchItems({ ...filters });
-};
-
-const handleExport = () => {
-  const dataToExport = tableData.value.map(item => ({
-    '可视化ID': item.shortId,
-    '物品名称': item.name,
-    '所在仓库': item.warehouseName,
-    '状态': statusMap[item.status]?.text || item.status,
-    '最后更新': item.lastUpdated,
-    'UUID': item.id,
-  }));
-
-  const csv = Papa.unparse(dataToExport);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `inventory_export_${new Date().toISOString()}.csv`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const queryFilters: { warehouseId?: number; status?: ItemStatus } = {};
+  if (filters.warehouseId) {
+    queryFilters.warehouseId = Number(filters.warehouseId);
+  }
+  if (filters.status) {
+    queryFilters.status = filters.status;
+  }
+  itemStore.fetchItems(queryFilters);
 };
 </script>
 

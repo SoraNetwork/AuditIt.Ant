@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useWarehouseStore, type Warehouse } from '../stores/warehouseStore';
+import { useWarehouseStore, type Warehouse, type CreateWarehousePayload } from '../stores/warehouseStore';
 import WarehouseForm from '../components/WarehouseForm.vue';
 import { message } from 'ant-design-vue';
 
@@ -57,10 +57,10 @@ const warehouseStore = useWarehouseStore();
 const warehouseFormRef = ref<InstanceType<typeof WarehouseForm> | null>(null);
 
 const isModalVisible = ref(false);
-const editingId = ref<string | null>(null);
-const currentWarehouse = ref<Partial<Warehouse> | null>(null);
+const editingId = ref<number | null>(null);
+const currentWarehouse = ref<Partial<Warehouse>>({});
 
-const modalTitle = computed(() => (editingId.value ? '编辑仓库' : '添加仓库'));
+const modalTitle = computed(() => (editingId.value !== null ? '编辑仓库' : '添加仓库'));
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
@@ -82,7 +82,7 @@ const showEditModal = (warehouse: Warehouse) => {
   isModalVisible.value = true;
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   await warehouseStore.deleteWarehouse(id);
   if (!warehouseStore.error) {
     message.success('仓库删除成功');
@@ -96,14 +96,14 @@ const handleOk = async () => {
     const values = await warehouseFormRef.value?.validate();
     if (!values) return;
 
-    if (editingId.value) {
+    if (editingId.value !== null) {
       await warehouseStore.updateWarehouse({ id: editingId.value, ...values });
     } else {
-      await warehouseStore.addWarehouse(values);
+      await warehouseStore.addWarehouse(values as CreateWarehousePayload);
     }
 
     if (!warehouseStore.error) {
-      message.success(`仓库${editingId.value ? '更新' : '添加'}成功`);
+      message.success(`仓库${editingId.value !== null ? '更新' : '添加'}成功`);
       isModalVisible.value = false;
     } else {
       message.error(warehouseStore.error);

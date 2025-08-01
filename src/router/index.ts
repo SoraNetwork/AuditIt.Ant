@@ -82,7 +82,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   // 在路由守卫外部获取 store 实例
   const authStore = useAuthStore();
   const isAuthenticated = authStore.isAuthenticated;
