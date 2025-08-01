@@ -1,16 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { useUiStore } from '../stores/uiStore'; // 导入 UI store
 
 const routes = [
   {
     path: '/login',
     name: 'login',
     component: () => import('../pages/Login.vue'),
+    meta: { title: '登录' },
   },
   {
     path: '/dingtalk-oauth',
     name: 'dingtalk-oauth',
     component: () => import('../pages/DingtalkOAuth.vue'),
+    meta: { title: '钉钉授权' },
   },
   {
     path: '/',
@@ -22,56 +25,67 @@ const routes = [
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('../pages/Dashboard.vue'),
+        meta: { title: '仪表盘' },
       },
       {
         path: 'inventory',
         name: 'inventory',
         component: () => import('../pages/InventoryView.vue'),
+        meta: { title: '库存总览' },
       },
       {
         path: 'inventory/:id',
         name: 'item-details',
         component: () => import('../pages/ItemDetails.vue'),
+        meta: { title: '物品详情' },
       },
       {
         path: 'warehouses',
         name: 'warehouses',
         component: () => import('../pages/WarehouseList.vue'),
+        meta: { title: '仓库管理' },
       },
       {
         path: 'categories',
         name: 'categories',
         component: () => import('../pages/CategoryList.vue'),
+        meta: { title: '分类管理' },
       },
       {
         path: 'item-definitions',
         name: 'item-definitions',
         component: () => import('../pages/ItemDefinitionList.vue'),
+        meta: { title: '物品定义' },
       },
       {
         path: 'inbound',
         name: 'inbound',
         component: () => import('../pages/Inbound.vue'),
+        meta: { title: '入库' },
       },
       {
         path: 'outbound',
         name: 'outbound',
         component: () => import('../pages/Outbound.vue'),
+        meta: { title: '出库' },
       },
       {
         path: 'check',
         name: 'check',
         component: () => import('../pages/Check.vue'),
+        meta: { title: '盘点' },
       },
       {
         path: 'return',
         name: 'return',
         component: () => import('../pages/Return.vue'),
+        meta: { title: '归还' },
       },
       {
         path: 'audit-log',
         name: 'audit-log',
         component: () => import('../pages/AuditLogView.vue'),
+        meta: { title: '审计日志' },
       },
     ],
   },
@@ -83,20 +97,30 @@ const router = createRouter({
 });
 
 router.beforeEach((to, _from, next) => {
-  // 在路由守卫外部获取 store 实例
   const authStore = useAuthStore();
+  const uiStore = useUiStore();
+  uiStore.startLoading(); // 开始加载
+
   const isAuthenticated = authStore.isAuthenticated;
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    // 如果目标路由需要认证但用户未登录，则重定向到登录页
     next({ name: 'login' });
   } else if (to.name === 'login' && isAuthenticated) {
-    // 如果用户已登录，但试图访问登录页，则重定向到首页
     next({ path: '/' });
   } else {
-    // 其他情况正常放行
     next();
   }
+});
+
+router.afterEach((to) => {
+  const uiStore = useUiStore();
+  // 更新页面标题
+  if (to.meta.title) {
+    document.title = `盘一个库 | ${to.meta.title}`;
+  } else {
+    document.title = '盘一个库';
+  }
+  uiStore.stopLoading(); // 结束加载
 });
 
 export default router;
