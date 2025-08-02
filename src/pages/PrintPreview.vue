@@ -112,24 +112,36 @@ onMounted(async () => {
   /* Remove screen-only styles */
   .print-container {
     padding: 0;
+    margin: 0;
     background-color: transparent;
   }
   
   .label-wrapper {
     border: none;
-    width: 40mm;
-    height: 30mm;
+    width: 30mm;
+    height: 40mm;
     page-break-after: always; /* Ensure each label is on a new page */
     overflow: hidden;
+    position: relative;
   }
 
   .label {
-    width: 100%;
-    height: 100%;
+    /* This is the content block, sized for landscape 40x30 */
+    width: 40mm;
+    height: 30mm;
+    
+    /* Rotate and position it */
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+    transform: rotate(-90deg) translateY(-30mm);
+
+    /* General styling */
     padding: 2mm;
     box-sizing: border-box;
     display: flex;
-    flex-direction: row; /* Changed to row for landscape */
+    flex-direction: row;
     align-items: center;
     justify-content: flex-start;
     font-family: 'SimSun', 'Songti SC', serif;
@@ -146,8 +158,8 @@ onMounted(async () => {
   }
   
   .qr-code canvas {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .details {
@@ -165,9 +177,8 @@ onMounted(async () => {
     font-weight: bold;
     margin: 0;
     line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal; /* Allow wrapping */
+    word-break: break-all;
   }
 
   .details p {
@@ -175,6 +186,7 @@ onMounted(async () => {
     margin: auto 0;
     word-break: break-all;
     line-height: 1.2;
+    white-space: normal; /* Allow wrapping */
   }
   
   .remarks {
@@ -184,7 +196,7 @@ onMounted(async () => {
 }
 
 @page {
-  size: 40mm 30mm; /* Changed to landscape */
+  size: 30mm 40mm; /* Portrait orientation */
   margin: 0;
 }
 </style>

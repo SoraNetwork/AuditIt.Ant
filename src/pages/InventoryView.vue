@@ -100,6 +100,7 @@ const columns = [
   { title: '物品名称', dataIndex: 'name', key: 'name' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: '状态', dataIndex: 'status', key: 'status' },
+  { title: '备注', dataIndex: 'remarks', key: 'remarks' },
   { title: '最后更新', dataIndex: 'lastUpdated', key: 'lastUpdated' },
   { title: 'UUID', dataIndex: 'id', key: 'id' },
 ];
