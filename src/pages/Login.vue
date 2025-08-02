@@ -106,13 +106,13 @@ const redirectToDingtalkSSO = () => {
   const clientId = import.meta.env.VITE_DINGTALK_APP_KEY;
 
   if (!clientId) {
-    message.error('钉钉应用 AppKey 未在 .env.local 中配置');
+    message.error('钉钉应用 AppKey (ClientId) 未在 .env.local 中配置');
     loading.value = false;
     return;
   }
 
-  // 回调地址就是当前的登录页
   const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+  // Correct URL and parameters for corporate web login
   const oauthUrl = `https://login.dingtalk.com/oauth2/auth?redirect_uri=${redirectUri}&response_type=code&client_id=${clientId}&scope=openid&state=STATE&prompt=consent`;
   
   window.location.href = oauthUrl;
