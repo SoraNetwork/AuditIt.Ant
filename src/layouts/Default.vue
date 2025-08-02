@@ -20,9 +20,12 @@
           <router-link to="/categories"><appstore-outlined /><span>分类管理</span></router-link>
         </a-menu-item>
         <a-menu-item key="item-definitions">
-          <router-link to="/item-definitions"><appstore-outlined /><span>物品定义</span></router-link>
-        </a-menu-item>
-        <a-sub-menu key="sub1">
+            <router-link to="/item-definitions"><appstore-outlined /><span>物品定义</span></router-link>
+          </a-menu-item>
+          <a-menu-item key="item-creation">
+            <router-link to="/item-creation"><plus-circle-outlined /><span>物品录入</span></router-link>
+          </a-menu-item>
+          <a-sub-menu key="sub1">
           <template #title>
             <span><swap-outlined /><span>库存操作</span></span>
           </template>
@@ -69,6 +72,7 @@ import {
   ArrowLeftOutlined,
   LogoutOutlined,
   FileSearchOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons-vue';
 
 const collapsed = ref<boolean>(false);

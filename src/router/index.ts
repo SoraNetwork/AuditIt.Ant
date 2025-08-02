@@ -9,7 +9,12 @@ const routes = [
     component: () => import('../pages/Login.vue'),
     meta: { title: '登录' },
   },
-  
+  {
+    path: '/print-preview',
+    name: 'print-preview',
+    component: () => import('../pages/PrintPreview.vue'),
+    meta: { title: '打印预览' },
+  },
   {
     path: '/',
     component: () => import('../layouts/Default.vue'),
@@ -51,6 +56,12 @@ const routes = [
         name: 'item-definitions',
         component: () => import('../pages/ItemDefinitionList.vue'),
         meta: { title: '物品定义' },
+      },
+      {
+        path: 'item-creation',
+        name: 'item-creation',
+        component: () => import('../pages/ItemCreation.vue'),
+        meta: { title: '物品录入' },
       },
       {
         path: 'inbound',
@@ -101,7 +112,7 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'login' });
   } else if (to.name === 'login' && isAuthenticated) {
-    next({ path: '/' });
+    next({ path: '/dashboard' });
   } else {
     next();
   }
