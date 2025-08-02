@@ -1,1 +1,1 @@
-fix(auth): Correct web SSO redirect URL and add dependency
+fix(ui): Fix global loading overlay
