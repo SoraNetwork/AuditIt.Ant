@@ -107,7 +107,7 @@ const handleDelete = async (id: number) => {
 
 const handleOk = async () => {
   try {
-    const values = await itemDefFormRef.value?.validate();
+    const values = await itemDefFormRef.value?.validateFields();
     if (!values) return;
 
     if (editingId.value !== null) {

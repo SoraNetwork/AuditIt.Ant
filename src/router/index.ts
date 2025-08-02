@@ -57,12 +57,7 @@ const routes = [
         component: () => import('../pages/ItemDefinitionList.vue'),
         meta: { title: '物品定义' },
       },
-      {
-        path: 'item-creation',
-        name: 'item-creation',
-        component: () => import('../pages/ItemCreation.vue'),
-        meta: { title: '物品录入' },
-      },
+      
       {
         path: 'inbound',
         name: 'inbound',

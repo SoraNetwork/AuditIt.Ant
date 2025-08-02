@@ -47,6 +47,7 @@ export const useItemDefinitionStore = defineStore('itemDefinition', {
         const response = await apiClient.post<ItemDefinition>('/itemDefinitions', itemDefPayload);
         // Add the new definition to the top of the list
         this.itemDefinitions.unshift(response.data);
+        return response.data; // Return the newly created item definition
       } catch (err: any) {
         this.error = 'Failed to add item definition: ' + (err.response?.data?.message || err.message);
         console.error(err);

@@ -79,13 +79,18 @@ onMounted(() => {
   }
 });
 
-const validate = async () => {
+const validateFields = async () => {
   if (!formRef.value) return;
   await formRef.value.validate();
   return toRaw(formState);
 };
 
+const resetFields = () => {
+  formRef.value?.resetFields();
+};
+
 defineExpose({
-  validate,
+  validateFields,
+  resetFields,
 });
 </script>
