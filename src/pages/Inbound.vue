@@ -203,9 +203,7 @@ const handleQuickInbound = async () => {
     if (quickFormState.remarks) formData.append('remarks', quickFormState.remarks);
     if (quickFormState.photo) formData.append('photo', quickFormState.photo);
     
-    await apiClient.post('/items/create', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    await apiClient.post('/items/create', formData);
     message.success(`物品 ${quickFormState.shortId} 已成功入库!`);
     resetQuickForm();
   } catch (error) {
