@@ -51,7 +51,7 @@ const formRef = ref<FormInstance>();
 const formState = reactive<Partial<ItemDefinition>>({
   name: '',
   categoryId: undefined,
-  unit: '',
+  unit: '个',
   description: '',
 });
 
