@@ -37,6 +37,7 @@
 import { reactive, onMounted, computed } from 'vue';
 import { useAuditLogStore, type AuditLog } from '../stores/auditLogStore';
 import dayjs from 'dayjs';
+import { formatDateTime } from '../utils/formatters';
 
 const auditLogStore = useAuditLogStore();
 
@@ -62,7 +63,14 @@ const filteredLogs = computed(() => {
 });
 
 const columns = [
-  { title: '时间', dataIndex: 'timestamp', key: 'timestamp', sorter: (a: AuditLog, b: AuditLog) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(), defaultSortOrder: 'descend' },
+  { 
+    title: '时间', 
+    dataIndex: 'timestamp', 
+    key: 'timestamp', 
+    sorter: (a: AuditLog, b: AuditLog) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(), 
+    defaultSortOrder: 'descend',
+    customRender: ({ text }: { text: string }) => formatDateTime(text),
+  },
   { title: '操作类型', dataIndex: 'action', key: 'action' },
   { title: '物品名称', dataIndex: 'itemName', key: 'itemName' },
   { title: '可视化ID', dataIndex: 'itemShortId', key: 'itemShortId' },

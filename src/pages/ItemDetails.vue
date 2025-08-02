@@ -13,7 +13,7 @@
               <a-descriptions-item label="物品名称">{{ itemName }}</a-descriptions-item>
               <a-descriptions-item label="所属仓库">{{ warehouseName }}</a-descriptions-item>
               <a-descriptions-item label="可视化ID">{{ item?.shortId }}</a-descriptions-item>
-              <a-descriptions-item label="最后更新">{{ item?.lastUpdated }}</a-descriptions-item>
+              <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
               <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '无' }}</a-descriptions-item>
               <a-descriptions-item label="UUID" :span="2">{{ item?.id }}</a-descriptions-item>
             </a-descriptions>
@@ -52,6 +52,7 @@ import { useAuditLogStore } from '../stores/auditLogStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { STATUS_MAP } from '../utils/constants';
+import { formatDateTime } from '../utils/formatters';
 import apiClient from '../services/api';
 
 const route = useRoute();

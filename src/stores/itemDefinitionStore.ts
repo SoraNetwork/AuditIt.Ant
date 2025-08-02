@@ -32,7 +32,8 @@ export const useItemDefinitionStore = defineStore('itemDefinition', {
       this.error = null;
       try {
         const response = await apiClient.get<ItemDefinition[]>('/itemDefinitions');
-        this.itemDefinitions = response.data;
+        // Sort by ID descending (newest first)
+        this.itemDefinitions = response.data.sort((a, b) => b.id - a.id);
       } catch (err: any) {
         this.error = 'Failed to fetch item definitions: ' + (err.response?.data?.message || err.message);
         console.error(err);

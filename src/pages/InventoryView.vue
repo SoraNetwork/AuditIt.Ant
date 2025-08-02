@@ -56,6 +56,7 @@ import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { STATUS_MAP } from '../utils/constants';
+import { formatDateTime } from '../utils/formatters';
 import type { Warehouse } from '../stores/warehouseStore';
 
 const router = useRouter();
@@ -101,7 +102,12 @@ const columns = [
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: '状态', dataIndex: 'status', key: 'status' },
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
-  { title: '最后更新', dataIndex: 'lastUpdated', key: 'lastUpdated' },
+  { 
+    title: '最后更新', 
+    dataIndex: 'lastUpdated', 
+    key: 'lastUpdated',
+    customRender: ({ text }: { text: string }) => formatDateTime(text),
+  },
   { title: 'UUID', dataIndex: 'id', key: 'id' },
 ];
 
