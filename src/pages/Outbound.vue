@@ -9,6 +9,9 @@
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
+          <a-form-item label="搜索">
+            <a-input-search v-model:value="searchText" placeholder="按名称或短ID搜索" style="width: 200px" allow-clear />
+          </a-form-item>
         </a-form>
 
         <a-divider />
@@ -24,14 +27,14 @@
           </a-space>
 
           <a-table
-            v-if="!itemStore.loading && tableData.length > 0"
+            v-if="!itemStore.loading"
             :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
             :columns="columns"
-            :data-source="tableData"
+            :data-source="filteredData"
             :loading="itemStore.loading"
             row-key="id"
           />
-          <a-empty v-if="!itemStore.loading && tableData.length === 0" description="该仓库中没有在库物品可供出库" />
+          <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该仓库中没有符合条件的在库物品" />
         </div>
         <a-empty v-else description="请先选择一个仓库以加载物品" />
       </a-card>
@@ -43,40 +46,43 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
-import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { message, Modal } from 'ant-design-vue';
 
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
-const itemDefStore = useItemDefinitionStore();
 
 const filterState = reactive<{ warehouseId: number | undefined }>({ warehouseId: undefined });
+const searchText = ref('');
 const selectedRowKeys = ref<string[]>([]);
 
-const itemDefMap = computed(() =>
-  itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
-    map[def.id] = def;
-    return map;
-  }, {})
-);
-
-const tableData = computed(() =>
+const tableData = computed(() => 
   itemStore.items.map(item => ({
     ...item,
-    name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
-    shortId: item.shortId,
+    name: item.itemDefinition?.name || '未知物品',
+    warehouseName: item.warehouse?.name || '未知仓库',
   }))
 );
+
+const filteredData = computed(() => {
+  if (!searchText.value) {
+    return tableData.value;
+  }
+  const lowerCaseQuery = searchText.value.toLowerCase();
+  return tableData.value.filter(item => 
+    (item.name && item.name.toLowerCase().includes(lowerCaseQuery)) ||
+    (item.shortId && item.shortId.toLowerCase().includes(lowerCaseQuery))
+  );
+});
 
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
   { title: '物品名称', dataIndex: 'name', key: 'name' },
-  { title: 'UUID', dataIndex: 'id', key: 'id', ellipsis: true },
+  { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
+  { title: '备注', dataIndex: 'remarks', key: 'remarks' },
 ];
 
 onMounted(() => {
   warehouseStore.fetchWarehouses();
-  itemDefStore.fetchItemDefinitions();
 });
 
 const loadItems = () => {
@@ -86,6 +92,7 @@ const loadItems = () => {
     itemStore.items = [];
   }
   selectedRowKeys.value = [];
+  searchText.value = ''; // Reset search on warehouse change
 };
 
 const onSelectChange = (keys: string[]) => {
