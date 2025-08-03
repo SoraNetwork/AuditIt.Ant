@@ -88,6 +88,12 @@ const routes = [
         component: () => import('../pages/AuditLogView.vue'),
         meta: { title: '审计日志' },
       },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('../pages/Profile.vue'),
+        meta: { title: '我的' },
+      },
     ],
   },
 ];

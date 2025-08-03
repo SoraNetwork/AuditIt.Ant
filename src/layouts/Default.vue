@@ -35,6 +35,9 @@
         <a-menu-item key="audit-log">
           <router-link to="/audit-log"><file-search-outlined /><span>审计日志</span></router-link>
         </a-menu-item>
+        <a-menu-item key="profile">
+          <router-link to="/profile"><user-outlined /><span>我的</span></router-link>
+        </a-menu-item>
          <a-menu-item key="logout" @click="handleLogout">
           <logout-outlined />
           <span>退出登录</span>
@@ -70,6 +73,7 @@ import {
   ArrowLeftOutlined,
   LogoutOutlined,
   FileSearchOutlined,
+  UserOutlined,
 } from '@ant-design/icons-vue';
 
 const collapsed = ref<boolean>(false);
