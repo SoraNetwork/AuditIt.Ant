@@ -40,6 +40,12 @@ const routes = [
         meta: { title: '物品详情' },
       },
       {
+        path: 'inventory/edit/:id',
+        name: 'item-edit',
+        component: () => import('../pages/ItemEdit.vue'),
+        meta: { title: '编辑物品' },
+      },
+      {
         path: 'warehouses',
         name: 'warehouses',
         component: () => import('../pages/WarehouseList.vue'),
@@ -75,6 +81,12 @@ const routes = [
         name: 'check',
         component: () => import('../pages/Check.vue'),
         meta: { title: '盘点' },
+      },
+      {
+        path: 'check-analysis',
+        name: 'check-analysis',
+        component: () => import('../pages/CheckAnalysis.vue'),
+        meta: { title: '盘点分析' },
       },
       {
         path: 'return',

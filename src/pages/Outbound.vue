@@ -43,10 +43,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
-import { message, Modal } from 'ant-design-vue';
+import { message, Modal, Input } from 'ant-design-vue';
 
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
@@ -103,14 +103,27 @@ const hasSelected = computed(() => selectedRowKeys.value.length > 0);
 
 const showOutboundModal = (action: 'outbound' | 'dispose') => {
   const actionText = action === 'outbound' ? '借出' : '处置';
+  let destination: string | undefined = undefined;
+
   Modal.confirm({
     title: `确认${actionText}`,
-    content: `您确定要将选中的 ${selectedRowKeys.value.length} 件物品状态更新为 "${actionText}" 吗？`,
+    content: h('div', [
+      h('p', `您确定要将选中的 ${selectedRowKeys.value.length} 件物品状态更新为 "${actionText}" 吗？`),
+      h(Input, {
+        placeholder: '请输入目的地（例如：借给某人，或处置原因）',
+        onChange: (e) => { destination = e.target.value; },
+        style: { marginTop: '16px' }
+      })
+    ]),
     okText: '确认',
     cancelText: '取消',
     onOk: async () => {
+      if (!destination) {
+        message.error('目的地不能为空');
+        return Promise.reject();
+      }
       try {
-        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action));
+        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action, destination));
         await Promise.all(promises);
         message.success(`成功${actionText} ${selectedRowKeys.value.length} 件物品!`);
         selectedRowKeys.value = [];

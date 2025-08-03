@@ -12,6 +12,7 @@ export interface AuditLog {
   warehouseId: number;
   warehouseName: string;
   user: string;
+  destination?: string;
 }
 
 interface AuditLogState {

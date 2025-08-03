@@ -30,6 +30,7 @@
           <a-menu-item key="inbound"><router-link to="/inbound"><arrow-left-outlined /> 入库</router-link></a-menu-item>
           <a-menu-item key="outbound"><router-link to="/outbound"><arrow-right-outlined /> 出库</router-link></a-menu-item>
           <a-menu-item key="check"><router-link to="/check"><check-circle-outlined /> 盘点</router-link></a-menu-item>
+          <a-menu-item key="check-analysis"><router-link to="/check-analysis"><file-sync-outlined /> 盘点分析</router-link></a-menu-item>
           <a-menu-item key="return"><router-link to="/return"><undo-outlined /> 归还</router-link></a-menu-item>
         </a-sub-menu>
         <a-menu-item key="audit-log">
@@ -74,6 +75,7 @@ import {
   LogoutOutlined,
   FileSearchOutlined,
   UserOutlined,
+  FileSyncOutlined,
 } from '@ant-design/icons-vue';
 
 const collapsed = ref<boolean>(false);

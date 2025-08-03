@@ -2,6 +2,7 @@
   <div>
     <a-page-header :title="`物品详情: ${item?.shortId}`" @back="router.back()">
       <template #extra>
+        <a-button @click="() => router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
         <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
       </template>
     </a-page-header>
@@ -14,6 +15,9 @@
               <a-descriptions-item label="所属仓库">{{ warehouseName }}</a-descriptions-item>
               <a-descriptions-item label="可视化ID">{{ item?.shortId }}</a-descriptions-item>
               <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
+              <a-descriptions-item label="当前去向" :span="2" v-if="item?.status === 'LoanedOut' || item?.status === 'Disposed'">
+                {{ item?.currentDestination || '无' }}
+              </a-descriptions-item>
               <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '无' }}</a-descriptions-item>
               <a-descriptions-item label="UUID" :span="2">{{ item?.id }}</a-descriptions-item>
             </a-descriptions>
@@ -34,9 +38,10 @@
       <a-card title="生命周期日志" style="margin-top: 16px;">
         <a-timeline>
           <a-timeline-item v-for="log in auditLogStore.logs" :key="log.id">
-            <p><strong>{{ log.action }}</strong> - {{ log.timestamp }}</p>
+            <p><strong>{{ log.action }}</strong> - {{ formatDateTime(log.timestamp) }}</p>
             <p>操作人: {{ log.user }}</p>
             <p>仓库: {{ log.warehouseName }}</p>
+            <p v-if="log.destination">目的地/原因: {{ log.destination }}</p>
           </a-timeline-item>
         </a-timeline>
       </a-card>

@@ -147,14 +147,15 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
+import { useItemStore } from '../stores/itemStore';
 import { message, type UploadProps, type FormInstance } from 'ant-design-vue';
-import apiClient from '../services/api';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 
 // Stores
 const itemDefinitionStore = useItemDefinitionStore();
 const warehouseStore = useWarehouseStore();
+const itemStore = useItemStore();
 
 // Common State
 const activeTab = ref('quick');
@@ -200,14 +201,13 @@ const quickInbound = async () => {
   try {
     await quickFormRef.value?.validate();
     isSaving.value = true;
-    const formData = new FormData();
-    formData.append('shortId', quickFormState.shortId);
-    formData.append('itemDefinitionId', String(quickFormState.itemDefinitionId!));
-    formData.append('warehouseId', String(quickFormState.warehouseId!));
-    if (quickFormState.remarks) formData.append('remarks', quickFormState.remarks);
-    if (quickFormState.photo) formData.append('photo', quickFormState.photo);
-    
-    await apiClient.post('/items/create', formData);
+    await itemStore.createItem({
+      shortId: quickFormState.shortId,
+      itemDefinitionId: quickFormState.itemDefinitionId!,
+      warehouseId: quickFormState.warehouseId!,
+      remarks: quickFormState.remarks,
+      photo: quickFormState.photo,
+    });
     message.success(`物品 ${quickFormState.shortId} 已成功入库!`);
     resetQuickForm();
   } catch (error) {
@@ -274,14 +274,13 @@ const saveAndExport = async () => {
   const savedItems = [];
   try {
     for (const item of exportList.value) {
-      const formData = new FormData();
-      formData.append('itemDefinitionId', String(item.itemDefinitionId));
-      formData.append('warehouseId', String(item.warehouseId));
-      if (item.remarks) formData.append('remarks', item.remarks);
-      if (item.photo) formData.append('photo', item.photo);
-      
-      const response = await apiClient.post('/items/create', formData);
-      savedItems.push(response.data);
+      const savedItem = await itemStore.createItem({
+        itemDefinitionId: item.itemDefinitionId,
+        warehouseId: item.warehouseId,
+        remarks: item.remarks,
+        photo: item.photo,
+      });
+      savedItems.push(savedItem);
     }
     message.success(`${exportList.value.length}个新物品已成功保存!`);
     

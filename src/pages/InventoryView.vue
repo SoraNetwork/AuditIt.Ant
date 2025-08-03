@@ -101,6 +101,7 @@ const columns = [
   { title: '物品名称', dataIndex: 'name', key: 'name' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: '状态', dataIndex: 'status', key: 'status' },
+  { title: '当前去向', dataIndex: 'currentDestination', key: 'currentDestination' },
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
   { 
     title: '最后更新', 
