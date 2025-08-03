@@ -109,7 +109,6 @@ const columns = [
     key: 'lastUpdated',
     customRender: ({ text }: { text: string }) => formatDateTime(text),
   },
-  { title: 'UUID', dataIndex: 'id', key: 'id' },
 ];
 
 onMounted(() => {
