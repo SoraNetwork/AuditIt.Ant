@@ -29,6 +29,7 @@ interface CreateItemPayload {
 interface UpdateItemPayload {
   remarks?: string;
   photo?: File | null;
+  deletePhoto?: boolean;
 }
 
 
@@ -91,12 +92,31 @@ export const useItemStore = defineStore('item', {
       this.error = null;
       try {
         const formData = new FormData();
-        if (payload.remarks) formData.append('remarks', payload.remarks);
-        if (payload.photo) formData.append('photo', payload.photo);
+        // Always send remarks, even if empty, to allow clearing it.
+        formData.append('remarks', payload.remarks || '');
+
+        if (payload.photo) {
+          formData.append('photo', payload.photo);
+        } else if (payload.deletePhoto) {
+          formData.append('deletePhoto', 'true');
+        }
 
         await apiClient.put(`/items/${itemId}`, formData);
-        // Refetch the single item to update the list
+        
+        // Find the item in the store to update it directly
+        const index = this.items.findIndex(i => i.id === itemId);
+        if (index !== -1) {
+          // For a more responsive UI, optimistically update the item
+          // A full refetch might be safer but slower.
+          const updatedItem = { ...this.items[index], ...payload };
+          if (payload.deletePhoto) updatedItem.photoUrl = undefined;
+          // Note: photoUrl won't be updated client-side without a refetch or more complex logic
+          this.items[index] = updatedItem;
+        }
+        
+        // Refetch the single item to get the latest state from server (e.g., new photoUrl)
         await this.fetchItems({ id: itemId });
+
       } catch (err: any) {
         this.error = '更新物品失败: ' + (err.response?.data?.message || err.message);
         throw err;

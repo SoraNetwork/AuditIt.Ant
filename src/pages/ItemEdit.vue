@@ -20,12 +20,15 @@
                 <div style="margin-top: 8px">上传</div>
               </div>
             </a-upload>
-            <p>当前照片:</p>
-            <a-image v-if="item.photoUrl" :width="100" :src="photoFullUrl" />
-            <a-empty v-else description="暂无照片" />
+            <div v-if="currentPhotoUrl && !isPhotoDeleted">
+              <p>当前照片:</p>
+              <a-image :width="100" :src="currentPhotoUrl" />
+              <a-button type="link" danger @click="handleDeletePhoto">删除照片</a-button>
+            </div>
+             <a-empty v-if="!currentPhotoUrl && !fileList?.length" description="暂无照片" />
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" html-type="submit" :loading="itemStore.loading">
+            <a-button type="primary" html-type="submit" :loading="itemStore.loading || isCompressing">
               保存更改
             </a-button>
           </a-form-item>
@@ -43,6 +46,7 @@ import { useItemStore, type Item } from '../stores/itemStore';
 import { message, type UploadProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
+import imageCompression from 'browser-image-compression';
 
 const route = useRoute();
 const router = useRouter();
@@ -53,17 +57,30 @@ const formState = reactive<{ remarks: string; photo?: File }>({
   remarks: '',
 });
 const fileList = ref<UploadProps['fileList']>([]);
+const isPhotoDeleted = ref(false);
+const isCompressing = ref(false);
 
-const photoFullUrl = computed(() => {
+const currentPhotoUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
-  const baseUrl = (apiClient.defaults.baseURL || '').replace(/\/api$/, '');
-  return `${baseUrl}${item.value.photoUrl}`;
+  try {
+    const apiUrl = new URL(apiClient.defaults.baseURL || window.location.origin);
+    const rootUrl = new URL(apiUrl.origin);
+    return new URL(item.value.photoUrl, rootUrl).href;
+  } catch (e) {
+    console.error("Invalid URL:", e);
+    return item.value.photoUrl;
+  }
 });
 
 onMounted(async () => {
   const itemId = route.params.id as string;
-  await itemStore.fetchItems({ id: itemId });
-  const foundItem = itemStore.items.find(i => i.id === itemId);
+  // Use find directly on the store if items are already there, otherwise fetch
+  let foundItem = itemStore.items.find(i => i.id === itemId);
+  if (!foundItem) {
+      await itemStore.fetchItems({ id: itemId });
+      foundItem = itemStore.items.find(i => i.id === itemId);
+  }
+
   if (foundItem) {
     item.value = foundItem;
     formState.remarks = foundItem.remarks || '';
@@ -73,24 +90,52 @@ onMounted(async () => {
   }
 });
 
-const handleFileChange = (info: any) => {
-  // 只保留最新上传的文件
+const handleFileChange = async (info: any) => {
   fileList.value = info.fileList.slice(-1);
   
-  if (fileList.value && fileList.value.length > 0) {
-    // 获取原生File对象
-    formState.photo = fileList.value[0].originFileObj;
+  if (fileList.value && fileList.value.length > 0 && fileList.value[0].originFileObj) {
+    isCompressing.value = true;
+    message.loading({ content: '正在压缩图片...', key: 'compressing' });
+    try {
+      const file = fileList.value[0].originFileObj;
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
+      formState.photo = compressedFile;
+      isPhotoDeleted.value = false; // A new file is selected, so we are not deleting.
+      message.success({ content: '图片压缩成功!', key: 'compressing', duration: 2 });
+    } catch (error) {
+      message.error({ content: '图片压缩失败!', key: 'compressing', duration: 2 });
+      console.error(error);
+      formState.photo = undefined;
+      fileList.value = [];
+    } finally {
+      isCompressing.value = false;
+    }
   } else {
     formState.photo = undefined;
   }
+};
+
+const handleDeletePhoto = () => {
+  isPhotoDeleted.value = true;
+  fileList.value = []; // Clear the upload list
+  formState.photo = undefined;
+  message.info('照片已标记为删除。保存后生效。');
 };
 
 const handleSave = async () => {
   if (!item.value) return;
   
   try {
-    
-    await itemStore.updateItem(item.value.id, formState);
+    await itemStore.updateItem(item.value.id, {
+      remarks: formState.remarks,
+      photo: formState.photo,
+      deletePhoto: isPhotoDeleted.value,
+    });
     message.success('物品信息已更新');
     router.back();
   } catch (error) {

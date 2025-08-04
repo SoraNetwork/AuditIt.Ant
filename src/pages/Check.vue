@@ -93,6 +93,9 @@ const isLoading = ref(false);
 const scannedItems = ref<ScannedItem[]>([]);
 const scannedIds = new Set<string>();
 
+const lastProcessedId = ref<string | null>(null);
+const lastProcessedTime = ref<number>(0);
+
 const stats = reactive({
   success: 0,
   failed: 0,
@@ -105,8 +108,20 @@ const failSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAAD
 
 
 const handleSingleCheck = async () => {
-  const shortId = currentShortId.value.trim();
-  if (!shortId) return;
+  const now = Date.now();
+  const shortIdValue = currentShortId.value.trim();
+
+  if (!shortIdValue) return;
+
+  // Prevent rapid duplicate submissions from scanner
+  if (shortIdValue === lastProcessedId.value && now - lastProcessedTime.value < 500) {
+    return;
+  }
+  
+  lastProcessedId.value = shortIdValue;
+  lastProcessedTime.value = now;
+  
+  const shortId = shortIdValue;
 
   isLoading.value = true;
 
