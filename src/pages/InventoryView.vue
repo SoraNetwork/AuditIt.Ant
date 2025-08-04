@@ -4,20 +4,23 @@
     <div class="page-container">
       <a-card>
         <a-form layout="inline" :model="filters" @finish="applyFilters" class="filter-form">
+          <a-form-item label="搜索">
+            <a-input v-model:value="filters.searchTerm" placeholder="搜索ID或名称" style="width: 200px" allow-clear />
+          </a-form-item>
           <a-form-item label="仓库">
-            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" style="width: 180px" allow-clear>
+            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" style="width: 180px" @change="applyFilters" allow-clear>
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="物品状态">
-            <a-select v-model:value="filters.status" placeholder="所有状态" style="width: 150px" allow-clear>
+            <a-select v-model:value="filters.status" placeholder="所有状态" style="width: 150px" @change="applyFilters" allow-clear>
               <a-select-option value="InStock">在库</a-select-option>
               <a-select-option value="LoanedOut">借出</a-select-option>
               <a-select-option value="Disposed">处置</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" html-type="submit">查询</a-button>
+            <a-button type="primary" @click="applyFilters">查询</a-button>
           </a-form-item>
         </a-form>
 
@@ -25,9 +28,9 @@
 
         <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 5 }">
           <a-table
-            v-if="tableData.length > 0"
+            v-if="filteredData.length > 0"
             :columns="columns"
-            :data-source="tableData"
+            :data-source="filteredData"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
@@ -65,9 +68,10 @@ const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
 
-const filters = reactive<{ warehouseId?: number; status?: ItemStatus }>({
+const filters = reactive<{ warehouseId?: number; status?: ItemStatus; searchTerm?: string }>({
   warehouseId: undefined,
   status: undefined,
+  searchTerm: '',
 });
 
 const statusDisplay = (status: ItemStatus) => {
@@ -96,6 +100,17 @@ const tableData = computed(() =>
   }))
 );
 
+const filteredData = computed(() => {
+  if (!filters.searchTerm) {
+    return tableData.value;
+  }
+  const searchTermLower = filters.searchTerm.toLowerCase();
+  return tableData.value.filter(item => 
+    item.shortId.toLowerCase().includes(searchTermLower) ||
+    item.name.toLowerCase().includes(searchTermLower)
+  );
+});
+
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
   { title: '物品名称', dataIndex: 'name', key: 'name' },
@@ -112,12 +127,15 @@ const columns = [
 ];
 
 onMounted(() => {
+  // Initial fetch without filters
   itemStore.fetchItems();
   warehouseStore.fetchWarehouses();
   itemDefStore.fetchItemDefinitions();
 });
 
 const applyFilters = () => {
+  // This function now only fetches from the API based on warehouse and status.
+  // The text search is applied client-side on the results.
   const queryFilters: { warehouseId?: number; status?: ItemStatus } = {};
   if (filters.warehouseId) {
     queryFilters.warehouseId = Number(filters.warehouseId);
@@ -131,5 +149,5 @@ const applyFilters = () => {
 
 <style scoped>
 .page-container { padding: 24px; }
-.filter-form .ant-form-item { margin-bottom: 0; }
+.filter-form .ant-form-item { margin-bottom: 0; margin-right: 8px; }
 </style>

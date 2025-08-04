@@ -27,7 +27,9 @@ interface CreateItemPayload {
 }
 
 interface UpdateItemPayload {
+  shortId?: string;
   remarks?: string;
+  currentDestination?: string;
   photo?: File | null;
   deletePhoto?: boolean;
 }
@@ -94,6 +96,12 @@ export const useItemStore = defineStore('item', {
         const formData = new FormData();
         // Always send remarks, even if empty, to allow clearing it.
         formData.append('remarks', payload.remarks || '');
+        if (payload.shortId) {
+          formData.append('shortId', payload.shortId);
+        }
+        if (payload.currentDestination) {
+          formData.append('currentDestination', payload.currentDestination);
+        }
 
         if (payload.photo) {
           formData.append('photo', payload.photo);
