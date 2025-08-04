@@ -55,8 +55,8 @@ const formState = reactive<{ remarks: string; photo?: File }>({
 const fileList = ref<UploadProps['fileList']>([]);
 
 const photoFullUrl = computed(() => {
-  if (!item.value?.photoUrl) return '';
-  const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+  if (!item.value?.photoUrl) return null;
+  const baseUrl = (apiClient.defaults.baseURL || '').replace(/\/api$/, '');
   return `${baseUrl}${item.value.photoUrl}`;
 });
 

@@ -34,16 +34,17 @@
                 <a-textarea v-model:value="quickFormState.remarks" />
               </a-form-item>
               <a-form-item label="照片">
-                <a-upload :file-list="quickFileList" :before-upload="() => false" @change="(info: any) => {
-                  if (info.fileList.length > 0) {
-                    quickFileList = [info.fileList[info.fileList.length - 1]];
-                    quickFormState.photo = info.file.originFileObj;
-                  } else {
-                    quickFileList = [];
-                    quickFormState.photo = null;
-                  }
-                }">
-                  <a-button>选择文件</a-button>
+                <a-upload
+                  v-model:file-list="quickFileList"
+                  :before-upload="() => false"
+                  @change="handleQuickFileChange"
+                  list-type="picture-card"
+                  :max-count="1"
+                >
+                  <div v-if="!quickFileList || quickFileList.length < 1">
+                    <plus-outlined />
+                    <div style="margin-top: 8px">上传</div>
+                  </div>
                 </a-upload>
               </a-form-item>
               <a-form-item>
@@ -85,16 +86,17 @@
                     <a-textarea v-model:value="manualFormState.remarks" />
                   </a-form-item>
                   <a-form-item label="照片">
-                    <a-upload :file-list="manualFileList" :before-upload="() => false" @change="(info: any) => {
-                       if (info.fileList.length > 0) {
-                        manualFileList = [info.fileList[info.fileList.length - 1]];
-                        manualFormState.photo = info.file.originFileObj;
-                      } else {
-                        manualFileList = [];
-                        manualFormState.photo = null;
-                      }
-                    }">
-                      <a-button>选择文件</a-button>
+                    <a-upload
+                      v-model:file-list="manualFileList"
+                      :before-upload="() => false"
+                      @change="handleManualFileChange"
+                      list-type="picture-card"
+                      :max-count="1"
+                    >
+                      <div v-if="!manualFileList || manualFileList.length < 1">
+                        <plus-outlined />
+                        <div style="margin-top: 8px">上传</div>
+                      </div>
                     </a-upload>
                   </a-form-item>
                   <a-form-item>
@@ -125,7 +127,7 @@
                       </a-popconfirm>
                     </template>
                      <template v-if="column.key === 'photo'">
-                      <img v-if="record.photoPreview" :src="record.photoPreview" alt="preview" style="width: 50px; height: 50px; object-fit: cover;" />
+                      <a-image v-if="record.photoPreview" :width="50" :src="record.photoPreview" />
                     </template>
                   </template>
                 </a-table>
@@ -149,6 +151,7 @@ import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../sto
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
 import { message, type UploadProps, type FormInstance } from 'ant-design-vue';
+import { PlusOutlined } from '@ant-design/icons-vue';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 
@@ -168,7 +171,7 @@ interface QuickFormState {
   itemDefinitionId: number | null;
   warehouseId: number | null;
   remarks: string;
-  photo: File | null;
+  photo?: File;
 }
 
 interface ManualFormState {
@@ -176,7 +179,7 @@ interface ManualFormState {
   warehouseId: number | null;
   quantity: number;
   remarks: string;
-  photo: File | null;
+  photo?: File;
 }
 
 // --- Quick Inbound Tab ---
@@ -186,14 +189,22 @@ const quickFormState = reactive<QuickFormState>({
   itemDefinitionId: null,
   warehouseId: null,
   remarks: '',
-  photo: null,
 });
-let quickFileList = ref<UploadProps['fileList']>([]);
+const quickFileList = ref<UploadProps['fileList']>([]);
+
+const handleQuickFileChange = (info: any) => {
+  quickFileList.value = info.fileList.slice(-1);
+  if (quickFileList.value && quickFileList.value.length > 0) {
+    quickFormState.photo = quickFileList.value[0].originFileObj;
+  } else {
+    quickFormState.photo = undefined;
+  }
+};
 
 const resetQuickForm = () => {
   quickFormRef.value?.resetFields();
   quickFormState.remarks = '';
-  quickFormState.photo = null;
+  quickFormState.photo = undefined;
   quickFileList.value = [];
 };
 
@@ -225,15 +236,23 @@ const manualFormState = reactive<ManualFormState>({
   warehouseId: null,
   quantity: 1,
   remarks: '',
-  photo: null,
 });
-let manualFileList = ref<UploadProps['fileList']>([]);
+const manualFileList = ref<UploadProps['fileList']>([]);
 const exportList = ref<any[]>([]);
+
+const handleManualFileChange = (info: any) => {
+  manualFileList.value = info.fileList.slice(-1);
+  if (manualFileList.value && manualFileList.value.length > 0) {
+    manualFormState.photo = manualFileList.value[0].originFileObj;
+  } else {
+    manualFormState.photo = undefined;
+  }
+};
 
 const resetManualForm = () => {
   manualFormRef.value?.resetFields();
   manualFormState.remarks = '';
-  manualFormState.photo = null;
+  manualFormState.photo = undefined;
   manualFileList.value = [];
 };
 
@@ -249,7 +268,7 @@ const addToExportList = async () => {
         itemDefinitionId: manualFormState.itemDefinitionId,
         warehouseId: manualFormState.warehouseId,
         remarks: manualFormState.remarks,
-        photo: i === 0 ? manualFormState.photo : null,
+        photo: i === 0 ? manualFormState.photo : undefined,
         photoPreview: i === 0 && manualFormState.photo ? URL.createObjectURL(manualFormState.photo) : null,
         definitionName: definition?.name,
         warehouseName: warehouse?.name,
