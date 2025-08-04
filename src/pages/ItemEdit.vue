@@ -13,6 +13,7 @@
               :before-upload="() => false"
               @change="handleFileChange"
               list-type="picture-card"
+              :max-count="1"
             >
               <div v-if="!fileList || fileList.length < 1">
                 <plus-outlined />
@@ -73,22 +74,23 @@ onMounted(async () => {
 });
 
 const handleFileChange = (info: any) => {
-  if (info.fileList.length > 0) {
-    fileList.value = [info.fileList[info.fileList.length - 1]];
-    formState.photo = info.file.originFileObj;
+  // 只保留最新上传的文件
+  fileList.value = info.fileList.slice(-1);
+  
+  if (fileList.value && fileList.value.length > 0) {
+    // 获取原生File对象
+    formState.photo = fileList.value[0].originFileObj;
   } else {
-    fileList.value = [];
-    delete formState.photo;
+    formState.photo = undefined;
   }
 };
 
 const handleSave = async () => {
   if (!item.value) return;
+  
   try {
-    await itemStore.updateItem(item.value.id, {
-      remarks: formState.remarks,
-      photo: formState.photo,
-    });
+    
+    await itemStore.updateItem(item.value.id, formState);
     message.success('物品信息已更新');
     router.back();
   } catch (error) {
