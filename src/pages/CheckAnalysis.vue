@@ -21,7 +21,7 @@
       <a-row :gutter="16" style="margin-top: 16px;">
         <a-col :span="12">
           <a-card title="已盘点物品">
-            <a-list :data-source="checkedItems" :loading="isLoading">
+            <a-list :data-source="checkedItems" :loading="isLoading" :bordered="true">
               <template #renderItem="{ item }">
                 <a-list-item>{{ item.itemDefinition?.name }} ({{ item.shortId }})</a-list-item>
               </template>
@@ -29,15 +29,19 @@
           </a-card>
         </a-col>
         <a-col :span="12">
-          <a-card title="疑似丢失物品">
+          <a-card title="未盘点物品 (疑似丢失)">
             <template #extra>
-              <a-button type="primary" danger :disabled="unCheckedItems.length === 0" @click="markAsMissing" :loading="isMarking">
-                标记为疑似丢失
+              <a-button type="primary" danger :disabled="Object.values(selectedItemIds).every(v => !v)" @click="markAsMissing" :loading="isMarking">
+                标记选中为丢失
               </a-button>
             </template>
-            <a-list :data-source="unCheckedItems" :loading="isLoading">
+            <a-list :data-source="unCheckedItems" :loading="isLoading" :bordered="true">
               <template #renderItem="{ item }">
-                <a-list-item>{{ item.itemDefinition?.name }} ({{ item.shortId }})</a-list-item>
+                <a-list-item>
+                  <a-checkbox :value="item.id" v-model:checked="selectedItemIds[item.id]">
+                    {{ item.itemDefinition?.name }} ({{ item.shortId }})
+                  </a-checkbox>
+                </a-list-item>
               </template>
             </a-list>
           </a-card>
@@ -48,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, type Item } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
@@ -71,9 +75,17 @@ const isLoading = ref(false);
 const isMarking = ref(false);
 const checkedItems = ref<Item[]>([]);
 const unCheckedItems = ref<Item[]>([]);
+const selectedItemIds = ref<Record<string, boolean>>({});
 
 onMounted(() => {
   warehouseStore.fetchWarehouses();
+});
+
+watch(() => filterState.warehouseId, () => {
+  // Reset lists when warehouse changes
+  checkedItems.value = [];
+  unCheckedItems.value = [];
+  selectedItemIds.value = {};
 });
 
 const runAnalysis = async () => {
@@ -84,21 +96,17 @@ const runAnalysis = async () => {
   isLoading.value = true;
   checkedItems.value = [];
   unCheckedItems.value = [];
+  selectedItemIds.value = {};
 
   try {
-    // 1. Fetch all items in the warehouse
-    await itemStore.fetchItems({ warehouseId: filterState.warehouseId });
-    const allItems = itemStore.items;
+    await itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'InStock' });
+    const allItemsInStock = itemStore.items;
 
-    // 2. Fetch all 'Check' audit logs in the date range
-    // This part is tricky as the current API doesn't support date range filtering for logs.
-    // For now, we'll fetch all logs and filter on the client-side.
-    // This is inefficient and should be improved in the backend later.
     await auditLogStore.fetchLogs(); 
     const startDate = filterState.dateRange[0].startOf('day').toDate();
     const endDate = filterState.dateRange[1].endOf('day').toDate();
 
-    const checkedItemIds = new Set(
+    const checkedItemIdsInDateRange = new Set(
       auditLogStore.logs
         .filter(log =>
           log.action === 'Check' &&
@@ -109,28 +117,33 @@ const runAnalysis = async () => {
         .map(log => log.itemId)
     );
 
-    // 3. Compare and categorize
-    checkedItems.value = allItems.filter(item => checkedItemIds.has(item.id));
-    unCheckedItems.value = allItems.filter(item => !checkedItemIds.has(item.id));
+    checkedItems.value = allItemsInStock.filter(item => checkedItemIdsInDateRange.has(item.id));
+    unCheckedItems.value = allItemsInStock.filter(item => !checkedItemIdsInDateRange.has(item.id));
 
-  } catch (error) {
-    message.error('分析失败: ' + error);
+  } catch (error: any) {
+    message.error('分析失败: ' + (error.message || error));
   } finally {
     isLoading.value = false;
   }
 };
 
 const markAsMissing = async () => {
+  const idsToMark = Object.entries(selectedItemIds.value)
+    .filter(([, isSelected]) => isSelected)
+    .map(([id]) => id);
+
+  if (idsToMark.length === 0) {
+    message.warn('请至少选择一个物品');
+    return;
+  }
+
   isMarking.value = true;
   try {
-    const itemIds = unCheckedItems.value.map(item => item.id);
-    // This action needs to be created in the itemStore
-    await itemStore.updateStatusBatch(itemIds, 'SuspectedMissing');
+    await itemStore.updateStatusBatch(idsToMark, 'SuspectedMissing');
     message.success('成功标记为疑似丢失');
-    // Refresh the analysis
-    runAnalysis();
-  } catch (error) {
-    message.error('标记失败: ' + error);
+    await runAnalysis(); // Refresh the analysis
+  } catch (error: any) {
+    message.error('标记失败: ' + (error.message || error));
   } finally {
     isMarking.value = false;
   }

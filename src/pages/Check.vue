@@ -1,38 +1,69 @@
 <template>
   <div>
-    <a-page-header title="批量盘点" sub-title="通过短ID快速盘点物品" />
+    <a-page-header title="连续盘点" sub-title="使用扫描枪或手动输入短ID进行快速盘点" />
     <div class="page-container">
       <a-card>
-        <a-row :gutter="16">
-          <a-col :span="10">
-            <a-form-item label="输入短ID (每行一个)">
-              <a-textarea v-model:value="shortIdsInput" :rows="15" placeholder="在此处粘贴或输入物品的短ID" />
+        <a-row :gutter="24">
+          <!-- Left Side: Input and Controls -->
+          <a-col :span="8">
+            <a-form-item label="扫描或输入物品短ID">
+              <a-input-search
+                v-model:value="currentShortId"
+                placeholder="在此处扫描或输入ID..."
+                size="large"
+                autofocus
+                @search="handleSingleCheck"
+                @keydown.enter.prevent="handleSingleCheck"
+              >
+                <template #enterButton>
+                  <a-button type="primary">盘点</a-button>
+                </template>
+              </a-input-search>
             </a-form-item>
-            <a-button type="primary" @click="handleBulkCheck" :loading="isLoading" block>
-              开始盘点 {{ uniqueIdCount }} 个ID
-            </a-button>
+            
+            <a-divider>统计</a-divider>
+            
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-statistic title="成功" :value="stats.success" />
+              </a-col>
+              <a-col :span="8">
+                <a-statistic title="失败" :value="stats.failed" />
+              </a-col>
+              <a-col :span="8">
+                <a-statistic title="重复" :value="stats.duplicate" />
+              </a-col>
+            </a-row>
+
+            <a-divider />
+            <a-button @click="clearResults" block>清空列表</a-button>
+
           </a-col>
-          <a-col :span="14">
-            <a-tabs v-model:activeKey="activeTab">
-              <a-tab-pane key="success" :tab="`成功 (${successItems.length})`">
-                <a-list :data-source="successItems" size="small">
-                  <template #renderItem="{ item }">
-                    <a-list-item>
-                      {{ item.itemDefinition?.name }} ({{ item.shortId }}) - <a-tag color="green">盘点成功</a-tag>
-                    </a-list-item>
+
+          <!-- Right Side: Results -->
+          <a-col :span="16">
+            <a-list :data-source="scannedItems" bordered :loading="isLoading">
+              <template #renderItem="{ item }">
+                <a-list-item :class="`status-${item.status.toLowerCase()}`">
+                  <a-list-item-meta>
+                    <template #title>
+                      <span class="item-name">{{ item.name }}</span>
+                      <span class="item-short-id"> ({{ item.shortId }})</span>
+                    </template>
+                    <template #description>
+                      <span>{{ item.message }}</span>
+                    </template>
+                  </a-list-item-meta>
+                  <template #actions>
+                    <a-tag :color="item.tagColor">{{ item.status }}</a-tag>
                   </template>
-                </a-list>
-              </a-tab-pane>
-              <a-tab-pane key="failed" :tab="`失败 (${failedItems.length})`">
-                 <a-list :data-source="failedItems" size="small">
-                  <template #renderItem="{ item }">
-                    <a-list-item>
-                      {{ item.id }} - <a-tag color="red">{{ item.error }}</a-tag>
-                    </a-list-item>
-                  </template>
-                </a-list>
-              </a-tab-pane>
-            </a-tabs>
+                </a-list-item>
+              </template>
+               <template #header>
+                <div>盘点结果 (最新扫描的在最上方)</div>
+              </template>
+            </a-list>
+            <a-empty v-if="scannedItems.length === 0 && !isLoading" description="请开始扫描..." style="margin-top: 24px;" />
           </a-col>
         </a-row>
       </a-card>
@@ -41,70 +72,119 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useItemStore, type Item } from '../stores/itemStore';
+import { ref, reactive } from 'vue';
+import { useItemStore } from '../stores/itemStore';
 import { message } from 'ant-design-vue';
 
-interface FailedItem {
-  id: string;
-  error: string;
+type ScanStatus = '成功' | '失败' | '重复';
+
+interface ScannedItem {
+  shortId: string;
+  name: string;
+  message: string;
+  status: ScanStatus;
+  tagColor: string;
 }
 
 const itemStore = useItemStore();
 
-const shortIdsInput = ref('');
+const currentShortId = ref('');
 const isLoading = ref(false);
-const activeTab = ref('success');
-const successItems = ref<Item[]>([]);
-const failedItems = ref<FailedItem[]>([]);
+const scannedItems = ref<ScannedItem[]>([]);
+const scannedIds = new Set<string>();
 
-const uniqueIdCount = computed(() => {
-  const ids = shortIdsInput.value.split('\n').map(id => id.trim()).filter(id => id);
-  return new Set(ids).size;
+const stats = reactive({
+  success: 0,
+  failed: 0,
+  duplicate: 0,
 });
 
-const handleBulkCheck = async () => {
-  const ids = shortIdsInput.value.split('\n').map(id => id.trim()).filter(id => id);
-  if (ids.length === 0) {
-    message.warn('请输入至少一个短ID');
+// Sound effects for feedback - using simple base64 encoded sounds to avoid external files
+const successSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaXRyYXRlOjMyMGtiL3MA');
+const failSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaXRyYXRlOjI1NmtiL3MA');
+
+
+const handleSingleCheck = async () => {
+  const shortId = currentShortId.value.trim();
+  if (!shortId) return;
+
+  isLoading.value = true;
+
+  if (scannedIds.has(shortId)) {
+    stats.duplicate++;
+    addScannedItem({
+      shortId,
+      name: '重复扫描',
+      message: `该物品已在本次盘点中扫描过。`,
+      status: '重复',
+      tagColor: 'orange',
+    });
+    currentShortId.value = '';
+    isLoading.value = false;
+    failSound.play().catch(e => console.error("Audio play failed:", e));
     return;
   }
 
-  isLoading.value = true;
-  successItems.value = [];
-  failedItems.value = [];
-  activeTab.value = 'success';
+  try {
+    await itemStore.fetchItems({ shortId });
+    const item = itemStore.items.find(i => i.shortId === shortId);
 
-  const uniqueIds = [...new Set(ids)];
-
-  for (const shortId of uniqueIds) {
-    try {
-      // 1. Find the item by shortId
-      await itemStore.fetchItems({ shortId });
-      const item = itemStore.items.find(i => i.shortId === shortId);
-
-      if (!item) {
-        throw new Error('物品未找到');
-      }
-
-      // 2. Perform the 'check' action
-      await itemStore.updateItemStatus(item.id, 'check');
-      successItems.value.push(item);
-
-    } catch (error: any) {
-      failedItems.value.push({ id: shortId, error: error.message || '未知错误' });
+    if (!item) {
+      throw new Error('物品未在系统中找到');
     }
-  }
 
-  if (failedItems.value.length > 0) {
-    activeTab.value = 'failed';
+    const originalStatus = item.status;
+    // Per user request, 'return' action forces status to 'InStock'
+    const updatedItem = await itemStore.updateItemStatus(item.id, 'return');
+
+    stats.success++;
+    scannedIds.add(shortId);
+    addScannedItem({
+      shortId,
+      name: updatedItem.itemDefinition?.name || '未知物品',
+      message: `原状态: ${originalStatus} -> 新状态: ${updatedItem.status}`,
+      status: '成功',
+      tagColor: 'green',
+    });
+    successSound.play().catch(e => console.error("Audio play failed:", e));
+
+  } catch (error: any) {
+    stats.failed++;
+    addScannedItem({
+      shortId,
+      name: '操作失败',
+      message: error.message || '未知错误',
+      status: '失败',
+      tagColor: 'red',
+    });
+    failSound.play().catch(e => console.error("Audio play failed:", e));
+  } finally {
+    currentShortId.value = '';
+    isLoading.value = false;
   }
-  
-  isLoading.value = false;
-  message.success(`盘点完成: 成功 ${successItems.value.length}, 失败 ${failedItems.value.length}`);
 };
+
+const addScannedItem = (item: ScannedItem) => {
+  scannedItems.value.unshift(item); // Add to the top of the list
+};
+
+const clearResults = () => {
+  scannedItems.value = [];
+  scannedIds.clear();
+  stats.success = 0;
+  stats.failed = 0;
+  stats.duplicate = 0;
+  message.info('结果已清空');
+};
+
 </script>
 
 <style scoped>
 .page-container { padding: 24px; }
+.status-成功 { background-color: #f6ffed; }
+.status-失败 { background-color: #fff1f0; }
+.status-重复 { background-color: #fffbe6; }
+
+.item-name { font-weight: 500; }
+.item-short-id { color: #888; margin-left: 8px; }
 </style>

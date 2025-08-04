@@ -105,7 +105,7 @@ export const useItemStore = defineStore('item', {
       }
     },
 
-    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string | undefined) {
+    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string | undefined): Promise<Item> {
         this.loading = true;
         this.error = null;
         try {
@@ -114,6 +114,7 @@ export const useItemStore = defineStore('item', {
             if (index !== -1) {
               this.items[index] = response.data;
             }
+            return response.data;
         } catch (err: any) {
             this.error = `物品操作 '${action}' 失败: ` + (err.response?.data?.message || err.message);
             throw err;
@@ -142,3 +143,13 @@ export const useItemStore = defineStore('item', {
     }
   },
 });
+
+export function getStatusText(status: ItemStatus) {
+  switch (status) {
+    case 'InStock': return '在库';
+    case 'LoanedOut': return '借出';
+    case 'Disposed': return '处置';
+    case 'SuspectedMissing': return '疑似丢失';
+    default: return '未知';
+  }
+}

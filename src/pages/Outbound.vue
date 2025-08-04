@@ -1,6 +1,6 @@
 <template>
   <div>
-    <a-page-header title="出库操作" sub-title="更新在库物品的状态" />
+    <a-page-header title="出库操作" sub-title="更新在库或疑似丢失物品的状态" />
     <div class="page-container">
       <a-card>
         <a-form layout="inline" :model="filterState" @finish="loadItems">
@@ -33,8 +33,14 @@
             :data-source="filteredData"
             :loading="itemStore.loading"
             row-key="id"
-          />
-          <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该仓库中没有符合条件的在库物品" />
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+            </template>
+          </a-table>
+          <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该仓库中没有符合条件的物品" />
         </div>
         <a-empty v-else description="请先选择一个仓库以加载物品" />
       </a-card>
@@ -45,7 +51,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemStore } from '../stores/itemStore';
+import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { message, Modal, Input } from 'ant-design-vue';
 
 const warehouseStore = useWarehouseStore();
@@ -77,6 +83,7 @@ const filteredData = computed(() => {
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
   { title: '物品名称', dataIndex: 'name', key: 'name' },
+  { title: '当前状态', dataIndex: 'status', key: 'status' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
 ];
@@ -85,14 +92,31 @@ onMounted(() => {
   warehouseStore.fetchWarehouses();
 });
 
-const loadItems = () => {
+const loadItems = async () => {
   if (filterState.warehouseId) {
-    itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'InStock' });
+    // A simpler approach is to fetch them sequentially and combine.
+    await itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'InStock' });
+    const inStockItems = [...itemStore.items];
+    
+    await itemStore.fetchItems({ warehouseId: filterState.warehouseId, status: 'SuspectedMissing' });
+    const missingItems = [...itemStore.items];
+
+    // Combine and remove duplicates, though there shouldn't be any.
+    const combined = [...inStockItems, ...missingItems];
+    const uniqueIds = new Set();
+    itemStore.items = combined.filter(item => {
+      if (uniqueIds.has(item.id)) {
+        return false;
+      }
+      uniqueIds.add(item.id);
+      return true;
+    });
+
   } else {
     itemStore.items = [];
   }
   selectedRowKeys.value = [];
-  searchText.value = ''; // Reset search on warehouse change
+  searchText.value = '';
 };
 
 const onSelectChange = (keys: string[]) => {
@@ -133,6 +157,16 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
       }
     },
   });
+};
+
+const getStatusColor = (status: ItemStatus) => {
+  switch (status) {
+    case 'InStock': return 'green';
+    case 'LoanedOut': return 'blue';
+    case 'Disposed': return 'grey';
+    case 'SuspectedMissing': return 'red';
+    default: return 'default';
+  }
 };
 </script>
 

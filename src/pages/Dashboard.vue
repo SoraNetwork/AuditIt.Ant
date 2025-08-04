@@ -3,22 +3,27 @@
     <a-page-header title="仪表盘" sub-title="关键指标概览" />
     <div class="page-container">
       <a-row :gutter="[16, 16]">
-        <a-col :span="6">
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="总库存物品" :value="totalItems" />
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="在库物品" :value="inStockItems" />
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="借出物品" :value="loanedOutItems" />
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
+          <a-card>
+            <a-statistic title="疑似丢失" :value="suspectedMissingItems" />
+          </a-card>
+        </a-col>
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="仓库总数" :value="warehouseStore.warehouses.length" />
           </a-card>
@@ -61,15 +66,17 @@ onMounted(() => {
 const totalItems = computed(() => itemStore.items.length);
 const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'InStock').length);
 const loanedOutItems = computed(() => itemStore.items.filter(i => i.status === 'LoanedOut').length);
+const suspectedMissingItems = computed(() => itemStore.items.filter(i => i.status === 'SuspectedMissing').length);
 
 const pieChartData = computed(() => ({
-  labels: ['在库', '借出', '处置'],
+  labels: ['在库', '借出', '处置', '疑似丢失'],
   datasets: [{
-    backgroundColor: ['#41B883', '#E46651', '#00D8FF'],
+    backgroundColor: ['#41B883', '#E46651', '#00D8FF', '#FFC107'],
     data: [
       inStockItems.value,
       loanedOutItems.value,
-      itemStore.items.filter(i => i.status === 'Disposed').length
+      itemStore.items.filter(i => i.status === 'Disposed').length,
+      suspectedMissingItems.value
     ]
   }]
 }));
