@@ -135,7 +135,7 @@ const handleSingleCheck = async () => {
 
     const originalStatus = item.status;
     // Per user request, 'return' action forces status to 'InStock'
-    const updatedItem = await itemStore.updateItemStatus(item.id, 'return');
+    const updatedItem = await itemStore.updateItemStatus(item.id, 'check');
 
     stats.success++;
     scannedIds.add(shortId);
