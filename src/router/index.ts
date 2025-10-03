@@ -77,6 +77,12 @@ const routes = [
         meta: { title: '出库' },
       },
       {
+        path: 'transfer',
+        name: 'TransferWarehouse',
+        component: () => import('../pages/TransferWarehouse.vue'),
+        meta: { title: '仓库调拨' },
+      },
+      {
         path: 'check',
         name: 'check',
         component: () => import('../pages/Check.vue'),
@@ -106,6 +112,7 @@ const routes = [
         component: () => import('../pages/Profile.vue'),
         meta: { title: '我的' },
       },
+      
     ],
   },
 ];
