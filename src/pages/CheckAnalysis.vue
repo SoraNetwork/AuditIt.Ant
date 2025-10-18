@@ -9,8 +9,13 @@
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item label="盘点日期范围">
-            <a-range-picker v-model:value="filterState.dateRange" />
+          <a-form-item label="盘点时间范围">
+            <a-range-picker 
+              v-model:value="filterState.dateRange" 
+              show-time 
+              format="YYYY-MM-DD HH:mm:ss"
+              :placeholder="['开始时间', '结束时间']"
+            />
           </a-form-item>
           <a-form-item>
             <a-button type="primary" @click="runAnalysis" :loading="isLoading">开始分析</a-button>
@@ -93,6 +98,12 @@ const runAnalysis = async () => {
     message.error('请先选择一个仓库');
     return;
   }
+  
+  if (!filterState.dateRange || filterState.dateRange.length !== 2) {
+    message.error('请选择完整的时间范围');
+    return;
+  }
+  
   isLoading.value = true;
   checkedItems.value = [];
   unCheckedItems.value = [];
@@ -103,8 +114,8 @@ const runAnalysis = async () => {
     const allItemsInStock = itemStore.items;
 
     await auditLogStore.fetchLogs(); 
-    const startDate = filterState.dateRange[0].startOf('day').toDate();
-    const endDate = filterState.dateRange[1].endOf('day').toDate();
+    const startDate = filterState.dateRange[0].toDate();
+    const endDate = filterState.dateRange[1].toDate();
 
     const checkedItemIdsInDateRange = new Set(
       auditLogStore.logs
