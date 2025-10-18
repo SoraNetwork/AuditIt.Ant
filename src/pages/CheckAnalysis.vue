@@ -114,8 +114,8 @@ const runAnalysis = async () => {
     const allItemsInStock = itemStore.items;
 
     await auditLogStore.fetchLogs(); 
-    const startDate = filterState.dateRange[0].toDate();
-    const endDate = filterState.dateRange[1].toDate();
+    const startDate = filterState.dateRange[0].subtract(8, 'hour').toDate();
+    const endDate = filterState.dateRange[1].subtract(8, 'hour').toDate();
 
     const checkedItemIdsInDateRange = new Set(
       auditLogStore.logs
