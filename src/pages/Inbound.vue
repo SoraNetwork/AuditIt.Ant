@@ -31,7 +31,18 @@
                 ></a-select>
               </a-form-item>
               <a-form-item label="备注">
-                <a-textarea v-model:value="quickFormState.remarks" />
+                <a-space-compact style="width: 100%;">
+                  <a-textarea v-model:value="quickFormState.remarks" style="width: calc(100% - 240px)" />
+                  <a-select
+                    v-model:value="selectedQuickRemarkId"
+                    :options="quickRemarks.map(r => ({ value: r.id, label: r.text }))"
+                    placeholder="快捷备注"
+                    allowClear
+                    @change="applyQuickRemark"
+                    style="width: 140px"
+                  />
+                  <a-button @click="isManageQuickRemarksVisible = true">管理</a-button>
+                </a-space-compact>
               </a-form-item>
               <a-form-item label="照片">
                 <a-upload
@@ -291,6 +302,22 @@ GHI789"
     </div>
 
     <!-- New Item Definition Modal -->
+    <!-- Manage Quick Remarks Modal -->
+    <a-modal v-model:open="isManageQuickRemarksVisible" title="管理快捷备注" :confirm-loading="quickRemarksLoading" @ok="isManageQuickRemarksVisible = false" :footer="null">
+      <div>
+        <a-space style="width: 100%; margin-bottom: 12px;">
+          <a-input v-model:value="newQuickRemarkText" placeholder="请输入新快捷备注" />
+          <a-button type="primary" @click="createQuickRemark" :loading="quickRemarksLoading">添加</a-button>
+        </a-space>
+        <a-divider />
+        <div v-if="!quickRemarks.length" style="color:#888">暂无快捷备注</div>
+        <div v-for="r in quickRemarks" :key="r.id" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom: 1px solid #f0f0f0">
+          <div>{{ r.text }}</div>
+          <a-button type="text" danger @click="deleteQuickRemark(r.id)">删除</a-button>
+        </div>
+      </div>
+    </a-modal>
+
     <a-modal v-model:open="isNewItemDefVisible" title="新建物品定义" @ok="handleNewItemDefOk" :confirm-loading="itemDefinitionStore.loading">
       <ItemDefinitionForm ref="newItemDefFormRef" />
     </a-modal>
@@ -307,6 +334,64 @@ import { PlusOutlined, UploadOutlined } from '@ant-design/icons-vue';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
+interface QuickRemarkDto { id: number; text: string; }
+const quickRemarks = ref<QuickRemarkDto[]>([]);
+const quickRemarksLoading = ref(false);
+const isManageQuickRemarksVisible = ref(false);
+const newQuickRemarkText = ref('');
+const selectedQuickRemarkId = ref<number | null>(null);
+
+const fetchQuickRemarks = async () => {
+  quickRemarksLoading.value = true;
+  try {
+    const res = await apiClient.get('/QuickRemarks');
+    quickRemarks.value = res.data || [];
+  } catch (err) {
+    console.error('fetchQuickRemarks', err);
+  } finally {
+    quickRemarksLoading.value = false;
+  }
+};
+
+const applyQuickRemark = (id: number | null) => {
+  if (!id) return;
+  const r = quickRemarks.value.find(x => x.id === id);
+  if (r) quickFormState.remarks = r.text;
+};
+
+const createQuickRemark = async () => {
+  const text = newQuickRemarkText.value?.trim();
+  if (!text) {
+    message.warning('请输入备注内容');
+    return;
+  }
+  quickRemarksLoading.value = true;
+  try {
+    const res = await apiClient.post('/QuickRemarks', { text });
+    quickRemarks.value.unshift(res.data);
+    newQuickRemarkText.value = '';
+    message.success('添加成功');
+  } catch (err) {
+    console.error('createQuickRemark', err);
+    message.error('添加失败');
+  } finally {
+    quickRemarksLoading.value = false;
+  }
+};
+
+const deleteQuickRemark = async (id: number) => {
+  quickRemarksLoading.value = true;
+  try {
+    await apiClient.delete(`/QuickRemarks/${id}`);
+    quickRemarks.value = quickRemarks.value.filter(r => r.id !== id);
+    message.success('已删除');
+  } catch (err) {
+    console.error('deleteQuickRemark', err);
+    message.error('删除失败');
+  } finally {
+    quickRemarksLoading.value = false;
+  }
+};
 
 // Stores
 const itemDefinitionStore = useItemDefinitionStore();
@@ -798,6 +883,7 @@ const handleNewItemDefOk = async () => {
 onMounted(() => {
   itemDefinitionStore.fetchItemDefinitions();
   warehouseStore.fetchWarehouses();
+  fetchQuickRemarks();
 });
 </script>
 
