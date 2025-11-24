@@ -32,17 +32,11 @@
               </a-form-item>
               <a-form-item label="备注">
                 <a-space-compact style="width: 100%;">
-                  <a-textarea v-model:value="quickFormState.remarks" style="width: calc(100% - 240px)" />
-                  <a-select
-                    v-model:value="selectedQuickRemarkId"
-                    :options="quickRemarks.map(r => ({ value: r.id, label: r.content.length > 16 ? r.content.slice(0, 16) + '…' : r.content }))"
-                    placeholder="快捷备注"
-                    allowClear
-                    @change="applyQuickRemark"
-                    style="width: 140px"
-                    :dropdownStyle="{ maxWidth: '320px' }"
-                  />
-                  <a-button @click="isManageQuickRemarksVisible = true">管理</a-button>
+                  <a-textarea id="quick-remarks-textarea" ref="quickRemarksTextarea" v-model:value="quickFormState.remarks" style="width: calc(100% - 200px)" />
+                  <div style="width:200px; display:flex; flex-direction:column; gap:6px;">
+                    <a-button @click="isQuickRemarkPickerVisible = true">快捷备注</a-button>
+                    <a-button type="link" @click="isManageQuickRemarksVisible = true">管理</a-button>
+                  </div>
                 </a-space-compact>
               </a-form-item>
               <a-form-item label="照片">
@@ -303,6 +297,30 @@ GHI789"
     </div>
 
     <!-- New Item Definition Modal -->
+
+    <!-- Quick Remark Picker Modal (large window for long remarks) -->
+    <a-modal v-model:open="isQuickRemarkPickerVisible" title="选择快捷备注" width="720" :footer="null" @cancel="isQuickRemarkPickerVisible = false">
+      <div>
+        <a-input v-model:value="quickRemarkSearch" placeholder="搜索快捷备注" allowClear style="margin-bottom:12px;" />
+        <div style="max-height:360px; overflow:auto; padding:8px; border:1px solid #f0f0f0; border-radius:4px;">
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <a-tag
+              v-for="r in filteredQuickRemarks"
+              :key="r.id"
+              style="cursor:pointer; max-width: 320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+              :title="r.content"
+              @click="insertQuickRemark(r.content)">
+              {{ r.content }}
+            </a-tag>
+          </div>
+        </div>
+        <div style="text-align:right; margin-top:12px;">
+          <a-button type="link" @click="openManageFromPicker">管理</a-button>
+          <a-button @click="isQuickRemarkPickerVisible = false">关闭</a-button>
+        </div>
+      </div>
+    </a-modal>
+
     <!-- Manage Quick Remarks Modal -->
     <a-modal v-model:open="isManageQuickRemarksVisible" title="管理快捷备注" :confirm-loading="quickRemarksLoading" @ok="isManageQuickRemarksVisible = false" :footer="null">
       <div>
@@ -327,6 +345,7 @@ GHI789"
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
@@ -340,7 +359,15 @@ const quickRemarks = ref<QuickRemarkDto[]>([]);
 const quickRemarksLoading = ref(false);
 const isManageQuickRemarksVisible = ref(false);
 const newQuickRemarkText = ref('');
-const selectedQuickRemarkId = ref<number | null>(null);
+// Popover picker visibility and textarea ref for inserting tags into remarks
+const isQuickRemarkPickerVisible = ref(false);
+const quickRemarksTextarea = ref<HTMLElement | null>(null);
+const quickRemarkSearch = ref('');
+const filteredQuickRemarks = computed(() => {
+  const q = quickRemarkSearch.value.trim().toLowerCase();
+  if (!q) return quickRemarks.value;
+  return quickRemarks.value.filter(r => r.content.toLowerCase().includes(q));
+});
 
 const fetchQuickRemarks = async () => {
   quickRemarksLoading.value = true;
@@ -354,17 +381,36 @@ const fetchQuickRemarks = async () => {
   }
 };
 
-const applyQuickRemark = (id: number | null) => {
-  if (!id) return;
-  const r = quickRemarks.value.find(x => x.id === id);
-  if (r) {
-    quickFormState.remarks = r.content;
-    // 体验优化：自动关闭下拉并聚焦到备注输入框
+const insertQuickRemark = (text: string) => {
+  // 插入到备注输入框的光标位置（优先使用带 id 的 textarea）
+  const ta = document.getElementById('quick-remarks-textarea') as HTMLTextAreaElement | null;
+  if (!ta) {
+    // fallback: 直接追加并添加空格分隔
+    quickFormState.remarks = quickFormState.remarks ? (quickFormState.remarks + ' ' + text) : text;
+  } else {
+    const start = ta.selectionStart ?? ta.value.length;
+    const end = ta.selectionEnd ?? ta.value.length;
+    const before = ta.value.substring(0, start);
+    const after = ta.value.substring(end);
+    const newVal = before + text + after;
+    quickFormState.remarks = newVal;
+
+    // 聚焦并把光标移动到插入后的位置
     setTimeout(() => {
-      const textarea = document.querySelector('textarea');
-      textarea && textarea.focus();
-    }, 100);
+      ta.focus();
+      const pos = start + text.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
   }
+
+  // 插入后关闭选择器并清空搜索
+  isQuickRemarkPickerVisible.value = false;
+  quickRemarkSearch.value = '';
+};
+
+const openManageFromPicker = () => {
+  isQuickRemarkPickerVisible.value = false;
+  isManageQuickRemarksVisible.value = true;
 };
 
 const createQuickRemark = async () => {
