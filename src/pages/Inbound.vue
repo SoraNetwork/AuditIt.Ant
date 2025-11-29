@@ -17,7 +17,7 @@
                     v-model:value="quickFormState.itemDefinitionId"
                     show-search
                     placeholder="搜索或选择物品定义"
-                    :options="itemDefinitionStore.itemDefinitions. map(d => ({ value: d.id, label: d.name }))"
+                    :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
                     style="width: calc(100% - 60px)"
                   ></a-select>
                   <a-button @click="isNewItemDefVisible = true">新建</a-button>
@@ -31,55 +31,78 @@
                 ></a-select>
               </a-form-item>
               <a-form-item label="备注">
-                <a-space-compact style="width: 100%;">
-                  <a-textarea id="quick-remarks-textarea" ref="quickRemarksTextarea" v-model:value="quickFormState.remarks" style="width: calc(100% - 200px)" />
-                  <div style="width:200px; display:flex; flex-direction:column; gap:6px;">
-                    <!-- Popover for Quick Remarks 用 Popover 替代 Modal -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <a-textarea 
+                    id="quick-remarks-textarea"
+                    v-model:value="quickFormState.remarks"
+                    :rows="3"
+                    placeholder="请输入备注信息"
+                    style="resize: vertical;"
+                  />
+                  <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <!-- Popover for Quick Remarks -->
                     <a-popover 
                       v-model:open="isQuickRemarkPickerVisible" 
-                      title="快捷备注" 
+                      title="快捷备注库" 
                       placement="topRight"
                       trigger="click"
-                      :overlayStyle="{ maxWidth: '400px' }"
+                      :overlayStyle="{ maxWidth: '450px' }"
                     >
                       <template #content>
                         <div style="width: 100%;">
                           <a-input 
                             v-model:value="quickRemarkSearch" 
-                            placeholder="搜索快捷备注" 
-                            allowClear 
+                            placeholder="搜索快捷备注..." 
+                            allow-clear
                             style="margin-bottom: 12px;"
                             @input="quickRemarkSearch = $event.target.value"
                           />
-                          <div style="max-height: 320px; overflow-y: auto; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px; background: #fafafa;">
-                            <div v-if="filteredQuickRemarks.length === 0" style="color: #999; text-align: center; padding: 16px;">
+                          <div style="max-height: 300px; overflow-y: auto; padding: 8px; border: 1px solid #e8e8e8; border-radius: 6px; background: #fafafa;">
+                            <div v-if="filteredQuickRemarks.length === 0" style="color: #999; text-align: center; padding: 20px; font-size: 12px;">
                               暂无匹配的快捷备注
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                              <a-tag
+                            <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+                              <div
                                 v-for="r in filteredQuickRemarks"
-                                :key="r. id"
-                                style="cursor: pointer; padding: 6px 12px; background: #1890ff; color: white; border-radius: 4px; text-align: center; user-select: none; transition: all 0.3s;"
+                                :key="r.id"
+                                style="
+                                  cursor: pointer;
+                                  padding: 8px 12px;
+                                  background: #1890ff;
+                                  color: white;
+                                  border-radius: 4px;
+                                  font-size: 12px;
+                                  transition: all 0.3s;
+                                  display: flex;
+                                  justify-content: space-between;
+                                  align-items: center;
+                                  word-break: break-all;
+                                  white-space: normal;
+                                  line-height: 1.4;
+                                "
                                 @click="insertQuickRemark(r. content)"
-                                @mouseenter="$event.target.style.background = '#40a9ff'"
-                                @mouseleave="$event.target.style.background = '#1890ff'"
+                                @mouseenter="$event.currentTarget.style.background = '#40a9ff'"
+                                @mouseleave="$event.currentTarget.style.background = '#1890ff'"
                               >
-                                <span style="word-break: break-all; white-space: normal;">{{ r.content }}</span>
-                              </a-tag>
+                                <span style="flex: 1;">{{ r.content }}</span>
+                                <plus-circle-outlined style="margin-left: 8px; flex-shrink: 0;" />
+                              </div>
                             </div>
                           </div>
                           <a-divider style="margin: 12px 0;" />
-                          <div style="display: flex; gap: 8px;">
-                            <a-button type="link" size="small" @click="openManageFromPopover">管理</a-button>
+                          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                            <a-button type="link" size="small" @click="openManageFromPopover">管理备注</a-button>
                             <a-button size="small" @click="isQuickRemarkPickerVisible = false">关闭</a-button>
                           </div>
                         </div>
                       </template>
-                      <a-button>快捷备注</a-button>
+                      <a-button type="dashed" icon-position="end">
+                        <template #icon><snippet-outlined /></template>
+                        快捷备注
+                      </a-button>
                     </a-popover>
-                    <a-button type="link" @click="isManageQuickRemarksVisible = true">管理</a-button>
                   </div>
-                </a-space-compact>
+                </div>
               </a-form-item>
               <a-form-item label="照片">
                 <a-upload
@@ -89,14 +112,14 @@
                   list-type="picture-card"
                   :max-count="1"
                 >
-                  <div v-if="! quickFileList || quickFileList.length < 1">
+                  <div v-if="!  quickFileList || quickFileList.length < 1">
                     <plus-outlined />
                     <div style="margin-top: 8px">上传</div>
                   </div>
                 </a-upload>
               </a-form-item>
               <a-form-item>
-                <a-button type="primary" @click="quickInbound" :loading="isSaving">确认入库</a-button>
+                <a-button type="primary" block @click="quickInbound" :loading="isSaving">确认入库</a-button>
               </a-form-item>
             </a-form>
           </a-card>
@@ -114,7 +137,7 @@
                         v-model:value="batchFormState.itemDefinitionId"
                         show-search
                         placeholder="搜索或选择物品定义"
-                        :options="itemDefinitionStore.itemDefinitions.map(d => ({ value: d. id, label: d.name }))"
+                        :options="itemDefinitionStore.itemDefinitions. map(d => ({ value: d.  id, label: d.name }))"
                         style="width: calc(100% - 60px)"
                       ></a-select>
                       <a-button @click="isNewItemDefVisible = true">新建</a-button>
@@ -167,7 +190,7 @@ GHI789"
                   <a-upload
                     :before-upload="handleExcelUpload"
                     :file-list="[]"
-                    accept=".xlsx,.xls,. csv"
+                    accept=".xlsx,.xls,.  csv"
                   >
                     <a-button block>
                       <upload-outlined />
@@ -194,12 +217,12 @@ GHI789"
                     <a-button 
                       type="primary" 
                       @click="executeBatchImport" 
-                      :disabled="! batchItems.length || ! batchFormState.itemDefinitionId || !batchFormState.warehouseId"
+                      :disabled="!  batchItems.length || !  batchFormState.itemDefinitionId || ! batchFormState.warehouseId"
                       :loading="isSaving"
                     >
                       确认导入
                     </a-button>
-                    <a-button @click="clearBatchItems" :disabled="!batchItems.length">清空</a-button>
+                    <a-button @click="clearBatchItems" :disabled="! batchItems.length">清空</a-button>
                   </a-space>
                 </template>
 
@@ -231,7 +254,7 @@ GHI789"
                 <!-- 添加单个物品 -->
                 <a-divider />
                 <a-space>
-                  <a-input v-model:value="singleItemInput. shortId" placeholder="条码" style="width: 200px" />
+                  <a-input v-model:value="singleItemInput.  shortId" placeholder="条码" style="width: 200px" />
                   <a-input v-model:value="singleItemInput.remarks" placeholder="备注（选填）" style="width: 200px" />
                   <a-button @click="addSingleItem">添加</a-button>
                 </a-space>
@@ -266,7 +289,7 @@ GHI789"
                           v-model:value="manualFormState.itemDefinitionId"
                           show-search
                           placeholder="搜索或选择物品定义"
-                          :options="itemDefinitionStore.itemDefinitions. map(d => ({ value: d.id, label: d.name }))"
+                          :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
                            style="width: calc(100% - 60px)"
                         ></a-select>
                         <a-button @click="isNewItemDefVisible = true">新建</a-button>
@@ -276,7 +299,7 @@ GHI789"
                     <a-select
                       v-model:value="manualFormState.warehouseId"
                       placeholder="选择仓库"
-                      :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
+                      :options="warehouseStore.warehouses. map(w => ({ value: w.id, label: w.name }))"
                     ></a-select>
                   </a-form-item>
                    <a-form-item label="数量" name="quantity" :rules="[{ required: true, message: '请输入数量', type: 'number', min: 1 }]">
@@ -293,14 +316,14 @@ GHI789"
                       list-type="picture-card"
                       :max-count="1"
                     >
-                      <div v-if="! manualFileList || manualFileList.length < 1">
+                      <div v-if="!  manualFileList || manualFileList.length < 1">
                         <plus-outlined />
                         <div style="margin-top: 8px">上传</div>
                       </div>
                     </a-upload>
                   </a-form-item>
                   <a-form-item>
-                    <a-button type="primary" @click="addToExportList">添加到导出列表</a-button>
+                    <a-button type="primary" @click="addToExportList" block>添加到导出列表</a-button>
                   </a-form-item>
                 </a-form>
               </a-card>
@@ -309,7 +332,7 @@ GHI789"
             <a-col :span="16">
               <a-card title="待导出列表">
                 <template #extra>
-                  <a-button type="primary" @click="saveAndExport" :loading="isSaving" :disabled="!exportList.length">
+                  <a-button type="primary" @click="saveAndExport" :loading="isSaving" :disabled="! exportList.length">
                     全部保存并导出XLSX
                   </a-button>
                 </template>
@@ -339,17 +362,64 @@ GHI789"
     </div>
 
     <!-- Manage Quick Remarks Modal -->
-    <a-modal v-model:open="isManageQuickRemarksVisible" title="管理快捷备注" :confirm-loading="quickRemarksLoading" @ok="isManageQuickRemarksVisible = false" :footer="null">
+    <a-modal 
+      v-model:open="isManageQuickRemarksVisible" 
+      title="快捷备注管理" 
+      :confirm-loading="quickRemarksLoading" 
+      @ok="isManageQuickRemarksVisible = false" 
+      :footer="null"
+      width="600px"
+    >
       <div>
-        <a-space style="width: 100%; margin-bottom: 12px;">
-          <a-input v-model:value="newQuickRemarkText" placeholder="请输入新快捷备注" />
-          <a-button type="primary" @click="createQuickRemark" :loading="quickRemarksLoading">添加</a-button>
+        <a-space style="width: 100%; margin-bottom: 16px;">
+          <a-input 
+            v-model:value="newQuickRemarkText" 
+            placeholder="输入新快捷备注..."
+            allow-clear
+            @keyup.enter="createQuickRemark"
+          />
+          <a-button type="primary" @click="createQuickRemark" :loading="quickRemarksLoading">
+            <template #icon><plus-outlined /></template>
+            添加
+          </a-button>
         </a-space>
-        <a-divider />
-        <div v-if="! quickRemarks.length" style="color:#888">暂无快捷备注</div>
-        <div v-for="r in quickRemarks" :key="r.id" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom: 1px solid #f0f0f0">
-          <div style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="r.content">{{ r.content }}</div>
-          <a-button type="text" danger size="small" @click="deleteQuickRemark(r.id)">删除</a-button>
+        <a-divider style="margin: 16px 0;" />
+        
+        <div v-if="! quickRemarks.length" style="text-align: center; color: #999; padding: 40px 0;">
+          <div style="font-size: 14px;">暂无快捷备注，点击"添加"创建第一条</div>
+        </div>
+        
+        <div v-else style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-height: 400px; overflow-y: auto;">
+          <div 
+            v-for="r in quickRemarks" 
+            :key="r.id" 
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 12px;
+              border: 1px solid #e8e8e8;
+              border-radius: 6px;
+              background: #fafafa;
+              transition: all 0.3s;
+              gap: 8px;
+            "
+            @mouseenter="$event.currentTarget.style.background = '#f0f5ff'"
+            @mouseleave="$event.currentTarget.style.background = '#fafafa'"
+          >
+            <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;" :title="r.content">
+              {{ r.content }}
+            </div>
+            <a-button 
+              type="text" 
+              danger 
+              size="small"
+              @click="deleteQuickRemark(r. id)"
+              style="flex-shrink: 0;"
+            >
+              <template #icon><delete-outlined /></template>
+            </a-button>
+          </div>
         </div>
       </div>
     </a-modal>
@@ -367,10 +437,11 @@ import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../sto
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
 import { message, type UploadProps, type FormInstance } from 'ant-design-vue';
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, UploadOutlined, SnippetOutlined, PlusCircleOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
+
 interface QuickRemarkDto { id: number; content: string; }
 const quickRemarks = ref<QuickRemarkDto[]>([]);
 const quickRemarksLoading = ref(false);
@@ -381,8 +452,8 @@ const isQuickRemarkPickerVisible = ref(false);
 const quickRemarksTextarea = ref<HTMLElement | null>(null);
 const quickRemarkSearch = ref('');
 const filteredQuickRemarks = computed(() => {
-  const q = quickRemarkSearch.value.trim(). toLowerCase();
-  if (!q) return quickRemarks. value;
+  const q = quickRemarkSearch.value.trim().  toLowerCase();
+  if (! q) return quickRemarks.  value;
   return quickRemarks.value.filter(r => r.content.toLowerCase().includes(q));
 });
 
@@ -390,20 +461,20 @@ const fetchQuickRemarks = async () => {
   quickRemarksLoading.value = true;
   try {
     const res = await apiClient.get('/QuickRemarks');
-    quickRemarks. value = res.data || [];
+    quickRemarks.  value = res.data || [];
   } catch (err) {
     console.error('fetchQuickRemarks', err);
   } finally {
-    quickRemarksLoading. value = false;
+    quickRemarksLoading.  value = false;
   }
 };
 
 const insertQuickRemark = (text: string) => {
   // 插入到备注输入框的光标位置（优先使用带 id 的 textarea）
   const ta = document.getElementById('quick-remarks-textarea') as HTMLTextAreaElement | null;
-  if (! ta) {
+  if (!  ta) {
     // fallback: 直接追加并添加空格分隔
-    quickFormState.remarks = quickFormState.remarks ?  (quickFormState.remarks + ' ' + text) : text;
+    quickFormState.remarks = quickFormState.remarks ?   (quickFormState.remarks + ' ' + text) : text;
   } else {
     const start = ta.selectionStart ??  ta.value.length;
     const end = ta.selectionEnd ??  ta.value.length;
@@ -421,8 +492,8 @@ const insertQuickRemark = (text: string) => {
   }
 
   // 插入后关闭选择器并清空搜索
-  isQuickRemarkPickerVisible. value = false;
-  quickRemarkSearch.value = '';
+  isQuickRemarkPickerVisible.  value = false;
+  quickRemarkSearch. value = '';
 };
 
 const openManageFromPopover = () => {
@@ -431,7 +502,7 @@ const openManageFromPopover = () => {
 };
 
 const createQuickRemark = async () => {
-  const content = newQuickRemarkText. value?. trim();
+  const content = newQuickRemarkText.  value? . trim();
   if (!content) {
     message.warning('请输入备注内容');
     return;
@@ -439,14 +510,14 @@ const createQuickRemark = async () => {
   quickRemarksLoading.value = true;
   try {
     const res = await apiClient.post('/QuickRemarks', { content });
-    quickRemarks.value.unshift(res.data);
+    quickRemarks. value.unshift(res.data);
     newQuickRemarkText.value = '';
     message.success('添加成功');
   } catch (err) {
-    console.error('createQuickRemark', err);
+    console. error('createQuickRemark', err);
     message.error('添加失败');
   } finally {
-    quickRemarksLoading. value = false;
+    quickRemarksLoading.  value = false;
   }
 };
 
@@ -460,7 +531,7 @@ const deleteQuickRemark = async (id: number) => {
     console.error('deleteQuickRemark', err);
     message.error('删除失败');
   } finally {
-    quickRemarksLoading.value = false;
+    quickRemarksLoading. value = false;
   }
 };
 
@@ -515,18 +586,18 @@ const quickFormState = reactive<QuickFormState>({
 const quickFileList = ref<UploadProps['fileList']>([]);
 
 const handleQuickFileChange = (info: any) => {
-  quickFileList.value = info.fileList. slice(-1);
-  if (quickFileList.value && quickFileList.value. length > 0) {
-    quickFormState.photo = quickFileList.value[0]. originFileObj;
+  quickFileList.value = info.fileList.  slice(-1);
+  if (quickFileList.value && quickFileList.value.  length > 0) {
+    quickFormState.photo = quickFileList.value[0].  originFileObj;
   } else {
-    quickFormState. photo = undefined;
+    quickFormState.  photo = undefined;
   }
 };
 
 const resetQuickForm = () => {
   quickFormRef.value?.resetFields();
   quickFormState.remarks = '';
-  quickFormState. photo = undefined;
+  quickFormState.  photo = undefined;
   quickFileList.value = [];
 };
 
@@ -536,12 +607,12 @@ const quickInbound = async () => {
     isSaving.value = true;
     await itemStore.createItem({
       shortId: quickFormState.shortId,
-      itemDefinitionId: quickFormState. itemDefinitionId! ,
-      warehouseId: quickFormState.warehouseId! ,
+      itemDefinitionId: quickFormState.  itemDefinitionId!  ,
+      warehouseId: quickFormState.warehouseId!  ,
       remarks: quickFormState.remarks,
       photo: quickFormState.photo,
     });
-    message.success(`物品 ${quickFormState.shortId} 已成功入库! `);
+    message.success(`物品 ${quickFormState.shortId} 已成功入库!  `);
     resetQuickForm();
   } catch (error) {
     message.error('入库失败，请检查表单或条码是否已存在。');
@@ -583,7 +654,7 @@ const batchColumns = [
 
 // 解析文本输入
 const parseTextInput = () => {
-  const lines = batchTextInput.value. trim().split('\n'). filter(line => line.trim());
+  const lines = batchTextInput.value.  trim().split('\n'). filter(line => line.trim());
   const items: BatchItem[] = [];
   const existingIds = new Set<string>();
 
@@ -591,14 +662,14 @@ const parseTextInput = () => {
     const parts = line.split(','). map(p => p.trim());
     const shortId = parts[0];
     
-    if (! shortId) continue;
+    if (!  shortId) continue;
     
     if (existingIds.has(shortId)) {
       message.warning(`条码 ${shortId} 重复，已跳过`);
       continue;
     }
     
-    existingIds.add(shortId);
+    existingIds. add(shortId);
     items.push({
       tempId: Date.now() + Math.random(),
       shortId,
@@ -611,7 +682,7 @@ const parseTextInput = () => {
     return;
   }
 
-  batchItems.value = [... batchItems.value, ...items];
+  batchItems.value = [...  batchItems.value, ...items];
   message.success(`成功解析 ${items.length} 个条码`);
   batchTextInput.value = '';
 };
@@ -625,7 +696,7 @@ const handleExcelUpload = async (file: File) => {
     reader.onload = (e) => {
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const firstSheet = workbook. Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
       
       const items: BatchItem[] = [];
@@ -633,10 +704,10 @@ const handleExcelUpload = async (file: File) => {
       
       // 跳过标题行（如果有）
       const startIndex = jsonData[0] && typeof jsonData[0][0] === 'string' && 
-                        (jsonData[0][0].toLowerCase(). includes('条码') || 
-                         jsonData[0][0].toLowerCase(). includes('code')) ?  1 : 0;
+                        (jsonData[0][0]. toLowerCase(). includes('条码') || 
+                         jsonData[0][0].toLowerCase(). includes('code')) ?   1 : 0;
       
-      for (let i = startIndex; i < jsonData. length; i++) {
+      for (let i = startIndex; i < jsonData.  length; i++) {
         const row = jsonData[i];
         const shortId = row[0]?.toString(). trim();
         
@@ -651,21 +722,21 @@ const handleExcelUpload = async (file: File) => {
         items.push({
           tempId: Date.now() + Math.random() + i,
           shortId,
-          remarks: row[1]?.toString(). trim() || batchFormState. defaultRemarks || ''
+          remarks: row[1]?.toString(). trim() || batchFormState.  defaultRemarks || ''
         });
       }
       
       if (items.length === 0) {
         message.warning('未从文件中解析到有效的条码');
       } else {
-        batchItems.value = [...batchItems. value, ...items];
+        batchItems.value = [... batchItems.  value, ...items];
         message.success(`成功从Excel导入 ${items.length} 个条码`);
       }
     };
     
     reader.readAsArrayBuffer(file);
   } catch (error) {
-    message.error('文件解析失败，请检查文件格式');
+    message. error('文件解析失败，请检查文件格式');
     console.error(error);
   } finally {
     batchLoading.value = false;
@@ -682,14 +753,14 @@ const downloadTemplate = () => {
   ];
   
   const ws = XLSX.utils.aoa_to_sheet(template);
-  const wb = XLSX. utils.book_new();
+  const wb = XLSX.  utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '批量导入模板');
   XLSX.writeFile(wb, '批量导入模板.xlsx');
 };
 
 // 添加单个物品
 const addSingleItem = () => {
-  if (!singleItemInput.shortId) {
+  if (! singleItemInput.shortId) {
     message.warning('请输入条码');
     return;
   }
@@ -701,12 +772,12 @@ const addSingleItem = () => {
   }
   
   batchItems.value.push({
-    tempId: Date. now(),
+    tempId: Date.  now(),
     shortId: singleItemInput.shortId,
     remarks: singleItemInput.remarks || batchFormState.defaultRemarks || ''
   });
   
-  singleItemInput.shortId = '';
+  singleItemInput. shortId = '';
   singleItemInput.remarks = '';
   message.success('添加成功');
 };
@@ -742,8 +813,8 @@ const validateShortId = (item: BatchItem) => {
 
 // 执行批量导入
 const executeBatchImport = async () => {
-  if (! batchFormState.itemDefinitionId || ! batchFormState.warehouseId) {
-    message.error('请选择物品定义和仓库');
+  if (!  batchFormState.itemDefinitionId || ! batchFormState.warehouseId) {
+    message. error('请选择物品定义和仓库');
     return;
   }
   
@@ -763,7 +834,7 @@ const executeBatchImport = async () => {
     const payload = {
       itemDefinitionId: batchFormState.itemDefinitionId,
       warehouseId: batchFormState.warehouseId,
-      items: batchItems.value. map(item => ({
+      items: batchItems.value.  map(item => ({
         shortId: item.shortId,
         remarks: item.remarks || undefined
       }))
@@ -772,18 +843,18 @@ const executeBatchImport = async () => {
     const response = await apiClient.post('/items/create/batch', payload);
     
     // 获取物品定义和仓库名称
-    const definition = itemDefinitionStore.itemDefinitions.find(d => d.id === batchFormState. itemDefinitionId);
-    const warehouse = warehouseStore.warehouses.find(w => w.id === batchFormState.warehouseId);
+    const definition = itemDefinitionStore.itemDefinitions.find(d => d.id === batchFormState.  itemDefinitionId);
+    const warehouse = warehouseStore.warehouses.find(w => w. id === batchFormState.warehouseId);
     
     importResult.value = {
       success: true,
       message: response.data.message,
       successCount: batchItems.value.length,
       failCount: 0,
-      data: batchItems.value. map(item => ({
-        ... item,
-        itemDefinition: definition?. name,
-        warehouse: warehouse?. name
+      data: batchItems.value.  map(item => ({
+        ...  item,
+        itemDefinition: definition? . name,
+        warehouse: warehouse?.  name
       }))
     };
     
@@ -810,9 +881,9 @@ const executeBatchImport = async () => {
 
 // 下载导入结果
 const downloadImportResult = () => {
-  if (!importResult.value?. data) return;
+  if (!importResult.value? . data) return;
   
-  const data = importResult.value.data. map(item => ({
+  const data = importResult.value.data.  map(item => ({
     '物品定义': item.itemDefinition,
     '仓库': item.warehouse,
     '条码': item.shortId,
@@ -845,9 +916,9 @@ const manualFileList = ref<UploadProps['fileList']>([]);
 const exportList = ref<any[]>([]);
 
 const handleManualFileChange = (info: any) => {
-  manualFileList.value = info. fileList. slice(-1);
-  if (manualFileList.value && manualFileList.value. length > 0) {
-    manualFormState.photo = manualFileList.value[0].originFileObj;
+  manualFileList.value = info.  fileList.  slice(-1);
+  if (manualFileList.value && manualFileList.value.  length > 0) {
+    manualFormState.photo = manualFileList.value[0]. originFileObj;
   } else {
     manualFormState.photo = undefined;
   }
@@ -863,7 +934,7 @@ const resetManualForm = () => {
 const addToExportList = async () => {
   try {
     await manualFormRef.value?.validate();
-    const definition = itemDefinitionStore.itemDefinitions.find(d => d. id === manualFormState.itemDefinitionId);
+    const definition = itemDefinitionStore.itemDefinitions.find(d => d.  id === manualFormState.itemDefinitionId);
     const warehouse = warehouseStore.warehouses.find(w => w.id === manualFormState.warehouseId);
 
     for (let i = 0; i < manualFormState.quantity; i++) {
@@ -875,7 +946,7 @@ const addToExportList = async () => {
         photo: i === 0 ? manualFormState.photo : undefined,
         photoPreview: i === 0 && manualFormState.photo ? URL.createObjectURL(manualFormState.photo) : null,
         definitionName: definition?.name,
-        warehouseName: warehouse?. name,
+        warehouseName: warehouse? . name,
       });
     }
     resetManualForm();
@@ -886,8 +957,8 @@ const addToExportList = async () => {
 
 const removeFromExportList = (index: number) => {
   const item = exportList.value[index];
-  if (item. photoPreview) {
-    URL. revokeObjectURL(item. photoPreview);
+  if (item.  photoPreview) {
+    URL.  revokeObjectURL(item.  photoPreview);
   }
   exportList.value.splice(index, 1);
 };
@@ -905,17 +976,17 @@ const saveAndExport = async () => {
       });
       savedItems.push(savedItem);
     }
-    message.success(`${exportList.value.length}个新物品已成功保存! `);
+    message.success(`${exportList.value.length}个新物品已成功保存!  `);
     
-    const dataForExport = savedItems.map(item => ({
-      '物品名称': item.itemDefinition?. name || '未知',
+    const dataForExport = savedItems. map(item => ({
+      '物品名称': item.itemDefinition? . name || '未知',
       '短ID': item.shortId,
-      '备注': item. remarks || '',
+      '备注': item.  remarks || '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     const workbook = XLSX.utils.book_new();
-    XLSX. utils.book_append_sheet(workbook, worksheet, '入库物品');
+    XLSX.  utils.book_append_sheet(workbook, worksheet, '入库物品');
     XLSX.writeFile(workbook, `inbound_items_${Date.now()}.xlsx`);
     
     exportList.value = [];
