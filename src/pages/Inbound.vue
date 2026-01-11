@@ -370,19 +370,7 @@ GHI789"
           <div 
             v-for="r in quickRemarks" 
             :key="r.id" 
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              padding: 12px;
-              border: 1px solid #e8e8e8;
-              border-radius: 6px;
-              background: #fafafa;
-              transition: all 0.3s;
-              gap: 8px;
-            "
-            @mouseenter="$event.currentTarget.style.background = '#f0f5ff'"
-            @mouseleave="$event.currentTarget.style.background = '#fafafa'"
+            class="quick-remark-tag"
           >
             <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px;" :title="r.content">
               {{ r.content }}
@@ -409,12 +397,11 @@ GHI789"
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { computed } from 'vue';
 import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
 import { message, type UploadProps, type FormInstance } from 'ant-design-vue';
-import { PlusOutlined, UploadOutlined, SnippetOutlined, PlusCircleOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
@@ -424,15 +411,6 @@ const quickRemarks = ref<QuickRemarkDto[]>([]);
 const quickRemarksLoading = ref(false);
 const isManageQuickRemarksVisible = ref(false);
 const newQuickRemarkText = ref('');
-// Popover picker visibility and textarea ref for inserting tags into remarks
-const isQuickRemarkPickerVisible = ref(false);
-const quickRemarksTextarea = ref<HTMLElement | null>(null);
-const quickRemarkSearch = ref('');
-const filteredQuickRemarks = computed(() => {
-  const q = quickRemarkSearch.value.trim().  toLowerCase();
-  if (! q) return quickRemarks.  value;
-  return quickRemarks.value.filter(r => r.content.toLowerCase().includes(q));
-});
 
 const fetchQuickRemarks = async () => {
   quickRemarksLoading.value = true;
@@ -484,13 +462,9 @@ const insertQuickRemark = (text: string) => {
   // 移除了清空搜索的代码 (quickRemarkSearch.value = '';)
 };
 
-const openManageFromPopover = () => {
-  isQuickRemarkPickerVisible.value = false;
-  isManageQuickRemarksVisible.value = true;
-};
 
 const createQuickRemark = async () => {
-  const content = newQuickRemarkText.  value? . trim();
+  const content = newQuickRemarkText. value?. trim();
   if (!content) {
     message.warning('请输入备注内容');
     return;
@@ -498,14 +472,14 @@ const createQuickRemark = async () => {
   quickRemarksLoading.value = true;
   try {
     const res = await apiClient.post('/QuickRemarks', { content });
-    quickRemarks. value.unshift(res.data);
+    quickRemarks.value.unshift(res.data);
     newQuickRemarkText.value = '';
     message.success('添加成功');
   } catch (err) {
-    console. error('createQuickRemark', err);
+    console.error('createQuickRemark', err);
     message.error('添加失败');
   } finally {
-    quickRemarksLoading.  value = false;
+    quickRemarksLoading.value = false;
   }
 };
 
@@ -841,7 +815,7 @@ const executeBatchImport = async () => {
       failCount: 0,
       data: batchItems.value.  map(item => ({
         ...  item,
-        itemDefinition: definition? . name,
+        itemDefinition: definition?.name,
         warehouse: warehouse?.  name
       }))
     };
@@ -869,9 +843,9 @@ const executeBatchImport = async () => {
 
 // 下载导入结果
 const downloadImportResult = () => {
-  if (!importResult.value? . data) return;
+  if (!importResult.value?.data) return;
   
-  const data = importResult.value.data.  map(item => ({
+  const data = importResult.value.data.map(item => ({
     '物品定义': item.itemDefinition,
     '仓库': item.warehouse,
     '条码': item.shortId,
@@ -934,7 +908,7 @@ const addToExportList = async () => {
         photo: i === 0 ? manualFormState.photo : undefined,
         photoPreview: i === 0 && manualFormState.photo ? URL.createObjectURL(manualFormState.photo) : null,
         definitionName: definition?.name,
-        warehouseName: warehouse? . name,
+        warehouseName: warehouse?.name,
       });
     }
     resetManualForm();
@@ -967,7 +941,7 @@ const saveAndExport = async () => {
     message.success(`${exportList.value.length}个新物品已成功保存!  `);
     
     const dataForExport = savedItems. map(item => ({
-      '物品名称': item.itemDefinition? . name || '未知',
+      '物品名称': item.itemDefinition?.name||'未知',
       '短ID': item.shortId,
       '备注': item.  remarks || '',
     }));
@@ -1020,5 +994,25 @@ onMounted(() => {
 <style scoped>
 .page-container {
   padding: 24px;
+}
+
+.quick-remark-tag {
+  cursor: pointer;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-remark-tag:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+  background: #e6f7ff;
 }
 </style>
