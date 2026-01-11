@@ -31,79 +31,56 @@
                 ></a-select>
               </a-form-item>
               <a-form-item label="备注">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <a-textarea 
-                    id="quick-remarks-textarea"
-                    v-model:value="quickFormState.remarks"
-                    :rows="3"
-                    placeholder="请输入备注信息"
-                    style="resize: vertical;"
-                  />
-                  <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                    <!-- Popover for Quick Remarks -->
-                    <a-popover 
-                      v-model:open="isQuickRemarkPickerVisible" 
-                      title="快捷备注库" 
-                      placement="topRight"
-                      trigger="click"
-                      :overlayStyle="{ maxWidth: '450px' }"
-                    >
-                      <template #content>
-                        <div style="width: 100%;">
-                          <a-input 
-                            v-model:value="quickRemarkSearch" 
-                            placeholder="搜索快捷备注..." 
-                            allow-clear
-                            style="margin-bottom: 12px;"
-                            @input="quickRemarkSearch = $event.target.value"
-                          />
-                          <div style="max-height: 300px; overflow-y: auto; padding: 8px; border: 1px solid #e8e8e8; border-radius: 6px; background: #fafafa;">
-                            <div v-if="filteredQuickRemarks.length === 0" style="color: #999; text-align: center; padding: 20px; font-size: 12px;">
-                              暂无匹配的快捷备注
-                            </div>
-                            <div v-else style="display: flex; flex-direction: column; gap: 6px;">
-                              <div
-                                v-for="r in filteredQuickRemarks"
-                                :key="r.id"
-                                style="
-                                  cursor: pointer;
-                                  padding: 8px 12px;
-                                  background: #1890ff;
-                                  color: white;
-                                  border-radius: 4px;
-                                  font-size: 12px;
-                                  transition: all 0.3s;
-                                  display: flex;
-                                  justify-content: space-between;
-                                  align-items: center;
-                                  word-break: break-all;
-                                  white-space: normal;
-                                  line-height: 1.4;
-                                "
-                                @click="insertQuickRemark(r. content)"
-                                @mouseenter="$event.currentTarget.style.background = '#40a9ff'"
-                                @mouseleave="$event.currentTarget.style.background = '#1890ff'"
-                              >
-                                <span style="flex: 1;">{{ r.content }}</span>
-                                <plus-circle-outlined style="margin-left: 8px; flex-shrink: 0;" />
-                              </div>
-                            </div>
-                          </div>
-                          <a-divider style="margin: 12px 0;" />
-                          <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                            <a-button type="link" size="small" @click="openManageFromPopover">管理备注</a-button>
-                            <a-button size="small" @click="isQuickRemarkPickerVisible = false">关闭</a-button>
-                          </div>
-                        </div>
-                      </template>
-                      <a-button type="dashed" icon-position="end">
-                        <template #icon><snippet-outlined /></template>
-                        快捷备注
-                      </a-button>
-                    </a-popover>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <a-textarea 
+                id="quick-remarks-textarea"
+                v-model:value="quickFormState.remarks"
+                :rows="3"
+                placeholder="请输入备注信息"
+                style="resize: vertical;"
+              />
+              
+              <!-- 修改：改为直接在页面显示的快捷备注区域 -->
+              <div style="border: 1px solid #f0f0f0; background: #fafafa; padding: 8px 12px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 12px; color: #888;">快捷备注</span>
+                  <a-button type="link" size="small" @click="isManageQuickRemarksVisible = true">管理备注</a-button>
+                </div>
+                
+                <div v-if="quickRemarks.length === 0" style="color: #ccc; font-size: 12px; text-align: center; padding: 4px;">
+                  暂无快捷备注
+                </div>
+                
+                <div v-else style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <div
+                    v-for="r in quickRemarks"
+                    :key="r.id"
+                    @click="insertQuickRemark(r.content)"
+                    style="
+                      cursor: pointer;
+                      padding: 4px 10px;
+                      background: #fff;
+                      border: 1px solid #d9d9d9;
+                      border-radius: 4px;
+                      font-size: 12px;
+                      color: #666;
+                      transition: all 0.2s;
+                      display: flex;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                    onmouseover="this.style.color='#1890ff'; this.style.borderColor='#1890ff'; this.style.background='#e6f7ff'"
+                    onmouseout="this.style.color='#666'; this.style.borderColor='#d9d9d9'; this.style.background='#fff'"
+                  >
+                    <span>{{ r.content }}</span>
+                    <plus-outlined style="font-size: 10px;" />
                   </div>
                 </div>
-              </a-form-item>
+              </div>
+              <!-- 修改结束 -->
+              
+            </div>
+          </a-form-item>
               <a-form-item label="照片">
                 <a-upload
                   v-model:file-list="quickFileList"
@@ -472,28 +449,39 @@ const fetchQuickRemarks = async () => {
 const insertQuickRemark = (text: string) => {
   // 插入到备注输入框的光标位置（优先使用带 id 的 textarea）
   const ta = document.getElementById('quick-remarks-textarea') as HTMLTextAreaElement | null;
-  if (!  ta) {
-    // fallback: 直接追加并添加空格分隔
-    quickFormState.remarks = quickFormState.remarks ?   (quickFormState.remarks + ' ' + text) : text;
+  
+  if (!ta) {
+    // fallback: 直接追加并添加换行分隔
+    // 修改：使用 \n 替代空格
+    const current = quickFormState.remarks || '';
+    const separator = (current && !current.endsWith('\n')) ? '\n' : '';
+    quickFormState.remarks = current + separator + text;
   } else {
-    const start = ta.selectionStart ??  ta.value.length;
-    const end = ta.selectionEnd ??  ta.value.length;
-    const before = ta.value.substring(0, start);
-    const after = ta.value.substring(end);
-    const newVal = before + text + after;
+    const start = ta.selectionStart ?? ta.value.length;
+    const end = ta.selectionEnd ?? ta.value.length;
+    const oldVal = ta.value;
+    const before = oldVal.substring(0, start);
+    const after = oldVal.substring(end);
+    
+    // 修改：逻辑判断，确保新插入的内容前有换行（除非是在开头）
+    let prefix = '';
+    if (start > 0 && oldVal[start - 1] !== '\n') {
+        prefix = '\n';
+    }
+    
+    const newVal = before + prefix + text + after;
     quickFormState.remarks = newVal;
 
     // 聚焦并把光标移动到插入后的位置
     setTimeout(() => {
       ta.focus();
-      const pos = start + text.length;
+      const pos = start + prefix.length + text.length;
       ta.setSelectionRange(pos, pos);
     }, 0);
   }
 
-  // 插入后关闭选择器并清空搜索
-  isQuickRemarkPickerVisible.  value = false;
-  quickRemarkSearch. value = '';
+  // 移除了关闭 popover 的代码 (isQuickRemarkPickerVisible.value = false;)
+  // 移除了清空搜索的代码 (quickRemarkSearch.value = '';)
 };
 
 const openManageFromPopover = () => {
