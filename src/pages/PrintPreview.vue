@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <div class="print-container">
     <div v-for="item in items" :key="item.id" class="label-wrapper">
       <div class="label">
-        <p class="item-name">{{ item.itemDefinition?.name }}</p>
+        <p class="item-name">{{ item.itemDefinitionName || '-' }}</p>
         <div class="qr-code">
           <canvas :ref="el => setCanvasRef(el, item.id)"></canvas>
         </div>
@@ -16,17 +16,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { nextTick, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import apiClient from '../services/api';
 import QRCode from 'qrcode';
 
-const route = useRoute();
-const items = ref<any[]>([]);
-const canvasRefs = new Map();
+interface PrintItem {
+  id: string;
+  shortId: string;
+  itemDefinitionName: string;
+  remarks?: string | null;
+}
 
-const setCanvasRef = (el: any, id: string) => {
-  if (el) {
+const route = useRoute();
+const items = ref<PrintItem[]>([]);
+const canvasRefs = new Map<string, HTMLCanvasElement>();
+
+const setCanvasRef = (el: unknown, id: string) => {
+  if (el instanceof HTMLCanvasElement) {
     canvasRefs.set(id, el);
   }
 };
@@ -34,38 +41,30 @@ const setCanvasRef = (el: any, id: string) => {
 const generateQRCodes = () => {
   items.value.forEach(item => {
     const canvas = canvasRefs.get(item.id);
-    if (canvas) {
-      // Use the internal GUID for the QR code content
-      QRCode.toCanvas(canvas, item.id, { width: 85, margin: 0 }, (error) => {
-        if (error) console.error(error);
-      });
-    }
+    if (!canvas) return;
+    QRCode.toCanvas(canvas, item.id, { width: 85, margin: 0 }, error => {
+      if (error) console.error(error);
+    });
   });
 };
 
 onMounted(async () => {
-  const ids = (route.query.ids as string)?.split(',');
-  if (ids && ids.length > 0) {
-    try {
-      const response = await apiClient.post('/items/batch', ids);
-      items.value = response.data;
-      await nextTick(); // Ensure canvases are in the DOM
-      generateQRCodes();
-      
-      // Automatically trigger print dialog
-      window.onload = () => {
-        window.print();
-      };
+  const ids = (route.query.ids as string | undefined)?.split(',').filter(Boolean);
+  if (!ids || ids.length === 0) return;
 
-    } catch (error) {
-      console.error("Failed to fetch items for printing:", error);
-    }
+  try {
+    const response = await apiClient.post<PrintItem[]>('/items/batch', ids);
+    items.value = response.data;
+    await nextTick();
+    generateQRCodes();
+    window.print();
+  } catch (error) {
+    console.error('Failed to fetch items for printing:', error);
   }
 });
 </script>
 
 <style scoped>
-/* Default screen styles */
 .print-container {
   display: flex;
   flex-wrap: wrap;
@@ -75,7 +74,7 @@ onMounted(async () => {
 }
 .label-wrapper {
   border: 1px dashed #ccc;
-  width: 300px; /* Preview width */
+  width: 300px;
 }
 .label {
   padding: 8px;
@@ -98,46 +97,38 @@ onMounted(async () => {
   color: #333;
 }
 
-
-/* Print-specific styles */
 @media print {
-  /* Hide everything else */
   body * {
     visibility: hidden;
   }
-  .print-container, .print-container * {
+  .print-container,
+  .print-container * {
     visibility: visible;
   }
-  
-  /* Remove screen-only styles */
+
   .print-container {
     padding: 0;
     margin: 0;
     background-color: transparent;
   }
-  
+
   .label-wrapper {
     border: none;
     width: 30mm;
     height: 40mm;
-    page-break-after: always; /* Ensure each label is on a new page */
+    page-break-after: always;
     overflow: hidden;
     position: relative;
   }
 
   .label {
-    /* This is the content block, sized for landscape 40x30 */
     width: 40mm;
     height: 30mm;
-    
-    /* Rotate and position it */
     position: absolute;
     top: 0;
     left: 0;
     transform-origin: top left;
     transform: rotate(-90deg) translateY(-30mm);
-
-    /* General styling */
     padding: 2mm;
     box-sizing: border-box;
     display: flex;
@@ -148,7 +139,7 @@ onMounted(async () => {
   }
 
   .qr-code {
-    width: 24mm; /* Fixed width for QR code */
+    width: 24mm;
     height: 24mm;
     flex-shrink: 0;
     display: flex;
@@ -156,7 +147,7 @@ onMounted(async () => {
     justify-content: center;
     margin-right: 2mm;
   }
-  
+
   .qr-code canvas {
     width: 100% !important;
     height: 100% !important;
@@ -177,7 +168,7 @@ onMounted(async () => {
     font-weight: bold;
     margin: 0;
     line-height: 1.2;
-    white-space: normal; /* Allow wrapping */
+    white-space: normal;
     word-break: break-all;
   }
 
@@ -186,9 +177,9 @@ onMounted(async () => {
     margin: auto 0;
     word-break: break-all;
     line-height: 1.2;
-    white-space: normal; /* Allow wrapping */
+    white-space: normal;
   }
-  
+
   .remarks {
     font-size: 7pt;
     font-style: italic;
@@ -196,7 +187,7 @@ onMounted(async () => {
 }
 
 @page {
-  size: 30mm 40mm; /* Portrait orientation */
+  size: 30mm 40mm;
   margin: 0;
 }
 </style>

@@ -8,15 +8,24 @@
             <a-range-picker v-model:value="filters.dateRange" />
           </a-form-item>
           <a-form-item label="操作类型">
-            <a-select v-model:value="filters.action" placeholder="所有类型" style="width: 150px" allow-clear>
-              <a-select-option value="入库">入库</a-select-option>
-              <a-select-option value="借出">借出</a-select-option>
-              <a-select-option value="处置">处置</a-select-option>
-              <a-select-option value="归还">归还</a-select-option>
+            <a-select v-model:value="filters.action" placeholder="所有类型" style="width: 170px" allow-clear>
+              <a-select-option
+                v-for="opt in actionOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="操作人">
             <a-input v-model:value="filters.user" placeholder="输入用户名" allow-clear />
+          </a-form-item>
+          <a-form-item>
+            <a-button @click="exportXlsx" :disabled="filteredLogs.length === 0">
+              <template #icon><download-outlined /></template>
+              导出XLSX
+            </a-button>
           </a-form-item>
         </a-form>
 
@@ -27,7 +36,13 @@
           :data-source="filteredLogs"
           :loading="auditLogStore.loading"
           row-key="id"
-        />
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'action'">
+              <a-tag :color="actionColor(record.action)">{{ actionLabel(record.action) }}</a-tag>
+            </template>
+          </template>
+        </a-table>
       </a-card>
     </div>
   </div>
@@ -38,6 +53,8 @@ import { reactive, onMounted, computed } from 'vue';
 import { useAuditLogStore, type AuditLog } from '../stores/auditLogStore';
 import dayjs from 'dayjs';
 import { formatDateTime } from '../utils/formatters';
+import { DownloadOutlined } from '@ant-design/icons-vue';
+import { exportToXlsx } from '../utils/xlsx';
 
 const auditLogStore = useAuditLogStore();
 
@@ -51,11 +68,47 @@ const filters = reactive<{
   user: '',
 });
 
+const actionOptions = [
+  { value: 'Inbound', label: '入库' },
+  { value: 'Outbound', label: '出库/借出' },
+  { value: 'Check', label: '盘点' },
+  { value: 'Return', label: '归还' },
+  { value: 'Dispose', label: '处置' },
+  { value: 'Transfer', label: '调拨' },
+  { value: 'RentalCreated', label: '租赁创建' },
+  { value: 'RentalShipped', label: '租赁发货' },
+  { value: 'RentalDelivered', label: '租赁签收' },
+  { value: 'RentalReturned', label: '租赁归还' },
+  { value: 'RentalExtended', label: '租赁续期' },
+  { value: 'RentalCancelled', label: '租赁取消' },
+  { value: 'RentalUpdated', label: '租赁修改' },
+];
+
+const actionLabelMap: Record<string, string> = Object.fromEntries(
+  actionOptions.map(o => [o.value, o.label])
+);
+
+const actionLabel = (action: string) => actionLabelMap[action] || action;
+
+const actionColor = (action: string) => {
+  if (action === 'Inbound' || action === 'Return' || action === 'RentalReturned') return 'green';
+  if (action === 'Outbound' || action === 'RentalShipped') return 'blue';
+  if (action === 'Dispose' || action === 'RentalCancelled') return 'red';
+  if (action === 'Check') return 'purple';
+  if (action === 'Transfer') return 'cyan';
+  if (action === 'RentalCreated' || action === 'RentalDelivered') return 'geekblue';
+  if (action === 'RentalExtended') return 'orange';
+  if (action === 'RentalUpdated') return 'gold';
+  return 'default';
+};
+
 const filteredLogs = computed(() => {
   return auditLogStore.logs.filter(log => {
     const timestamp = dayjs(log.timestamp);
-    const dateMatch = !filters.dateRange || 
-      (timestamp.isAfter(filters.dateRange[0].startOf('day')) && timestamp.isBefore(filters.dateRange[1].endOf('day')));
+    const dateMatch =
+      !filters.dateRange ||
+      (timestamp.isAfter(filters.dateRange[0].startOf('day')) &&
+        timestamp.isBefore(filters.dateRange[1].endOf('day')));
     const actionMatch = !filters.action || log.action === filters.action;
     const userMatch = !filters.user || log.user.toLowerCase().includes(filters.user.toLowerCase());
     return dateMatch && actionMatch && userMatch;
@@ -63,20 +116,35 @@ const filteredLogs = computed(() => {
 });
 
 const columns = [
-  { 
-    title: '时间', 
-    dataIndex: 'timestamp', 
-    key: 'timestamp', 
-    sorter: (a: AuditLog, b: AuditLog) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(), 
+  {
+    title: '时间',
+    dataIndex: 'timestamp',
+    key: 'timestamp',
+    sorter: (a: AuditLog, b: AuditLog) => dayjs(a.timestamp).unix() - dayjs(b.timestamp).unix(),
     defaultSortOrder: 'descend',
     customRender: ({ text }: { text: string }) => formatDateTime(text),
   },
-  { title: '操作类型', dataIndex: 'action', key: 'action' },
+  { title: '操作类型', dataIndex: 'action', key: 'action', width: 140 },
   { title: '物品名称', dataIndex: 'itemName', key: 'itemName' },
   { title: '可视化ID', dataIndex: 'itemShortId', key: 'itemShortId' },
   { title: '仓库', dataIndex: 'warehouseName', key: 'warehouse' },
+  { title: '去向/备注', dataIndex: 'destination', key: 'destination' },
   { title: '操作人', dataIndex: 'user', key: 'user' },
 ];
+
+const exportXlsx = () => {
+  const rows = filteredLogs.value.map(log => ({
+    时间: formatDateTime(log.timestamp),
+    操作类型: actionLabel(log.action),
+    物品名称: log.itemName,
+    可视化ID: log.itemShortId,
+    仓库: log.warehouseName,
+    '去向/备注': log.destination || '',
+    操作人: log.user,
+  }));
+  const filename = `审计日志_${dayjs().format('YYYYMMDD_HHmm')}.xlsx`;
+  exportToXlsx(rows, filename, '审计日志');
+};
 
 onMounted(() => {
   auditLogStore.fetchLogs();

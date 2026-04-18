@@ -22,7 +22,44 @@
           <a-form-item>
             <a-button type="primary" @click="applyFilters">查询</a-button>
           </a-form-item>
+          <a-form-item>
+            <a-space>
+              <a-button @click="exportXlsx" :disabled="filteredData.length === 0">
+                <template #icon><download-outlined /></template>
+                导出XLSX
+              </a-button>
+              <a-upload
+                :before-upload="onImportFile"
+                :show-upload-list="false"
+                accept=".xlsx,.xls"
+              >
+                <a-button :loading="importing">
+                  <template #icon><upload-outlined /></template>
+                  批量导入
+                </a-button>
+              </a-upload>
+              <a-button type="link" @click="downloadImportTemplate">下载模板</a-button>
+            </a-space>
+          </a-form-item>
         </a-form>
+
+        <a-alert
+          v-if="importReport"
+          :type="importReport.errors.length === 0 ? 'success' : 'warning'"
+          show-icon
+          closable
+          style="margin-bottom: 12px"
+          @close="importReport = null"
+        >
+          <template #message>
+            导入完成：成功 {{ importReport.success }} 条，失败 {{ importReport.errors.length }} 条
+          </template>
+          <template v-if="importReport.errors.length > 0" #description>
+            <ul style="margin: 0; padding-left: 20px">
+              <li v-for="(e, idx) in importReport.errors" :key="idx">{{ e }}</li>
+            </ul>
+          </template>
+        </a-alert>
 
         <a-divider />
 
@@ -53,13 +90,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, computed } from 'vue';
+import { reactive, onMounted, computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
+import dayjs from 'dayjs';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { STATUS_MAP } from '../utils/constants';
 import { formatDateTime } from '../utils/formatters';
+import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
+import { DownloadOutlined, UploadOutlined } from '@ant-design/icons-vue';
+import apiClient from '../services/api';
 import type { Warehouse } from '../stores/warehouseStore';
 
 const router = useRouter();
@@ -144,6 +186,114 @@ const applyFilters = () => {
     queryFilters.status = filters.status;
   }
   itemStore.fetchItems(queryFilters);
+};
+
+const importing = ref(false);
+const importReport = ref<{ success: number; errors: string[] } | null>(null);
+
+const exportXlsx = () => {
+  const rows = filteredData.value.map(item => ({
+    可视化ID: item.shortId,
+    物品名称: item.name,
+    所在仓库: item.warehouseName,
+    状态: statusDisplay(item.status).text,
+    当前去向: item.currentDestination || '',
+    备注: item.remarks || '',
+    入库时间: formatDateTime(item.entryDate),
+    最后更新: formatDateTime(item.lastUpdated),
+  }));
+  exportToXlsx(rows, `库存_${dayjs().format('YYYYMMDD_HHmm')}.xlsx`, '库存');
+};
+
+const downloadImportTemplate = () => {
+  const rows = [
+    { 物品名称: '示例物品A', 仓库名称: '主仓库', 可视化ID: '', 序列号: '', 备注: '' },
+    { 物品名称: '示例物品B', 仓库名称: '主仓库', 可视化ID: 'SKU001', 序列号: 'SN-001', 备注: '带外部条码' },
+  ];
+  exportToXlsx(rows, '库存导入模板.xlsx', '库存');
+};
+
+interface ImportRow {
+  物品名称?: string;
+  仓库名称?: string;
+  可视化ID?: string;
+  序列号?: string;
+  备注?: string;
+}
+
+const onImportFile = async (file: File) => {
+  importing.value = true;
+  importReport.value = null;
+  try {
+    if (itemDefStore.itemDefinitions.length === 0) await itemDefStore.fetchItemDefinitions();
+    if (warehouseStore.warehouses.length === 0) await warehouseStore.fetchWarehouses();
+
+    const rows = await parseXlsxFile<ImportRow>(file);
+    if (rows.length === 0) {
+      message.warning('文件中没有可导入的数据');
+      importing.value = false;
+      return false;
+    }
+
+    const defByName = new Map(itemDefStore.itemDefinitions.map(d => [d.name.trim(), d.id]));
+    const whByName = new Map(warehouseStore.warehouses.map(w => [w.name.trim(), w.id]));
+
+    interface ParsedItem {
+      shortId?: string;
+      serialNumber?: string;
+      remarks?: string;
+    }
+    const groups = new Map<string, { itemDefinitionId: number; warehouseId: number; items: ParsedItem[] }>();
+    const errors: string[] = [];
+
+    rows.forEach((r, idx) => {
+      const rowNum = idx + 2;
+      const defName = String(r.物品名称 ?? '').trim();
+      const whName = String(r.仓库名称 ?? '').trim();
+      if (!defName) { errors.push(`第${rowNum}行：缺少"物品名称"`); return; }
+      if (!whName) { errors.push(`第${rowNum}行：缺少"仓库名称"`); return; }
+      const defId = defByName.get(defName);
+      const whId = whByName.get(whName);
+      if (defId === undefined) { errors.push(`第${rowNum}行：物品定义"${defName}"不存在`); return; }
+      if (whId === undefined) { errors.push(`第${rowNum}行：仓库"${whName}"不存在`); return; }
+
+      const key = `${defId}_${whId}`;
+      if (!groups.has(key)) groups.set(key, { itemDefinitionId: defId, warehouseId: whId, items: [] });
+      groups.get(key)!.items.push({
+        shortId: String(r.可视化ID ?? '').trim() || undefined,
+        serialNumber: String(r.序列号 ?? '').trim() || undefined,
+        remarks: String(r.备注 ?? '').trim() || undefined,
+      });
+    });
+
+    let success = 0;
+    for (const group of groups.values()) {
+      try {
+        await apiClient.post('/items/create/batch', {
+          itemDefinitionId: group.itemDefinitionId,
+          warehouseId: group.warehouseId,
+          items: group.items,
+        });
+        success += group.items.length;
+      } catch (err: any) {
+        errors.push(`物品定义ID ${group.itemDefinitionId} / 仓库ID ${group.warehouseId} 批次失败：${err?.response?.data || err?.message}`);
+      }
+    }
+
+    importReport.value = { success, errors };
+    if (success > 0) {
+      message.success(`成功导入 ${success} 条`);
+      await itemStore.fetchItems();
+    }
+    if (errors.length > 0 && success === 0) {
+      message.error('导入失败，请检查错误详情');
+    }
+  } catch (err: any) {
+    message.error('解析文件失败：' + (err?.message || '未知错误'));
+  } finally {
+    importing.value = false;
+  }
+  return false;
 };
 </script>
 

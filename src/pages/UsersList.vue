@@ -1,0 +1,103 @@
+﻿<template>
+  <div>
+    <a-page-header title="用户管理" sub-title="维护用户状态和角色" />
+    <a-card>
+      <a-space style="margin-bottom: 12px">
+        <a-input-search v-model:value="keyword" placeholder="姓名/钉钉ID" style="width: 240px" @search="search" />
+        <a-select v-model:value="status" allow-clear style="width: 140px" placeholder="状态" @change="search">
+          <a-select-option value="Active">Active</a-select-option>
+          <a-select-option value="Left">Left</a-select-option>
+        </a-select>
+        <a-button @click="search">查询</a-button>
+      </a-space>
+
+      <a-table :loading="userStore.loading" row-key="id" :columns="columns" :data-source="userStore.users">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="record.status === 'Active' ? 'green' : 'red'">{{ record.status }}</a-tag>
+          </template>
+          <template v-if="column.key === 'roles'">
+            <a-space wrap>
+              <a-tag v-for="r in record.roles" :key="r">{{ r }}</a-tag>
+            </a-space>
+          </template>
+          <template v-if="column.key === 'lastLoginAt'">
+            {{ formatDateTime(record.lastLoginAt) || '-' }}
+          </template>
+          <template v-if="column.key === 'actions'">
+            <a-space>
+              <a-button type="link" @click="toggleStatus(record)">{{ record.status === 'Active' ? '停用' : '启用' }}</a-button>
+              <a-button type="link" @click="openRoleModal(record)">分配角色</a-button>
+            </a-space>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <a-modal v-model:open="roleVisible" title="分配角色" ok-text="保存" cancel-text="取消" @ok="saveRoles">
+      <a-form layout="vertical">
+        <a-form-item label="角色">
+          <a-select v-model:value="selectedRoleIds" mode="multiple" :options="roleOptions" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { message } from 'ant-design-vue';
+import { useUserStore, type AdminUser } from '../stores/userStore';
+import { useRoleStore } from '../stores/roleStore';
+import { formatDateTime } from '../utils/formatters';
+
+const userStore = useUserStore();
+const roleStore = useRoleStore();
+
+const keyword = ref('');
+const status = ref<'Active' | 'Left' | undefined>(undefined);
+const roleVisible = ref(false);
+const currentUserId = ref<string | null>(null);
+const selectedRoleIds = ref<number[]>([]);
+
+const columns = [
+  { title: '姓名', dataIndex: 'name', key: 'name', width: 160 },
+  { title: '状态', key: 'status', width: 120 },
+  { title: '最近登录', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 200 },
+  { title: '角色', key: 'roles' },
+  { title: '操作', key: 'actions', width: 220 },
+];
+
+const roleOptions = computed(() => roleStore.roles.map(r => ({ value: r.id, label: r.name })));
+
+const search = async () => {
+  await userStore.fetchUsers({ keyword: keyword.value.trim() || undefined, status: status.value, limit: 300 });
+};
+
+const toggleStatus = async (user: AdminUser) => {
+  const nextStatus = user.status === 'Active' ? 'Left' : 'Active';
+  await userStore.updateStatus(user.id, nextStatus);
+  message.success('状态已更新');
+  await search();
+};
+
+const openRoleModal = (user: AdminUser) => {
+  currentUserId.value = user.id;
+  selectedRoleIds.value = roleStore.roles
+    .filter(r => user.roles.includes(r.name))
+    .map(r => r.id);
+  roleVisible.value = true;
+};
+
+const saveRoles = async () => {
+  if (!currentUserId.value) return;
+  await userStore.updateRoles(currentUserId.value, selectedRoleIds.value);
+  message.success('角色已更新');
+  roleVisible.value = false;
+  await search();
+};
+
+onMounted(async () => {
+  await Promise.all([roleStore.fetchRoles(), search()]);
+});
+</script>

@@ -1,8 +1,9 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import { useUiStore } from '../stores/uiStore';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5048/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5880/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -10,32 +11,37 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(config => {
   const authStore = useAuthStore();
-  const token = authStore.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (authStore.token) {
+    config.headers.Authorization = `Bearer ${authStore.token}`;
   }
-  
-  // Let the browser set the Content-Type for FormData
+
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
   }
-  
+
   return config;
 });
 
 apiClient.interceptors.response.use(
   response => response,
   error => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response?.status;
+
+    if (status === 401) {
       const authStore = useAuthStore();
-      // Check if the user was actually authenticated before logging out
       if (authStore.isAuthenticated) {
-        authStore.logout('会话已过期，请重新登录。');
+        authStore.logout('会话已过期，请重新登录');
       }
     }
+
+    if (status === 403) {
+      const uiStore = useUiStore();
+      const message = error.response?.data?.message || error.response?.data || '没有权限执行该操作';
+      uiStore.showNotification(String(message), 'warning');
+    }
+
     return Promise.reject(error);
   }
 );
 
 export default apiClient;
-

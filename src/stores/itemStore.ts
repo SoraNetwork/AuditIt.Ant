@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia';
+﻿import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
 export type ItemStatus = 'InStock' | 'LoanedOut' | 'Disposed' | 'SuspectedMissing';
@@ -6,39 +6,70 @@ export type ItemStatus = 'InStock' | 'LoanedOut' | 'Disposed' | 'SuspectedMissin
 export interface Item {
   id: string;
   shortId: string;
+  serialNumber?: string | null;
   itemDefinitionId: number;
+  itemDefinitionName: string;
   warehouseId: number;
+  warehouseName: string;
   status: ItemStatus;
-  lastUpdated: string;
+  currentDestination?: string | null;
+  remarks?: string | null;
+  photoUrl?: string | null;
   entryDate: string;
-  remarks?: string;
-  photoUrl?: string;
-  currentDestination?: string;
-  itemDefinition?: { id: number; name: string; };
-  warehouse?: { id: number; name: string; };
+  lastUpdated: string;
+
+  itemDefinition?: { id: number; name: string };
+  warehouse?: { id: number; name: string };
+  name?: string;
 }
 
 interface CreateItemPayload {
   itemDefinitionId: number;
   warehouseId: number;
   shortId?: string;
+  serialNumber?: string;
   remarks?: string;
   photo?: File | null;
 }
 
 interface UpdateItemPayload {
   shortId?: string;
+  serialNumber?: string;
   remarks?: string;
   currentDestination?: string;
   photo?: File | null;
   deletePhoto?: boolean;
 }
 
-
 interface ItemState {
   items: Item[];
   loading: boolean;
   error: string | null;
+}
+
+function normalizeItem(raw: any): Item {
+  const itemDefinitionName = raw.itemDefinitionName ?? raw.itemDefinition?.name ?? '';
+  const warehouseName = raw.warehouseName ?? raw.warehouse?.name ?? '';
+
+  return {
+    id: String(raw.id),
+    shortId: raw.shortId ?? '',
+    serialNumber: raw.serialNumber ?? null,
+    itemDefinitionId: Number(raw.itemDefinitionId ?? raw.itemDefinition?.id ?? 0),
+    itemDefinitionName,
+    warehouseId: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0),
+    warehouseName,
+    status: raw.status,
+    currentDestination: raw.currentDestination ?? null,
+    remarks: raw.remarks ?? null,
+    photoUrl: raw.photoUrl ?? null,
+    entryDate: raw.entryDate ?? raw.lastUpdated ?? new Date().toISOString(),
+    lastUpdated: raw.lastUpdated ?? new Date().toISOString(),
+
+    itemDefinition: { id: Number(raw.itemDefinitionId ?? raw.itemDefinition?.id ?? 0), name: itemDefinitionName },
+    warehouse: { id: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0), name: warehouseName },
+    name: itemDefinitionName,
+  };
 }
 
 export const useItemStore = defineStore('item', {
@@ -48,20 +79,29 @@ export const useItemStore = defineStore('item', {
     error: null,
   }),
   actions: {
-    async fetchItems(filters: { warehouseId?: number; status?: ItemStatus; id?: string; shortId?: string } = {}) {
+    async fetchItems(filters: {
+      warehouseId?: number;
+      status?: ItemStatus;
+      id?: string;
+      shortId?: string;
+      serialNumber?: string;
+      search?: string;
+    } = {}) {
       this.loading = true;
       this.error = null;
       try {
         const params = new URLSearchParams();
-        if (filters.warehouseId) params.append('warehouseId', filters.warehouseId.toString());
+        if (filters.warehouseId) params.append('warehouseId', String(filters.warehouseId));
         if (filters.status) params.append('status', filters.status);
         if (filters.id) params.append('id', filters.id);
         if (filters.shortId) params.append('shortId', filters.shortId);
-        
+        if (filters.serialNumber) params.append('serialNumber', filters.serialNumber);
+        if (filters.search) params.append('search', filters.search);
+
         const response = await apiClient.get<Item[]>(`/items?${params.toString()}`);
-        this.items = response.data;
+        this.items = response.data.map(normalizeItem);
       } catch (err: any) {
-        this.error = '获取库存物品失败: ' + (err.response?.data?.message || err.message);
+        this.error = '获取库存失败: ' + (err.response?.data?.message || err.message);
       } finally {
         this.loading = false;
       }
@@ -75,12 +115,13 @@ export const useItemStore = defineStore('item', {
         formData.append('itemDefinitionId', String(payload.itemDefinitionId));
         formData.append('warehouseId', String(payload.warehouseId));
         if (payload.shortId) formData.append('shortId', payload.shortId);
+        if (payload.serialNumber) formData.append('serialNumber', payload.serialNumber);
         if (payload.remarks) formData.append('remarks', payload.remarks);
         if (payload.photo) formData.append('photo', payload.photo);
 
-        const response = await apiClient.post<Item>('/items/create', formData);
-        this.items.unshift(response.data);
-        return response.data;
+        await apiClient.post('/items/create', formData);
+        await this.fetchItems({ shortId: payload.shortId });
+        return this.items[0];
       } catch (err: any) {
         this.error = '创建物品失败: ' + (err.response?.data?.message || err.message);
         throw err;
@@ -94,14 +135,10 @@ export const useItemStore = defineStore('item', {
       this.error = null;
       try {
         const formData = new FormData();
-        // Always send remarks, even if empty, to allow clearing it.
         formData.append('remarks', payload.remarks || '');
-        if (payload.shortId) {
-          formData.append('shortId', payload.shortId);
-        }
-        if (payload.currentDestination) {
-          formData.append('currentDestination', payload.currentDestination);
-        }
+        if (payload.shortId) formData.append('shortId', payload.shortId);
+        if (payload.serialNumber !== undefined) formData.append('serialNumber', payload.serialNumber || '');
+        if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
 
         if (payload.photo) {
           formData.append('photo', payload.photo);
@@ -110,21 +147,7 @@ export const useItemStore = defineStore('item', {
         }
 
         await apiClient.put(`/items/${itemId}`, formData);
-        
-        // Find the item in the store to update it directly
-        const index = this.items.findIndex(i => i.id === itemId);
-        if (index !== -1) {
-          // For a more responsive UI, optimistically update the item
-          // A full refetch might be safer but slower.
-          const updatedItem = { ...this.items[index], ...payload };
-          if (payload.deletePhoto) updatedItem.photoUrl = undefined;
-          // Note: photoUrl won't be updated client-side without a refetch or more complex logic
-          this.items[index] = updatedItem;
-        }
-        
-        // Refetch the single item to get the latest state from server (e.g., new photoUrl)
         await this.fetchItems({ id: itemId });
-
       } catch (err: any) {
         this.error = '更新物品失败: ' + (err.response?.data?.message || err.message);
         throw err;
@@ -133,78 +156,74 @@ export const useItemStore = defineStore('item', {
       }
     },
 
-    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string | undefined): Promise<Item> {
-        this.loading = true;
-        this.error = null;
-        try {
-            const response = await apiClient.put<Item>(`/items/${itemId}/${action}`, { destination });
-            const index = this.items.findIndex(item => item.id === itemId);
-            if (index !== -1) {
-              this.items[index] = response.data;
-            }
-            return response.data;
-        } catch (err: any) {
-            this.error = `物品操作 '${action}' 失败: ` + (err.response?.data?.message || err.message);
-            throw err;
-        } finally {
-            this.loading = false;
+    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string): Promise<Item> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put(`/items/${itemId}/${action}`, { destination });
+        const normalized = normalizeItem(response.data);
+        const index = this.items.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          this.items[index] = normalized;
         }
+        return normalized;
+      } catch (err: any) {
+        this.error = `物品操作 '${action}' 失败: ` + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
     },
 
-async transferWarehouse(itemId: string, newWarehouseId: number, remarks?: string): Promise<Item> {
-  this.loading = true;
-  this.error = null;
-  try {
-    const response = await apiClient.put<Item>(`/items/${itemId}/transfer`, {
-      newWarehouseId,
-      remarks
-    });
-    
-    // 更新本地状态
-    const index = this.items.findIndex(item => item.id === itemId);
-    if (index !== -1) {
-      this.items[index] = response.data;
-    }
-    
-    return response.data;
-  } catch (err: any) {
-    this.error = `转移库房失败: ` + (err.response?.data?.message || err.message);
-    throw err;
-  } finally {
-    this.loading = false;
-  }
-},
+    async transferWarehouse(itemId: string, newWarehouseId: number, remarks?: string): Promise<Item> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put(`/items/${itemId}/transfer`, {
+          newWarehouseId,
+          remarks,
+        });
 
-// 批量转移库房
-async transferWarehouseBatch(itemIds: string[], newWarehouseId: number, remarks?: string) {
-  this.loading = true;
-  this.error = null;
-  try {
-    const promises = itemIds.map(id => 
-      apiClient.put<Item>(`/items/${id}/transfer`, {
-        newWarehouseId,
-        remarks
-      })
-    );
-    
-    const responses = await Promise.all(promises);
-    
-    // 更新本地状态
-    responses.forEach(response => {
-      const index = this.items.findIndex(item => item.id === response.data.id);
-      if (index !== -1) {
-        this.items[index] = response.data;
+        const normalized = normalizeItem(response.data);
+        const index = this.items.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          this.items[index] = normalized;
+        }
+
+        return normalized;
+      } catch (err: any) {
+        this.error = '转移库房失败: ' + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
       }
-    });
-    
-    return responses.map(r => r.data);
-  } catch (err: any) {
-    this.error = `批量转移库房失败: ` + (err.response?.data?.message || err.message);
-    throw err;
-  } finally {
-    this.loading = false;
-  }
-},
+    },
+
+    async transferWarehouseBatch(itemIds: string[], newWarehouseId: number, remarks?: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const responses = await Promise.all(
+          itemIds.map(id => apiClient.put(`/items/${id}/transfer`, { newWarehouseId, remarks }))
+        );
+
+        const result = responses.map(r => normalizeItem(r.data));
+        result.forEach(item => {
+          const index = this.items.findIndex(existing => existing.id === item.id);
+          if (index !== -1) {
+            this.items[index] = item;
+          }
+        });
+
+        return result;
+      } catch (err: any) {
+        this.error = '批量转移库房失败: ' + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async updateStatusBatch(itemIds: string[], status: ItemStatus) {
       this.loading = true;
       this.error = null;
@@ -217,23 +236,26 @@ async transferWarehouseBatch(itemIds: string[], newWarehouseId: number, remarks?
           return item;
         });
       } catch (err: any) {
-        this.error = `批量更新状态失败: ` + (err.response?.data?.message || err.message);
+        this.error = '批量更新状态失败: ' + (err.response?.data?.message || err.message);
         throw err;
       } finally {
         this.loading = false;
       }
-    }
+    },
   },
 });
 
 export function getStatusText(status: ItemStatus) {
   switch (status) {
-    case 'InStock': return '在库';
-    case 'LoanedOut': return '借出';
-    case 'Disposed': return '处置';
-    case 'SuspectedMissing': return '疑似丢失';
-    default: return '未知';
+    case 'InStock':
+      return '在库';
+    case 'LoanedOut':
+      return '借出';
+    case 'Disposed':
+      return '处置';
+    case 'SuspectedMissing':
+      return '疑似丢失';
+    default:
+      return '未知';
   }
 }
-
-// 在 itemStore.ts 的 actions 中添加以下方法

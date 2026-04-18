@@ -1,41 +1,58 @@
-<template>
+﻿<template>
   <div>
-    <a-page-header :title="`物品详情: ${item?.shortId}`" @back="router.back()">
+    <a-page-header :title="`物品详情: ${item?.shortId || ''}`" @back="router.back()">
       <template #extra>
-        <a-button @click="() => router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
+        <a-button @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
         <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
       </template>
     </a-page-header>
+
     <div class="page-container">
       <a-card :loading="itemStore.loading">
         <a-row :gutter="16">
           <a-col :span="16">
             <a-descriptions bordered :column="2">
-              <a-descriptions-item label="物品名称">{{ itemName }}</a-descriptions-item>
-              <a-descriptions-item label="所属仓库">{{ warehouseName }}</a-descriptions-item>
-              <a-descriptions-item label="可视化ID">{{ item?.shortId }}</a-descriptions-item>
+              <a-descriptions-item label="物品名称">{{ item?.itemDefinitionName || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="所在仓库">{{ item?.warehouseName || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
+              <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
               <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
-              <a-descriptions-item label="当前去向" :span="2" v-if="item?.status === 'LoanedOut' || item?.status === 'Disposed'">
-                {{ item?.currentDestination || '无' }}
-              </a-descriptions-item>
-              <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '无' }}</a-descriptions-item>
+              <a-descriptions-item label="当前去向" :span="2">{{ item?.currentDestination || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '-' }}</a-descriptions-item>
               <a-descriptions-item label="UUID" :span="2">{{ item?.id }}</a-descriptions-item>
             </a-descriptions>
           </a-col>
           <a-col :span="8">
-            <a-image
-              v-if="photoFullUrl"
-              :width="200"
-              :src="photoFullUrl"
-              alt="物品图片"
-              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBYSO_L2DLs_pWEnPErdAZ2Wa4AyGGz7Z1gAGAhImmwPAWIQLATAoPEwAX1Ls1GHi0AAAAAAABjWLNZaAAAABRnUExURQAAAPQ9Pfr6+vDw8Pv7+/T09P///9SoCg8AAAAlSURBVHja7cExAQAAAMKg9U9tCF8gAAAAAAAAAAAAAOD2A20AAAE42g4qAAAAAElFTkSuQmCC"
-            />
+            <a-image v-if="photoFullUrl" :width="200" :src="photoFullUrl" alt="物品图片" />
             <a-empty v-else description="暂无图片" />
           </a-col>
         </a-row>
       </a-card>
 
-      <a-card title="生命周期日志" style="margin-top: 16px;">
+      <a-card title="平台挂载链接" style="margin-top: 16px">
+        <a-space style="margin-bottom: 12px">
+          <a-button type="primary" @click="openListingCreate">新增链接</a-button>
+          <a-button @click="loadListings" :loading="listingStore.loading">刷新</a-button>
+        </a-space>
+        <a-table row-key="id" :columns="listingColumns" :data-source="currentListings" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'url'">
+              <a :href="record.url" target="_blank" rel="noreferrer">{{ record.url }}</a>
+            </template>
+            <template v-if="column.key === 'actions'">
+              <a-space>
+                <a-button type="link" @click="openListingEdit(record)">编辑</a-button>
+                <a-popconfirm title="确认删除链接？" @confirm="deleteListing(record.id)">
+                  <a-button type="link" danger>删除</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+
+      <a-card title="生命周期日志" style="margin-top: 16px">
         <a-timeline>
           <a-timeline-item v-for="log in auditLogStore.logs" :key="log.id">
             <p><strong>{{ log.action }}</strong> - {{ formatDateTime(log.timestamp) }}</p>
@@ -46,16 +63,46 @@
         </a-timeline>
       </a-card>
     </div>
+
+    <a-modal v-model:open="listingVisible" :title="listingEditingId ? '编辑链接' : '新增链接'" ok-text="保存" cancel-text="取消" @ok="saveListing">
+      <a-form layout="vertical">
+        <a-form-item label="平台" required>
+          <a-select v-model:value="listingForm.platform">
+            <a-select-option value="Xianyu">Xianyu</a-select-option>
+            <a-select-option value="Taobao">Taobao</a-select-option>
+            <a-select-option value="Xiaohongshu">Xiaohongshu</a-select-option>
+            <a-select-option value="Other">Other</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="链接" required>
+          <a-input v-model:value="listingForm.url" />
+        </a-form-item>
+        <a-form-item label="标题">
+          <a-input v-model:value="listingForm.title" />
+        </a-form-item>
+        <a-form-item label="状态">
+          <a-select v-model:value="listingForm.status">
+            <a-select-option value="Draft">Draft</a-select-option>
+            <a-select-option value="Listed">Listed</a-select-option>
+            <a-select-option value="Hidden">Hidden</a-select-option>
+            <a-select-option value="Sold">Sold</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model:value="listingForm.remarks" :rows="2" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import { useItemStore, type Item } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
-import { useWarehouseStore } from '../stores/warehouseStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useItemListingStore, type ItemListing } from '../stores/itemListingStore';
 import { STATUS_MAP } from '../utils/constants';
 import { formatDateTime } from '../utils/formatters';
 import apiClient from '../services/api';
@@ -64,10 +111,33 @@ const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();
 const auditLogStore = useAuditLogStore();
-const warehouseStore = useWarehouseStore();
-const itemDefStore = useItemDefinitionStore();
+const listingStore = useItemListingStore();
 
 const item = ref<Item | null>(null);
+
+const listingVisible = ref(false);
+const listingEditingId = ref<number | null>(null);
+const listingForm = reactive({
+  platform: 'Xianyu' as 'Xianyu' | 'Taobao' | 'Xiaohongshu' | 'Other',
+  url: '',
+  title: '',
+  status: 'Listed' as 'Draft' | 'Listed' | 'Hidden' | 'Sold',
+  remarks: '',
+});
+
+const listingColumns = [
+  { title: '平台', dataIndex: 'platform', key: 'platform', width: 120 },
+  { title: '标题', dataIndex: 'title', key: 'title' },
+  { title: '链接', dataIndex: 'url', key: 'url' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+  { title: '备注', dataIndex: 'remarks', key: 'remarks' },
+  { title: '操作', key: 'actions', width: 160 },
+];
+
+const currentListings = computed(() => {
+  if (!item.value) return [];
+  return listingStore.listings[item.value.id] || [];
+});
 
 const photoFullUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
@@ -76,29 +146,85 @@ const photoFullUrl = computed(() => {
 });
 
 const statusDisplay = computed(() => {
-  if (item.value?.status) {
-    return STATUS_MAP[item.value.status] || { text: '未知', color: 'gray' };
-  }
-  return { text: '加载中...', color: 'gray' };
+  if (!item.value?.status) return { text: '未知', color: 'default' };
+  return STATUS_MAP[item.value.status] || { text: '未知', color: 'default' };
 });
 
-const itemName = computed(() => itemDefStore.itemDefinitions.find(d => d.id === item.value?.itemDefinitionId)?.name || '加载中...');
-const warehouseName = computed(() => warehouseStore.warehouses.find(w => w.id === item.value?.warehouseId)?.name || '加载中...');
-
-onMounted(async () => {
-  const itemId = route.params.id as string;
-  // 确保基础数据已加载
-  if (warehouseStore.warehouses.length === 0) warehouseStore.fetchWarehouses();
-  if (itemDefStore.itemDefinitions.length === 0) itemDefStore.fetchItemDefinitions();
-  
+const loadItem = async () => {
+  const itemId = String(route.params.id);
   await itemStore.fetchItems({ id: itemId });
-  if (itemStore.items.length > 0) {
-    item.value = itemStore.items[0];
-    await auditLogStore.fetchLogs({ itemId });
+  item.value = itemStore.items[0] || null;
+  if (item.value) {
+    await Promise.all([
+      auditLogStore.fetchLogs({ itemId }),
+      loadListings(),
+    ]);
   }
-});
+};
+
+const loadListings = async () => {
+  if (!item.value) return;
+  await listingStore.fetchByItem(item.value.id);
+};
+
+const openListingCreate = () => {
+  listingEditingId.value = null;
+  listingForm.platform = 'Xianyu';
+  listingForm.url = '';
+  listingForm.title = '';
+  listingForm.status = 'Listed';
+  listingForm.remarks = '';
+  listingVisible.value = true;
+};
+
+const openListingEdit = (record: ItemListing) => {
+  listingEditingId.value = record.id;
+  listingForm.platform = record.platform;
+  listingForm.url = record.url;
+  listingForm.title = record.title || '';
+  listingForm.status = record.status;
+  listingForm.remarks = record.remarks || '';
+  listingVisible.value = true;
+};
+
+const saveListing = async () => {
+  if (!item.value) return;
+  if (!listingForm.url.trim()) {
+    message.error('链接不能为空');
+    return;
+  }
+
+  const payload = {
+    platform: listingForm.platform,
+    url: listingForm.url,
+    title: listingForm.title || null,
+    status: listingForm.status,
+    remarks: listingForm.remarks || null,
+  };
+
+  if (listingEditingId.value) {
+    await listingStore.updateListing(listingEditingId.value, payload);
+    message.success('链接已更新');
+  } else {
+    await listingStore.createListing(item.value.id, payload);
+    message.success('链接已创建');
+  }
+
+  listingVisible.value = false;
+  await loadListings();
+};
+
+const deleteListing = async (id: number) => {
+  if (!item.value) return;
+  await listingStore.deleteListing(id, item.value.id);
+  message.success('链接已删除');
+};
+
+onMounted(loadItem);
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
+.page-container {
+  padding: 24px;
+}
 </style>
