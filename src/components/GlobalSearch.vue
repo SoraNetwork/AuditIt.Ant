@@ -2,7 +2,7 @@
   <a-auto-complete
     v-model:value="searchText"
     :options="options"
-    style="width: 250px"
+    :style="{ width: isMobile ? '100%' : '250px' }"
     placeholder="通过可视化ID或名称搜索物品..."
     @select="onSelect"
     @search="onSearch"
@@ -14,6 +14,9 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useItemStore } from '../stores/itemStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+
+const { isMobile } = useBreakpoint();
 
 const searchText = ref('');
 const router = useRouter();

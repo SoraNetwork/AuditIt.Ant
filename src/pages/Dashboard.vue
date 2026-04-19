@@ -2,7 +2,7 @@
   <div>
     <a-page-header title="仪表盘" sub-title="关键指标概览" />
     <div class="page-container">
-      <a-row :gutter="[16, 16]">
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]">
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="总库存物品" :value="totalItems" />
@@ -31,7 +31,7 @@
       </a-row>
 
       <a-divider orientation="left">租赁概览</a-divider>
-      <a-row :gutter="[16, 16]">
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]">
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="进行中租赁" :value="activeRentals" />
@@ -64,7 +64,7 @@
         </a-col>
       </a-row>
 
-      <a-row :gutter="[16, 16]" style="margin-top: 16px;">
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24" :md="12">
           <a-card title="即将到期 / 逾期">
             <a-list size="small" :data-source="dueSoonList" :locale="{ emptyText: '暂无到期或逾期' }">
@@ -111,15 +111,19 @@
         </a-col>
       </a-row>
 
-      <a-row :gutter="[16, 16]" style="margin-top: 24px;">
-        <a-col :span="12">
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 24px;">
+        <a-col :xs="24" :md="12">
           <a-card title="物品状态分布">
-            <Pie :data="pieChartData" :options="chartOptions" />
+            <div class="chart-wrapper">
+              <Pie :data="pieChartData" :options="chartOptions" />
+            </div>
           </a-card>
         </a-col>
-        <a-col :span="12">
+        <a-col :xs="24" :md="12">
           <a-card title="各仓库物品数量">
-            <Bar :data="barChartData" :options="chartOptions" />
+            <div class="chart-wrapper">
+              <Bar :data="barChartData" :options="chartOptions" />
+            </div>
           </a-card>
         </a-col>
       </a-row>
@@ -133,12 +137,14 @@ import dayjs from 'dayjs';
 import { useItemStore } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useRentalStore } from '../stores/rentalStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
 import { Pie, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js';
 import { formatDateTime } from '../utils/formatters';
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement);
 
+const { isMobile } = useBreakpoint();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const rentalStore = useRentalStore();
@@ -233,4 +239,9 @@ const chartOptions = {
 
 <style scoped>
 .page-container { padding: 24px; }
+.chart-wrapper { height: 240px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 12px; }
+}
 </style>

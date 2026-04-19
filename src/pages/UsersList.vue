@@ -1,17 +1,38 @@
-﻿<template>
+<template>
   <div>
     <a-page-header title="用户管理" sub-title="维护用户状态和角色" />
-    <a-card>
-      <a-space style="margin-bottom: 12px">
-        <a-input-search v-model:value="keyword" placeholder="姓名/钉钉ID" style="width: 240px" @search="search" />
-        <a-select v-model:value="status" allow-clear style="width: 140px" placeholder="状态" @change="search">
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <a-space
+        style="margin-bottom: 12px"
+        :direction="isMobile ? 'vertical' : 'horizontal'"
+        :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }"
+      >
+        <a-input-search
+          v-model:value="keyword"
+          placeholder="姓名/钉钉ID"
+          :style="isMobile ? { width: '100%' } : { width: '240px' }"
+          @search="search"
+        />
+        <a-select
+          v-model:value="status"
+          allow-clear
+          :style="isMobile ? { width: '100%' } : { width: '140px' }"
+          placeholder="状态"
+          @change="search"
+        >
           <a-select-option value="Active">Active</a-select-option>
           <a-select-option value="Left">Left</a-select-option>
         </a-select>
-        <a-button @click="search">查询</a-button>
+        <a-button :block="isMobile" @click="search">查询</a-button>
       </a-space>
 
-      <a-table :loading="userStore.loading" row-key="id" :columns="columns" :data-source="userStore.users">
+      <a-table
+        v-if="!isMobile"
+        :loading="userStore.loading"
+        row-key="id"
+        :columns="columns"
+        :data-source="userStore.users"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="record.status === 'Active' ? 'green' : 'red'">{{ record.status }}</a-tag>
@@ -32,6 +53,31 @@
           </template>
         </template>
       </a-table>
+
+      <div v-else>
+        <a-skeleton :loading="userStore.loading" active :paragraph="{ rows: 4 }">
+          <MobileListCard v-for="u in userStore.users" :key="u.id">
+            <template #title>{{ u.name }}</template>
+            <template #tags>
+              <a-tag :color="u.status === 'Active' ? 'green' : 'red'">{{ u.status }}</a-tag>
+            </template>
+            <template #meta>
+              <div v-if="u.roles.length > 0">
+                角色：
+                <a-tag v-for="r in u.roles" :key="r" style="margin-right: 4px">{{ r }}</a-tag>
+              </div>
+              <div>最近登录：{{ formatDateTime(u.lastLoginAt) || '-' }}</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="toggleStatus(u)">
+                {{ u.status === 'Active' ? '停用' : '启用' }}
+              </a-button>
+              <a-button size="small" type="primary" @click="openRoleModal(u)">分配角色</a-button>
+            </template>
+          </MobileListCard>
+          <a-empty v-if="userStore.users.length === 0 && !userStore.loading" description="暂无用户" />
+        </a-skeleton>
+      </div>
     </a-card>
 
     <a-modal v-model:open="roleVisible" title="分配角色" ok-text="保存" cancel-text="取消" @ok="saveRoles">
@@ -50,7 +96,10 @@ import { message } from 'ant-design-vue';
 import { useUserStore, type AdminUser } from '../stores/userStore';
 import { useRoleStore } from '../stores/roleStore';
 import { formatDateTime } from '../utils/formatters';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const userStore = useUserStore();
 const roleStore = useRoleStore();
 

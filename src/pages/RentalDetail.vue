@@ -2,8 +2,8 @@
   <div>
     <a-page-header :title="`租赁详情 ${rental?.rentalNumber || ''}`" @back="$router.back()" />
 
-    <a-card v-if="rental" :loading="loading">
-      <a-descriptions bordered :column="3">
+    <a-card v-if="rental" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <a-descriptions bordered :column="isMobile ? 1 : 3" :size="isMobile ? 'small' : 'default'">
         <a-descriptions-item label="状态">
           <a-tag :color="statusColor(rental.status)">{{ rental.status }}</a-tag>
         </a-descriptions-item>
@@ -15,7 +15,7 @@
         <a-descriptions-item label="总价">{{ formatMoney(rental.totalPrice) }}</a-descriptions-item>
         <a-descriptions-item label="押金">{{ formatMoney(rental.deposit) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="地址">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="3">{{ rental.notes || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="isMobile ? 1 : 3">{{ rental.notes || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建时间">{{ formatDateTime(rental.createdAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="更新时间">{{ formatDateTime(rental.updatedAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
@@ -33,14 +33,15 @@
       </a-space>
 
       <a-divider>租赁物品</a-divider>
-      <a-space style="margin-bottom: 12px" wrap>
-        <a-button @click="exportItemsXlsx">导出 xlsx</a-button>
+      <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+        <a-button :block="isMobile" @click="exportItemsXlsx">导出 xlsx</a-button>
         <a-upload :before-upload="importItemsXlsx" :show-upload-list="false" accept=".xlsx,.xls">
-          <a-button :loading="importing">导入 xlsx</a-button>
+          <a-button :block="isMobile" :loading="importing">导入 xlsx</a-button>
         </a-upload>
-        <a-button type="link" @click="downloadItemsTemplate">下载模板</a-button>
+        <a-button :block="isMobile" type="link" @click="downloadItemsTemplate">下载模板</a-button>
       </a-space>
-      <a-table row-key="id" :columns="itemColumns" :data-source="rental.items" :pagination="false">
+
+      <a-table v-if="!isMobile" row-key="id" :columns="itemColumns" :data-source="rental.items" :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'returnedAt'">
             {{ formatDateTime(record.returnedAt) || '-' }}
@@ -51,8 +52,25 @@
         </template>
       </a-table>
 
+      <div v-else>
+        <MobileListCard v-for="ri in rental.items" :key="ri.id">
+          <template #title>{{ ri.itemShortIdSnapshot }} · {{ ri.itemNameSnapshot }}</template>
+          <template #tags>
+            <a-tag v-if="ri.returnCondition" :color="ri.returnCondition === 'Good' ? 'green' : 'red'">
+              {{ ri.returnCondition }}
+            </a-tag>
+          </template>
+          <template #meta>
+            <div>单价：{{ formatMoney(ri.perItemPrice) || '-' }}</div>
+            <div v-if="ri.listingRemarks">平台备注：{{ ri.listingRemarks }}</div>
+            <div v-if="ri.returnedAt">归还时间：{{ formatDateTime(ri.returnedAt) }}</div>
+          </template>
+        </MobileListCard>
+        <a-empty v-if="!rental.items?.length" description="暂无物品" />
+      </div>
+
       <a-divider>物流记录</a-divider>
-      <a-table row-key="id" :columns="shipmentColumns" :data-source="rental.shipments" :pagination="false">
+      <a-table v-if="!isMobile" row-key="id" :columns="shipmentColumns" :data-source="rental.shipments" :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'direction'">
             <a-tag :color="record.direction === 'Outbound' ? 'blue' : 'geekblue'">
@@ -75,6 +93,32 @@
           </template>
         </template>
       </a-table>
+
+      <div v-else>
+        <MobileListCard v-for="sh in rental.shipments" :key="sh.id">
+          <template #title>
+            {{ sh.carrier || '未知物流' }}
+            <span v-if="sh.trackingNumber" style="color: #999; font-weight: 400">
+              · {{ sh.trackingNumber }}
+            </span>
+          </template>
+          <template #tags>
+            <a-tag :color="sh.direction === 'Outbound' ? 'blue' : 'geekblue'">
+              {{ sh.direction === 'Outbound' ? '发货' : '收货' }}
+            </a-tag>
+          </template>
+          <template #meta>
+            <div v-if="sh.originWarehouseName">仓库：{{ sh.originWarehouseName }}</div>
+            <div v-if="sh.shippingFee">运费：{{ formatMoney(sh.shippingFee) }}</div>
+            <div v-if="sh.shippedAt">发货：{{ formatDateTime(sh.shippedAt) }}</div>
+            <div v-if="sh.deliveredAt">签收：{{ formatDateTime(sh.deliveredAt) }}</div>
+          </template>
+          <template #footer v-if="!sh.deliveredAt">
+            <a-button size="small" type="primary" @click="deliver(sh.id)">标记签收</a-button>
+          </template>
+        </MobileListCard>
+        <a-empty v-if="!rental.shipments?.length" description="暂无物流" />
+      </div>
     </a-card>
   </div>
 
@@ -171,7 +215,10 @@ import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const route = useRoute();
 const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();

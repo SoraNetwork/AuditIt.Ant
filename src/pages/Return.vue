@@ -2,15 +2,15 @@
   <div>
     <a-page-header title="归还操作" sub-title="将借出或疑似丢失的物品归还入库" />
     <div class="page-container">
-      <a-card>
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-space style="margin-bottom: 16px;">
-          <a-button type="primary" :disabled="!hasSelected" :loading="itemStore.loading" @click="handleReturn">
+          <a-button type="primary" :block="isMobile" :disabled="!hasSelected" :loading="itemStore.loading" @click="handleReturn">
             归还选中项 ({{ selectedRowKeys.length }})
           </a-button>
         </a-space>
 
         <a-table
-          v-if="!itemStore.loading && tableData.length > 0"
+          v-if="!itemStore.loading && tableData.length > 0 && !isMobile"
           :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
           :columns="columns"
           :data-source="tableData"
@@ -23,6 +23,33 @@
             </template>
           </template>
         </a-table>
+
+        <div v-else-if="isMobile && tableData.length > 0">
+          <MobileListCard
+            v-for="item in tableData"
+            :key="item.id"
+            clickable
+            :active="selectedRowKeys.includes(item.id)"
+            @click="toggleSelect(item.id)"
+          >
+            <template #title>
+              <a-checkbox
+                :checked="selectedRowKeys.includes(item.id)"
+                style="margin-right: 8px"
+                @click.stop="toggleSelect(item.id)"
+              />
+              {{ item.shortId }} · {{ item.name }}
+            </template>
+            <template #tags>
+              <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
+            </template>
+            <template #meta>
+              <div v-if="item.currentDestination">去向：{{ item.currentDestination }}</div>
+              <div>原属仓库：{{ item.warehouseName }}</div>
+            </template>
+          </MobileListCard>
+        </div>
+
         <a-empty v-if="!itemStore.loading && tableData.length === 0" description="当前没有已借出或疑似丢失的物品" />
       </a-card>
     </div>
@@ -35,7 +62,10 @@ import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStor
 import { useWarehouseStore, type Warehouse } from '../stores/warehouseStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { message, Modal } from 'ant-design-vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
@@ -74,6 +104,17 @@ const columns = [
 
 const onSelectChange = (keys: string[]) => {
   selectedRowKeys.value = keys;
+};
+
+const toggleSelect = (id: string) => {
+  const idx = selectedRowKeys.value.indexOf(id);
+  if (idx === -1) {
+    selectedRowKeys.value = [...selectedRowKeys.value, id];
+  } else {
+    const next = [...selectedRowKeys.value];
+    next.splice(idx, 1);
+    selectedRowKeys.value = next;
+  }
 };
 
 const hasSelected = computed(() => selectedRowKeys.value.length > 0);

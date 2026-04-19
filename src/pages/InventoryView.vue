@@ -2,29 +2,29 @@
   <div>
     <a-page-header title="库存总览" sub-title="查询所有仓库中的物品状态" />
     <div class="page-container">
-      <a-card>
-        <a-form layout="inline" :model="filters" @finish="applyFilters" class="filter-form">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filters" @finish="applyFilters" class="filter-form">
           <a-form-item label="搜索">
-            <a-input v-model:value="filters.searchTerm" placeholder="搜索ID或名称" style="width: 200px" allow-clear />
+            <a-input v-model:value="filters.searchTerm" placeholder="搜索ID或名称" :style="isMobile ? { width: '100%' } : { width: '200px' }" allow-clear />
           </a-form-item>
           <a-form-item label="仓库">
-            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" style="width: 180px" @change="applyFilters" allow-clear>
+            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear>
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="物品状态">
-            <a-select v-model:value="filters.status" placeholder="所有状态" style="width: 150px" @change="applyFilters" allow-clear>
+            <a-select v-model:value="filters.status" placeholder="所有状态" :style="isMobile ? { width: '100%' } : { width: '150px' }" @change="applyFilters" allow-clear>
               <a-select-option value="InStock">在库</a-select-option>
               <a-select-option value="LoanedOut">借出</a-select-option>
               <a-select-option value="Disposed">处置</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" @click="applyFilters">查询</a-button>
+            <a-button type="primary" :block="isMobile" @click="applyFilters">查询</a-button>
           </a-form-item>
           <a-form-item>
-            <a-space>
-              <a-button @click="exportXlsx" :disabled="filteredData.length === 0">
+            <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+              <a-button :block="isMobile" @click="exportXlsx" :disabled="filteredData.length === 0">
                 <template #icon><download-outlined /></template>
                 导出XLSX
               </a-button>
@@ -32,8 +32,9 @@
                 :before-upload="onImportFile"
                 :show-upload-list="false"
                 accept=".xlsx,.xls"
+                :style="isMobile ? { width: '100%' } : {}"
               >
-                <a-button :loading="importing">
+                <a-button :block="isMobile" :loading="importing">
                   <template #icon><upload-outlined /></template>
                   批量导入
                 </a-button>
@@ -64,22 +65,43 @@
         <a-divider />
 
         <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 5 }">
-          <a-table
-            v-if="filteredData.length > 0"
-            :columns="columns"
-            :data-source="filteredData"
-            row-key="id"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'shortId'">
-                <router-link :to="{ name: 'item-details', params: { id: record.id } }">{{ record.shortId }}</router-link>
+          <template v-if="filteredData.length > 0">
+            <a-table
+              v-if="!isMobile"
+              :columns="columns"
+              :data-source="filteredData"
+              row-key="id"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'shortId'">
+                  <router-link :to="{ name: 'item-details', params: { id: record.id } }">{{ record.shortId }}</router-link>
+                </template>
+                <template v-if="column.key === 'status'">
+                  <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
+                </template>
               </template>
-              <template v-if="column.key === 'status'">
-                <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
-              </template>
-            </template>
-          </a-table>
-          
+            </a-table>
+
+            <div v-else>
+              <MobileListCard
+                v-for="item in filteredData"
+                :key="item.id"
+                clickable
+                @click="router.push({ name: 'item-details', params: { id: item.id } })"
+              >
+                <template #title>{{ item.shortId }} · {{ item.name }}</template>
+                <template #tags>
+                  <a-tag :color="statusDisplay(item.status).color">{{ statusDisplay(item.status).text }}</a-tag>
+                </template>
+                <template #meta>
+                  <div>仓库：{{ item.warehouseName }}</div>
+                  <div v-if="item.currentDestination">当前去向：{{ item.currentDestination }}</div>
+                  <div>最后更新：{{ formatDateTime(item.lastUpdated) }}</div>
+                </template>
+              </MobileListCard>
+            </div>
+          </template>
+
           <a-empty v-else description="没有找到符合条件的物品，快去入库吧！">
             <a-button type="primary" @click="router.push('/inbound')">立即入库</a-button>
           </a-empty>
@@ -103,7 +125,10 @@ import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
 import type { Warehouse } from '../stores/warehouseStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const router = useRouter();
 
 const itemStore = useItemStore();
@@ -300,4 +325,9 @@ const onImportFile = async (file: File) => {
 <style scoped>
 .page-container { padding: 24px; }
 .filter-form .ant-form-item { margin-bottom: 0; margin-right: 8px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+  .filter-form .ant-form-item { margin-right: 0; margin-bottom: 8px; }
+}
 </style>

@@ -2,13 +2,13 @@
   <div>
     <a-page-header title="审计日志中心" sub-title="追踪系统内的所有关键操作" />
     <div class="page-container">
-      <a-card>
-        <a-form layout="inline" :model="filters" class="filter-form">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filters" class="filter-form">
           <a-form-item label="日期范围">
-            <a-range-picker v-model:value="filters.dateRange" />
+            <a-range-picker v-model:value="filters.dateRange" :style="isMobile ? { width: '100%' } : {}" />
           </a-form-item>
           <a-form-item label="操作类型">
-            <a-select v-model:value="filters.action" placeholder="所有类型" style="width: 170px" allow-clear>
+            <a-select v-model:value="filters.action" placeholder="所有类型" :style="isMobile ? { width: '100%' } : { width: '170px' }" allow-clear>
               <a-select-option
                 v-for="opt in actionOptions"
                 :key="opt.value"
@@ -22,7 +22,7 @@
             <a-input v-model:value="filters.user" placeholder="输入用户名" allow-clear />
           </a-form-item>
           <a-form-item>
-            <a-button @click="exportXlsx" :disabled="filteredLogs.length === 0">
+            <a-button :block="isMobile" @click="exportXlsx" :disabled="filteredLogs.length === 0">
               <template #icon><download-outlined /></template>
               导出XLSX
             </a-button>
@@ -32,6 +32,7 @@
         <a-divider />
 
         <a-table
+          v-if="!isMobile"
           :columns="columns"
           :data-source="filteredLogs"
           :loading="auditLogStore.loading"
@@ -43,6 +44,24 @@
             </template>
           </template>
         </a-table>
+
+        <div v-else>
+          <a-skeleton :loading="auditLogStore.loading" active :paragraph="{ rows: 5 }">
+            <MobileListCard v-for="log in filteredLogs" :key="log.id">
+              <template #title>{{ log.itemName }} <span style="color: #999; font-weight: 400">· {{ log.itemShortId }}</span></template>
+              <template #tags>
+                <a-tag :color="actionColor(log.action)">{{ actionLabel(log.action) }}</a-tag>
+              </template>
+              <template #meta>
+                <div>时间：{{ formatDateTime(log.timestamp) }}</div>
+                <div>操作人：{{ log.user }}</div>
+                <div v-if="log.warehouseName">仓库：{{ log.warehouseName }}</div>
+                <div v-if="log.destination">去向/备注：{{ log.destination }}</div>
+              </template>
+            </MobileListCard>
+            <a-empty v-if="filteredLogs.length === 0 && !auditLogStore.loading" description="暂无日志" />
+          </a-skeleton>
+        </div>
       </a-card>
     </div>
   </div>
@@ -55,7 +74,10 @@ import dayjs from 'dayjs';
 import { formatDateTime } from '../utils/formatters';
 import { DownloadOutlined } from '@ant-design/icons-vue';
 import { exportToXlsx } from '../utils/xlsx';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const auditLogStore = useAuditLogStore();
 
 const filters = reactive<{
@@ -154,4 +176,9 @@ onMounted(() => {
 <style scoped>
 .page-container { padding: 24px; }
 .filter-form .ant-form-item { margin-bottom: 16px; margin-right: 16px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+  .filter-form .ant-form-item { margin-right: 0; margin-bottom: 8px; }
+}
 </style>

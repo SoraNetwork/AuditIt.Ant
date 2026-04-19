@@ -1,11 +1,14 @@
 <template>
   <div>
     <a-page-header title="提醒中心" sub-title="查看和处理提醒" />
-    <a-card>
-      <a-space style="margin-bottom: 12px">
-        <a-button type="primary" @click="openCreate">创建提醒</a-button>
-        <a-button @click="refresh">刷新</a-button>
-        <a-button :disabled="reminderStore.unreadCount === 0" @click="dismissAll">全部忽略</a-button>
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <a-space
+        :direction="isMobile ? 'vertical' : 'horizontal'"
+        :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }"
+      >
+        <a-button type="primary" :block="isMobile" @click="openCreate">创建提醒</a-button>
+        <a-button :block="isMobile" @click="refresh">刷新</a-button>
+        <a-button :block="isMobile" :disabled="reminderStore.unreadCount === 0" @click="dismissAll">全部忽略</a-button>
       </a-space>
 
       <a-list :loading="reminderStore.loading" item-layout="horizontal" :data-source="reminderStore.reminders">
@@ -75,7 +78,9 @@ import { message } from 'ant-design-vue';
 import { useReminderStore } from '../stores/reminderStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
+import { useBreakpoint } from '../composables/useBreakpoint';
 
+const { isMobile } = useBreakpoint();
 const reminderStore = useReminderStore();
 const userStore = useUserStore();
 const createVisible = ref(false);
@@ -153,5 +158,10 @@ onMounted(async () => {
   color: rgba(0, 0, 0, 0.45);
   font-size: 12px;
   margin-top: 4px;
+}
+
+@media (max-width: 767.98px) {
+  :deep(.ant-list-item) { padding: 12px 0; }
+  :deep(.ant-list-item-action > li) { padding: 8px 12px; }
 }
 </style>

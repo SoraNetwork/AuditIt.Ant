@@ -1,7 +1,12 @@
 <template>
   <div>
-    <!-- Table -->
+    <div v-if="isMobile" class="mobile-toolbar">
+      <h2 style="margin: 0">分类管理</h2>
+      <a-button type="primary" @click="showAddModal">添加分类</a-button>
+    </div>
+
     <a-table
+      v-if="!isMobile"
       :columns="columns"
       :data-source="categoryStore.categories"
       :loading="categoryStore.loading"
@@ -32,6 +37,24 @@
       </template>
     </a-table>
 
+    <div v-else>
+      <a-skeleton :loading="categoryStore.loading" active :paragraph="{ rows: 3 }">
+        <MobileListCard v-for="cat in categoryStore.categories" :key="cat.id">
+          <template #title>{{ cat.name }}</template>
+          <template #meta>
+            <div v-if="cat.description">{{ cat.description }}</div>
+          </template>
+          <template #footer>
+            <a-button size="small" @click="showEditModal(cat)">编辑</a-button>
+            <a-popconfirm title="您确定要删除这个分类吗？" @confirm="handleDelete(cat.id)" ok-text="确定" cancel-text="取消">
+              <a-button size="small" danger>删除</a-button>
+            </a-popconfirm>
+          </template>
+        </MobileListCard>
+        <a-empty v-if="categoryStore.categories.length === 0 && !categoryStore.loading" description="暂无分类" />
+      </a-skeleton>
+    </div>
+
     <!-- Modal for Add/Edit -->
     <a-modal
       v-model:open="isModalVisible"
@@ -52,7 +75,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useCategoryStore, type Category, type CreateCategoryPayload } from '../stores/categoryStore';
 import CategoryForm from '../components/CategoryForm.vue';
 import { message } from 'ant-design-vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const categoryStore = useCategoryStore();
 const categoryFormRef = ref<InstanceType<typeof CategoryForm> | null>(null);
 
@@ -120,3 +146,12 @@ onMounted(() => {
   categoryStore.fetchCategories();
 });
 </script>
+
+<style scoped>
+.mobile-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+</style>

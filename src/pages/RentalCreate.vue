@@ -1,10 +1,10 @@
 <template>
   <div>
     <a-page-header title="新建租赁" sub-title="创建租赁单并锁定物品" @back="$router.back()" />
-    <a-card>
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <a-form layout="vertical">
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col :xs="24" :span="12">
             <a-form-item label="租客手机号" required :help="renterLookupHelp" :validate-status="renterValidateStatus">
               <a-input-search
                 v-model:value="renterPhone"
@@ -17,7 +17,7 @@
               />
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col :xs="24" :span="12">
             <a-form-item label="负责人（可多选）">
               <a-select
                 v-model:value="assignedUsers"
@@ -59,17 +59,17 @@
         </a-row>
 
         <a-row :gutter="16">
-          <a-col :span="8">
+          <a-col :xs="24" :span="8">
             <a-form-item label="默认地址">
               <a-input v-model:value="form.shippingAddress" placeholder="物品寄送地址" />
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col :xs="24" :span="8">
             <a-form-item label="开始日期">
               <a-date-picker v-model:value="form.startDate" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :span="8">
+          <a-col :xs="24" :span="8">
             <a-form-item label="预计结束" required>
               <a-date-picker v-model:value="form.expectedEndDate" style="width: 100%" />
             </a-form-item>
@@ -77,7 +77,7 @@
         </a-row>
 
         <a-row :gutter="16">
-          <a-col :span="12">
+          <a-col :xs="24" :span="12">
             <a-form-item label="总价" required>
               <a-input-number
                 v-model:value="form.totalPrice"
@@ -88,7 +88,7 @@
               />
             </a-form-item>
           </a-col>
-          <a-col :span="12">
+          <a-col :xs="24" :span="12">
             <a-form-item label="押金">
               <a-input-number
                 v-model:value="form.deposit"
@@ -101,7 +101,14 @@
           </a-col>
         </a-row>
 
-        <a-form-item label="备注">
+        <a-collapse v-if="isMobile" ghost style="margin-bottom: 12px;">
+          <a-collapse-panel key="more" header="更多信息（备注）">
+            <a-form-item label="备注">
+              <a-textarea v-model:value="form.notes" :rows="2" />
+            </a-form-item>
+          </a-collapse-panel>
+        </a-collapse>
+        <a-form-item v-else label="备注">
           <a-textarea v-model:value="form.notes" :rows="2" />
         </a-form-item>
 
@@ -113,6 +120,7 @@
         </a-space>
 
         <a-table
+          v-if="!isMobile"
           row-key="id"
           :loading="itemStore.loading"
           :data-source="itemStore.items"
@@ -121,18 +129,51 @@
           :pagination="{ pageSize: 20 }"
         />
 
-        <a-divider />
-        <a-space>
+        <div v-else>
+          <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 4 }">
+            <MobileListCard
+              v-for="item in itemStore.items"
+              :key="item.id"
+              clickable
+              :active="selectedItemIds.includes(item.id)"
+              @click="toggleItemSelect(item.id)"
+            >
+              <template #title>
+                <a-checkbox
+                  :checked="selectedItemIds.includes(item.id)"
+                  style="margin-right: 8px"
+                  @click.stop="toggleItemSelect(item.id)"
+                />
+                {{ item.shortId }} · {{ item.itemDefinition?.name || '未知物品' }}
+              </template>
+              <template #meta>
+                <div>仓库：{{ item.warehouse?.name || '-' }}</div>
+                <div v-if="item.remarks">备注：{{ item.remarks }}</div>
+              </template>
+            </MobileListCard>
+            <a-empty v-if="itemStore.items.length === 0 && !itemStore.loading" description="暂无在库物品" />
+          </a-skeleton>
+        </div>
+
+        <a-divider v-if="!isMobile" />
+        <a-space v-if="!isMobile">
           <a-button type="primary" :loading="submitting" @click="submit">创建租赁</a-button>
           <a-button @click="$router.back()">取消</a-button>
         </a-space>
+
+        <!-- Mobile sticky action bar -->
+        <div v-else class="mobile-action-bar">
+          <a-button block @click="$router.back()">取消</a-button>
+          <a-button type="primary" block :loading="submitting" @click="submit">创建租赁</a-button>
+        </div>
+        <div v-if="isMobile" style="height: 80px;"></div>
       </a-form>
     </a-card>
 
     <a-drawer
       v-model:open="quickCreateVisible"
       title="快速建档 · 新租客"
-      width="420"
+      :width="isMobile ? '90vw' : 420"
       :mask-closable="false"
     >
       <a-form layout="vertical">
@@ -179,7 +220,10 @@ import { useRentalStore } from '../stores/rentalStore';
 import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useItemStore } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
 const renterStore = useRenterStore();
 const itemStore = useItemStore();
@@ -246,6 +290,17 @@ const loadStockItems = async () => {
 
 const onItemSelectChange = (keys: (string | number)[]) => {
   selectedItemIds.value = keys.map(k => String(k));
+};
+
+const toggleItemSelect = (id: string) => {
+  const idx = selectedItemIds.value.indexOf(id);
+  if (idx === -1) {
+    selectedItemIds.value = [...selectedItemIds.value, id];
+  } else {
+    const next = [...selectedItemIds.value];
+    next.splice(idx, 1);
+    selectedItemIds.value = next;
+  }
 };
 
 const onPhoneInputChange = () => {

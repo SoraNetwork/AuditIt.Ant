@@ -2,7 +2,7 @@
   <div>
     <a-page-header :title="`编辑物品: ${item?.shortId}`" @back="() => router.back()" />
     <div class="page-container">
-      <a-card v-if="!itemStore.loading && item">
+      <a-card v-if="!itemStore.loading && item" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-form :model="formState" @finish="handleSave" layout="vertical">
           <a-form-item label="Short ID">
             <a-input v-model:value="formState.shortId" />
@@ -28,17 +28,24 @@
             </a-upload>
             <div v-if="currentPhotoUrl && !isPhotoDeleted">
               <p>当前照片:</p>
-              <a-image :width="100" :src="currentPhotoUrl" />
+              <a-image :width="isMobile ? 140 : 100" :src="currentPhotoUrl" />
               <a-button type="link" danger @click="handleDeletePhoto">删除照片</a-button>
             </div>
              <a-empty v-if="!currentPhotoUrl && !fileList?.length" description="暂无照片" />
           </a-form-item>
-          <a-form-item>
+          <a-form-item v-if="!isMobile">
             <a-button type="primary" html-type="submit" :loading="itemStore.loading || isCompressing">
               保存更改
             </a-button>
           </a-form-item>
         </a-form>
+
+        <!-- Mobile sticky action bar -->
+        <div v-if="isMobile" class="mobile-action-bar">
+          <a-button block @click="router.back()">取消</a-button>
+          <a-button type="primary" block :loading="itemStore.loading || isCompressing" @click="handleSave">保存更改</a-button>
+        </div>
+        <div v-if="isMobile" style="height: 80px;"></div>
       </a-card>
       <a-skeleton v-else active />
     </div>
@@ -53,7 +60,9 @@ import { message, type UploadProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
 import imageCompression from 'browser-image-compression';
+import { useBreakpoint } from '../composables/useBreakpoint';
 
+const { isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();

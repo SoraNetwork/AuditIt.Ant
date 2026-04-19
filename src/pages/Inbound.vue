@@ -6,8 +6,8 @@
       <a-tabs v-model:activeKey="activeTab">
         <!-- Tab 1: Quick Inbound with External Barcode -->
         <a-tab-pane key="quick" tab="快速入库 (带条码)">
-          <a-card title="扫描或输入已有条码的物品">
-            <a-form ref="quickFormRef" :model="quickFormState" layout="vertical" style="max-width: 500px; margin: auto;">
+          <a-card title="扫描或输入已有条码的物品" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+            <a-form ref="quickFormRef" :model="quickFormState" layout="vertical" :style="isMobile ? {} : { maxWidth: '500px', margin: 'auto' }">
               <a-form-item label="外部条码 (ShortId)" name="shortId" :rules="[{ required: true, message: '请输入外部条码' }]">
                 <a-input v-model:value="quickFormState.shortId" placeholder="扫描或输入外部条码" />
               </a-form-item>
@@ -104,9 +104,9 @@
 
         <!-- Tab 2: Batch Import -->
         <a-tab-pane key="batch" tab="批量导入">
-          <a-row :gutter="16">
-            <a-col :span="10">
-              <a-card title="批量导入设置">
+          <a-row :gutter="isMobile ? [0, 16] : 16">
+            <a-col :xs="24" :span="10">
+              <a-card title="批量导入设置" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <a-form :model="batchFormState" layout="vertical">
                   <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
                     <a-space-compact style="width: 100%">
@@ -186,8 +186,8 @@ GHI789"
               </a-card>
             </a-col>
 
-            <a-col :span="14">
-              <a-card title="待导入预览" :loading="batchLoading">
+            <a-col :xs="24" :span="14">
+              <a-card title="待导入预览" :loading="batchLoading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <template #extra>
                   <a-space>
                     <a-badge :count="batchItems.length" :number-style="{ backgroundColor: '#52c41a' }" />
@@ -230,10 +230,10 @@ GHI789"
 
                 <!-- 添加单个物品 -->
                 <a-divider />
-                <a-space>
-                  <a-input v-model:value="singleItemInput.  shortId" placeholder="条码" style="width: 200px" />
-                  <a-input v-model:value="singleItemInput.remarks" placeholder="备注（选填）" style="width: 200px" />
-                  <a-button @click="addSingleItem">添加</a-button>
+                <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+                  <a-input v-model:value="singleItemInput.shortId" placeholder="条码" :style="isMobile ? { width: '100%' } : { width: '200px' }" />
+                  <a-input v-model:value="singleItemInput.remarks" placeholder="备注（选填）" :style="isMobile ? { width: '100%' } : { width: '200px' }" />
+                  <a-button :block="isMobile" @click="addSingleItem">添加</a-button>
                 </a-space>
               </a-card>
 
@@ -256,9 +256,9 @@ GHI789"
 
         <!-- Tab 3: Manual Inbound for New Items -->
         <a-tab-pane key="manual" tab="手动入库 (生成新条码)">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-card title="录入新物品信息">
+          <a-row :gutter="isMobile ? [0, 16] : 16">
+            <a-col :xs="24" :span="8">
+              <a-card title="录入新物品信息" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <a-form ref="manualFormRef" :model="manualFormState" layout="vertical">
                   <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
                      <a-space-compact style="width: 100%">
@@ -306,8 +306,8 @@ GHI789"
               </a-card>
             </a-col>
 
-            <a-col :span="16">
-              <a-card title="待导出列表">
+            <a-col :xs="24" :span="16">
+              <a-card title="待导出列表" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <template #extra>
                   <a-button type="primary" @click="saveAndExport" :loading="isSaving" :disabled="! exportList.length">
                     全部保存并导出XLSX
@@ -405,6 +405,9 @@ import { PlusOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons-
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
+import { useBreakpoint } from '../composables/useBreakpoint';
+
+const { isMobile } = useBreakpoint();
 
 interface QuickRemarkDto { id: number; content: string; }
 const quickRemarks = ref<QuickRemarkDto[]>([]);
@@ -994,6 +997,11 @@ onMounted(() => {
 <style scoped>
 .page-container {
   padding: 24px;
+}
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+  .page-container :deep(.ant-table-wrapper) { overflow-x: auto; }
 }
 
 .quick-remark-tag {

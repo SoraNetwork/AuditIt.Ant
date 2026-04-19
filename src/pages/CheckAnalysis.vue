@@ -2,28 +2,30 @@
   <div>
     <a-page-header title="盘点分析" sub-title="查看盘点差异并处理" />
     <div class="page-container">
-      <a-card>
-        <a-form layout="inline" :model="filterState" @finish="runAnalysis">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filterState" @finish="runAnalysis">
           <a-form-item label="选择仓库">
-            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" style="width: 200px" allow-clear>
+            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" :style="isMobile ? { width: '100%' } : { width: '200px' }" allow-clear>
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="盘点时间范围">
-            <a-range-picker 
-              v-model:value="filterState.dateRange" 
-              show-time 
+            <a-range-picker
+              v-model:value="filterState.dateRange"
+              show-time
               format="YYYY-MM-DD HH:mm:ss"
               :placeholder="['开始时间', '结束时间']"
+              :style="isMobile ? { width: '100%' } : {}"
             />
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" @click="runAnalysis" :loading="isLoading">开始分析</a-button>
+            <a-button type="primary" :block="isMobile" @click="runAnalysis" :loading="isLoading">开始分析</a-button>
           </a-form-item>
         </a-form>
       </a-card>
 
-      <a-row :gutter="16" style="margin-top: 16px;">
+      <!-- Desktop: side-by-side -->
+      <a-row v-if="!isMobile" :gutter="16" style="margin-top: 16px;">
         <a-col :span="12">
           <a-card title="已盘点物品">
             <a-list :data-source="checkedItems" :loading="isLoading" :bordered="true">
@@ -52,6 +54,39 @@
           </a-card>
         </a-col>
       </a-row>
+
+      <!-- Mobile: tabs -->
+      <a-tabs v-else style="margin-top: 12px;">
+        <a-tab-pane key="checked" :tab="`已盘点 (${checkedItems.length})`">
+          <a-list :data-source="checkedItems" :loading="isLoading" :bordered="true">
+            <template #renderItem="{ item }">
+              <a-list-item>{{ item.itemDefinition?.name }} ({{ item.shortId }})</a-list-item>
+            </template>
+          </a-list>
+        </a-tab-pane>
+        <a-tab-pane key="unchecked" :tab="`未盘点 (${unCheckedItems.length})`">
+          <a-button
+            type="primary"
+            danger
+            block
+            style="margin-bottom: 12px;"
+            :disabled="Object.values(selectedItemIds).every(v => !v)"
+            :loading="isMarking"
+            @click="markAsMissing"
+          >
+            标记选中为丢失
+          </a-button>
+          <a-list :data-source="unCheckedItems" :loading="isLoading" :bordered="true">
+            <template #renderItem="{ item }">
+              <a-list-item>
+                <a-checkbox :value="item.id" v-model:checked="selectedItemIds[item.id]">
+                  {{ item.itemDefinition?.name }} ({{ item.shortId }})
+                </a-checkbox>
+              </a-list-item>
+            </template>
+          </a-list>
+        </a-tab-pane>
+      </a-tabs>
     </div>
   </div>
 </template>
@@ -63,7 +98,9 @@ import { useItemStore, type Item } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
 import { message } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
+import { useBreakpoint } from '../composables/useBreakpoint';
 
+const { isMobile } = useBreakpoint();
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 const auditLogStore = useAuditLogStore();
@@ -163,4 +200,8 @@ const markAsMissing = async () => {
 
 <style scoped>
 .page-container { padding: 24px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+}
 </style>

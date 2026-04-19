@@ -1,13 +1,13 @@
 ﻿<template>
   <div>
     <a-page-header title="角色管理" sub-title="维护角色与权限" />
-    <a-card>
-      <a-space style="margin-bottom: 12px">
-        <a-button type="primary" @click="openCreate">新增角色</a-button>
-        <a-button @click="reload">刷新</a-button>
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <a-space style="margin-bottom: 12px" :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }">
+        <a-button type="primary" :block="isMobile" @click="openCreate">新增角色</a-button>
+        <a-button :block="isMobile" @click="reload">刷新</a-button>
       </a-space>
 
-      <a-table :loading="roleStore.loading" row-key="id" :columns="columns" :data-source="roleStore.roles">
+      <a-table v-if="!isMobile" :loading="roleStore.loading" row-key="id" :columns="columns" :data-source="roleStore.roles">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'permissions'">
             <a-space wrap>
@@ -24,6 +24,28 @@
           </template>
         </template>
       </a-table>
+
+      <div v-else>
+        <a-skeleton :loading="roleStore.loading" active :paragraph="{ rows: 4 }">
+          <MobileListCard v-for="role in roleStore.roles" :key="role.id">
+            <template #title>{{ role.name }}</template>
+            <template #tags>
+              <a-tag v-if="role.isBuiltIn" color="blue">内置</a-tag>
+            </template>
+            <template #meta>
+              <div v-if="role.description">{{ role.description }}</div>
+              <div>权限：{{ role.permissions.length }} 项</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="openEdit(role)">编辑</a-button>
+              <a-popconfirm v-if="!role.isBuiltIn" title="确认删除？" @confirm="remove(role.id)">
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </template>
+          </MobileListCard>
+          <a-empty v-if="roleStore.roles.length === 0 && !roleStore.loading" description="暂无角色" />
+        </a-skeleton>
+      </div>
     </a-card>
 
     <a-modal v-model:open="visible" :title="editing ? '编辑角色' : '新增角色'" ok-text="保存" cancel-text="取消" @ok="save">
@@ -46,7 +68,10 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRoleStore, type Role } from '../stores/roleStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const roleStore = useRoleStore();
 const visible = ref(false);
 const editing = ref<Role | null>(null);

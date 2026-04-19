@@ -2,78 +2,92 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.card {
-  padding: 2em;
+/* ------------------- 手机端全局横切规则 ------------------- */
+body.is-mobile .ant-form-item {
+  margin-bottom: 12px;
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+body.is-mobile .ant-form-horizontal .ant-form-item-label {
+  text-align: left;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+body.is-mobile .ant-input,
+body.is-mobile .ant-input-number,
+body.is-mobile .ant-input-affix-wrapper,
+body.is-mobile .ant-select,
+body.is-mobile .ant-picker,
+body.is-mobile .ant-cascader-picker {
+  width: 100% !important;
+}
+
+body.is-mobile .ant-descriptions-item-label {
+  width: 35%;
+}
+
+body.is-mobile .ant-modal {
+  max-width: calc(100vw - 16px);
+  margin: 8px auto;
+  top: 8px;
+}
+
+body.is-mobile .ant-drawer-content-wrapper {
+  max-width: 95vw;
+}
+
+body.is-mobile .ant-table {
+  font-size: 13px;
+}
+
+/* 手机端底部粘性操作栏：位于底部 Tab 栏之上 */
+.mobile-action-bar {
+  position: fixed;
+  bottom: calc(56px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 8px;
+  z-index: 99;
+}
+
+.mobile-action-bar .ant-btn {
+  flex: 1;
+}
+
+/* 手机抽屉菜单中徽标对齐 */
+body.is-mobile .menu-link-with-badge {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+body.is-mobile .menu-link-with-badge .reminder-badge {
+  margin-left: auto;
 }

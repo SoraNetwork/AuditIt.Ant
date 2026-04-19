@@ -2,14 +2,14 @@
   <div>
     <a-page-header title="库房转移" sub-title="将物品从一个库房转移到另一个库房" />
     <div class="page-container">
-      <a-card>
-        <a-form layout="inline" :model="filterState" @finish="loadItems">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filterState" @finish="loadItems">
           <a-form-item label="源库房">
-            <a-select 
-              v-model:value="filterState.warehouseId" 
-              placeholder="请选择源库房" 
-              style="width: 200px" 
-              @change="loadItems" 
+            <a-select
+              v-model:value="filterState.warehouseId"
+              placeholder="请选择源库房"
+              :style="isMobile ? { width: '100%' } : { width: '200px' }"
+              @change="loadItems"
               allow-clear
             >
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">
@@ -17,12 +17,12 @@
               </a-select-option>
             </a-select>
           </a-form-item>
-          
+
           <a-form-item label="物品状态">
-            <a-select 
-              v-model:value="filterState.status" 
-              placeholder="选择状态" 
-              style="width: 150px" 
+            <a-select
+              v-model:value="filterState.status"
+              placeholder="选择状态"
+              :style="isMobile ? { width: '100%' } : { width: '150px' }"
               @change="loadItems"
               allow-clear
             >
@@ -31,13 +31,13 @@
               <a-select-option value="SuspectedMissing">疑似丢失</a-select-option>
             </a-select>
           </a-form-item>
-          
+
           <a-form-item label="搜索">
-            <a-input-search 
-              v-model:value="searchText" 
-              placeholder="按名称或短ID搜索" 
-              style="width: 200px" 
-              allow-clear 
+            <a-input-search
+              v-model:value="searchText"
+              placeholder="按名称或短ID搜索"
+              :style="isMobile ? { width: '100%' } : { width: '200px' }"
+              allow-clear
             />
           </a-form-item>
         </a-form>
@@ -45,11 +45,15 @@
         <a-divider />
 
         <div v-if="filterState.warehouseId">
-          <a-space style="margin-bottom: 16px;">
-            <a-button 
-              type="primary" 
-              :disabled="!hasSelected" 
-              :loading="itemStore.loading" 
+          <a-space
+            :direction="isMobile ? 'vertical' : 'horizontal'"
+            :style="isMobile ? { width: '100%', marginBottom: '16px' } : { marginBottom: '16px' }"
+          >
+            <a-button
+              type="primary"
+              :block="isMobile"
+              :disabled="!hasSelected"
+              :loading="itemStore.loading"
               @click="showTransferModal"
             >
               转移选中项 ({{ selectedRowKeys.length }})
@@ -60,7 +64,7 @@
           </a-space>
 
           <a-table
-            v-if="!itemStore.loading"
+            v-if="!itemStore.loading && !isMobile"
             :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
             :columns="columns"
             :data-source="filteredData"
@@ -72,10 +76,10 @@
                 <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
               </template>
               <template v-if="column.key === 'photoUrl'">
-                <a-image 
-                  v-if="record.photoUrl" 
-                  :width="50" 
-                  :src="getPhotoUrl(record.photoUrl)" 
+                <a-image
+                  v-if="record.photoUrl"
+                  :width="50"
+                  :src="getPhotoUrl(record.photoUrl)"
                   :preview="{ src: getPhotoUrl(record.photoUrl) }"
                 />
                 <span v-else>无</span>
@@ -87,6 +91,40 @@
               </template>
             </template>
           </a-table>
+
+          <div v-else-if="isMobile">
+            <MobileListCard
+              v-for="item in filteredData"
+              :key="item.id"
+              clickable
+              :active="selectedRowKeys.includes(item.id)"
+              @click="toggleSelect(item.id)"
+            >
+              <template #title>
+                <a-checkbox
+                  :checked="selectedRowKeys.includes(item.id)"
+                  style="margin-right: 8px"
+                  @click.stop="toggleSelect(item.id)"
+                />
+                {{ item.shortId }} · {{ item.name }}
+              </template>
+              <template #tags>
+                <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
+              </template>
+              <template #meta>
+                <div>仓库：{{ item.warehouseName }}</div>
+                <div v-if="item.remarks">备注：{{ item.remarks }}</div>
+              </template>
+              <template #footer v-if="item.photoUrl">
+                <a-image
+                  :width="60"
+                  :src="getPhotoUrl(item.photoUrl)"
+                  :preview="{ src: getPhotoUrl(item.photoUrl) }"
+                />
+              </template>
+            </MobileListCard>
+          </div>
+
           <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该库房中没有符合条件的物品" />
         </div>
         <a-empty v-else description="请先选择一个源库房以加载物品" />
@@ -146,7 +184,10 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { message } from 'ant-design-vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 
@@ -225,6 +266,17 @@ const loadItems = async () => {
 
 const onSelectChange = (keys: string[]) => {
   selectedRowKeys.value = keys;
+};
+
+const toggleSelect = (id: string) => {
+  const idx = selectedRowKeys.value.indexOf(id);
+  if (idx === -1) {
+    selectedRowKeys.value = [...selectedRowKeys.value, id];
+  } else {
+    const next = [...selectedRowKeys.value];
+    next.splice(idx, 1);
+    selectedRowKeys.value = next;
+  }
 };
 
 const hasSelected = computed(() => selectedRowKeys.value.length > 0);

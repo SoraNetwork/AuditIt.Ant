@@ -8,8 +8,27 @@
     </a-page-header>
 
     <div class="page-container">
-      <a-card :loading="itemStore.loading">
-        <a-row :gutter="16">
+      <a-card :loading="itemStore.loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <!-- Mobile: photo on top, then descriptions -->
+        <div v-if="isMobile">
+          <div style="text-align: center; margin-bottom: 12px;">
+            <a-image v-if="photoFullUrl" :src="photoFullUrl" alt="物品图片" style="max-height: 240px; object-fit: cover; width: 100%;" />
+            <a-empty v-else description="暂无图片" />
+          </div>
+          <a-descriptions bordered :column="1" size="small">
+            <a-descriptions-item label="物品名称">{{ item?.itemDefinitionName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="所在仓库">{{ item?.warehouseName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
+            <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
+            <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
+            <a-descriptions-item label="当前去向">{{ item?.currentDestination || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注">{{ item?.remarks || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="UUID">{{ item?.id }}</a-descriptions-item>
+          </a-descriptions>
+        </div>
+        <!-- Desktop: original layout -->
+        <a-row v-else :gutter="16">
           <a-col :span="16">
             <a-descriptions bordered :column="2">
               <a-descriptions-item label="物品名称">{{ item?.itemDefinitionName || '-' }}</a-descriptions-item>
@@ -30,12 +49,12 @@
         </a-row>
       </a-card>
 
-      <a-card title="平台挂载链接" style="margin-top: 16px">
-        <a-space style="margin-bottom: 12px">
-          <a-button type="primary" @click="openListingCreate">新增链接</a-button>
-          <a-button @click="loadListings" :loading="listingStore.loading">刷新</a-button>
+      <a-card title="平台挂载链接" style="margin-top: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-space style="margin-bottom: 12px" :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+          <a-button type="primary" :block="isMobile" @click="openListingCreate">新增链接</a-button>
+          <a-button :block="isMobile" @click="loadListings" :loading="listingStore.loading">刷新</a-button>
         </a-space>
-        <a-table row-key="id" :columns="listingColumns" :data-source="currentListings" :pagination="false">
+        <a-table v-if="!isMobile" row-key="id" :columns="listingColumns" :data-source="currentListings" :pagination="false">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'url'">
               <a :href="record.url" target="_blank" rel="noreferrer">{{ record.url }}</a>
@@ -50,6 +69,24 @@
             </template>
           </template>
         </a-table>
+
+        <div v-else>
+          <MobileListCard v-for="l in currentListings" :key="l.id">
+            <template #title>{{ l.platform }} · {{ l.title || '无标题' }}</template>
+            <template #tags><a-tag>{{ l.status }}</a-tag></template>
+            <template #meta>
+              <div><a :href="l.url" target="_blank" rel="noreferrer" style="word-break: break-all">{{ l.url }}</a></div>
+              <div v-if="l.remarks">备注：{{ l.remarks }}</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="openListingEdit(l)">编辑</a-button>
+              <a-popconfirm title="确认删除链接？" @confirm="deleteListing(l.id)">
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </template>
+          </MobileListCard>
+          <a-empty v-if="currentListings.length === 0" description="暂无链接" />
+        </div>
       </a-card>
 
       <a-card title="生命周期日志" style="margin-top: 16px">
@@ -106,7 +143,10 @@ import { useItemListingStore, type ItemListing } from '../stores/itemListingStor
 import { STATUS_MAP } from '../utils/constants';
 import { formatDateTime } from '../utils/formatters';
 import apiClient from '../services/api';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();
@@ -226,5 +266,9 @@ onMounted(loadItem);
 <style scoped>
 .page-container {
   padding: 24px;
+}
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
 }
 </style>

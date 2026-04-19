@@ -151,6 +151,11 @@ onMounted(() => {
 }
 .login-card {
   width: 450px;
+  max-width: calc(100vw - 32px);
   text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .login-container { padding: 16px; align-items: flex-start; padding-top: 15vh; height: 100dvh; }
 }
 </style>

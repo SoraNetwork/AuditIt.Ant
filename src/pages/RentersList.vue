@@ -1,13 +1,13 @@
 ﻿<template>
   <div>
     <a-page-header title="租客管理" sub-title="维护租客档案" />
-    <a-card>
-      <a-space style="margin-bottom: 12px">
-        <a-input-search v-model:value="keyword" placeholder="姓名/电话" style="width: 240px" @search="search" />
-        <a-button type="primary" @click="openCreate">新增租客</a-button>
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <a-space style="margin-bottom: 12px" :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }">
+        <a-input-search v-model:value="keyword" placeholder="姓名/电话" :style="isMobile ? { width: '100%' } : { width: '240px' }" @search="search" />
+        <a-button type="primary" :block="isMobile" @click="openCreate">新增租客</a-button>
       </a-space>
 
-      <a-table :loading="renterStore.loading" row-key="id" :columns="columns" :data-source="renterStore.renters">
+      <a-table v-if="!isMobile" :loading="renterStore.loading" row-key="id" :columns="columns" :data-source="renterStore.renters">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'actions'">
             <a-space>
@@ -19,6 +19,28 @@
           </template>
         </template>
       </a-table>
+
+      <div v-else>
+        <a-skeleton :loading="renterStore.loading" active :paragraph="{ rows: 4 }">
+          <MobileListCard v-for="r in renterStore.renters" :key="r.id">
+            <template #title>{{ r.name }}</template>
+            <template #meta>
+              <div v-if="r.phone">电话：{{ r.phone }}</div>
+              <div v-if="r.xianyuId">闲鱼：{{ r.xianyuId }}</div>
+              <div v-if="r.taobaoId">淘宝：{{ r.taobaoId }}</div>
+              <div v-if="r.xiaohongshuId">小红书：{{ r.xiaohongshuId }}</div>
+              <div v-if="r.defaultAddress">地址：{{ r.defaultAddress }}</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="openEdit(r)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(r.id)">
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </template>
+          </MobileListCard>
+          <a-empty v-if="renterStore.renters.length === 0 && !renterStore.loading" description="暂无租客" />
+        </a-skeleton>
+      </div>
     </a-card>
 
     <a-modal v-model:open="visible" :title="editingId ? '编辑租客' : '新增租客'" ok-text="保存" cancel-text="取消" @ok="save">
@@ -53,7 +75,10 @@
 import { onMounted, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRenterStore, type Renter } from '../stores/renterStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const renterStore = useRenterStore();
 const keyword = ref('');
 const visible = ref(false);

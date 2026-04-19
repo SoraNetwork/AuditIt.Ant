@@ -2,32 +2,35 @@
   <div>
     <a-page-header title="出库操作" sub-title="更新在库或疑似丢失物品的状态" />
     <div class="page-container">
-      <a-card>
-        <a-form layout="inline" :model="filterState" @finish="loadItems">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filterState" @finish="loadItems">
           <a-form-item label="选择仓库">
-            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" style="width: 200px" @change="loadItems" allow-clear>
+            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" :style="isMobile ? { width: '100%' } : { width: '200px' }" @change="loadItems" allow-clear>
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="搜索">
-            <a-input-search v-model:value="searchText" placeholder="按名称或短ID搜索" style="width: 200px" allow-clear />
+            <a-input-search v-model:value="searchText" placeholder="按名称或短ID搜索" :style="isMobile ? { width: '100%' } : { width: '200px' }" allow-clear />
           </a-form-item>
         </a-form>
 
         <a-divider />
 
         <div v-if="filterState.warehouseId">
-          <a-space style="margin-bottom: 16px;">
-            <a-button type="primary" :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('outbound')">
+          <a-space
+            :direction="isMobile ? 'vertical' : 'horizontal'"
+            :style="isMobile ? { width: '100%', marginBottom: '16px' } : { marginBottom: '16px' }"
+          >
+            <a-button type="primary" :block="isMobile" :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('outbound')">
               借出选中项 ({{ selectedRowKeys.length }})
             </a-button>
-            <a-button type="primary" danger :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('dispose')">
+            <a-button type="primary" danger :block="isMobile" :disabled="!hasSelected" :loading="itemStore.loading" @click="showOutboundModal('dispose')">
               处置选中项 ({{ selectedRowKeys.length }})
             </a-button>
           </a-space>
 
           <a-table
-            v-if="!itemStore.loading"
+            v-if="!itemStore.loading && !isMobile"
             :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
             :columns="columns"
             :data-source="filteredData"
@@ -40,6 +43,33 @@
               </template>
             </template>
           </a-table>
+
+          <div v-else-if="isMobile">
+            <MobileListCard
+              v-for="item in filteredData"
+              :key="item.id"
+              clickable
+              :active="selectedRowKeys.includes(item.id)"
+              @click="toggleSelect(item.id)"
+            >
+              <template #title>
+                <a-checkbox
+                  :checked="selectedRowKeys.includes(item.id)"
+                  style="margin-right: 8px"
+                  @click.stop="toggleSelect(item.id)"
+                />
+                {{ item.shortId }} · {{ item.name }}
+              </template>
+              <template #tags>
+                <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
+              </template>
+              <template #meta>
+                <div>仓库：{{ item.warehouseName }}</div>
+                <div v-if="item.remarks">备注：{{ item.remarks }}</div>
+              </template>
+            </MobileListCard>
+          </div>
+
           <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该仓库中没有符合条件的物品" />
         </div>
         <a-empty v-else description="请先选择一个仓库以加载物品" />
@@ -53,7 +83,10 @@ import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { message, Modal, Input } from 'ant-design-vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 
@@ -121,6 +154,17 @@ const loadItems = async () => {
 
 const onSelectChange = (keys: string[]) => {
   selectedRowKeys.value = keys;
+};
+
+const toggleSelect = (id: string) => {
+  const idx = selectedRowKeys.value.indexOf(id);
+  if (idx === -1) {
+    selectedRowKeys.value = [...selectedRowKeys.value, id];
+  } else {
+    const next = [...selectedRowKeys.value];
+    next.splice(idx, 1);
+    selectedRowKeys.value = next;
+  }
 };
 
 const hasSelected = computed(() => selectedRowKeys.value.length > 0);

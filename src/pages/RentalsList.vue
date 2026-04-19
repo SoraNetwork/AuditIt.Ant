@@ -1,23 +1,42 @@
-﻿<template>
+<template>
   <div>
     <a-page-header title="租赁列表" sub-title="查看和筛选租赁单" />
-    <a-card>
-      <a-space style="margin-bottom: 12px; width: 100%; justify-content: space-between">
-        <a-space>
-          <a-select v-model:value="status" allow-clear style="width: 160px" placeholder="状态" @change="search">
+    <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+      <div class="toolbar">
+        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+          <a-select
+            v-model:value="status"
+            allow-clear
+            :style="isMobile ? { width: '100%' } : { width: '160px' }"
+            placeholder="状态"
+            @change="search"
+          >
             <a-select-option value="Pending">Pending</a-select-option>
             <a-select-option value="Active">Active</a-select-option>
             <a-select-option value="Overdue">Overdue</a-select-option>
             <a-select-option value="Returned">Returned</a-select-option>
             <a-select-option value="Cancelled">Cancelled</a-select-option>
           </a-select>
-          <a-input v-model:value="rentalNumber" placeholder="租赁单号" style="width: 180px" />
-          <a-button @click="search">查询</a-button>
+          <a-input
+            v-model:value="rentalNumber"
+            placeholder="租赁单号"
+            :style="isMobile ? { width: '100%' } : { width: '180px' }"
+          />
+          <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
-        <a-button type="primary" @click="$router.push('/rentals/new')">新建租赁</a-button>
-      </a-space>
+        <a-button type="primary" :block="isMobile" :style="isMobile ? { marginTop: '8px' } : {}" @click="$router.push('/rentals/new')">
+          新建租赁
+        </a-button>
+      </div>
 
-      <a-table :loading="rentalStore.loading" row-key="id" :columns="columns" :data-source="rentalStore.rentals" :pagination="false">
+      <a-table
+        v-if="!isMobile"
+        :loading="rentalStore.loading"
+        row-key="id"
+        :columns="columns"
+        :data-source="rentalStore.rentals"
+        :pagination="false"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'rentalNumber'">
             <router-link :to="`/rentals/${record.id}`">{{ record.rentalNumber }}</router-link>
@@ -39,6 +58,32 @@
           </template>
         </template>
       </a-table>
+
+      <div v-else class="mobile-list">
+        <a-skeleton :loading="rentalStore.loading" active :paragraph="{ rows: 4 }">
+          <MobileListCard
+            v-for="r in rentalStore.rentals"
+            :key="r.id"
+            clickable
+            @click="$router.push(`/rentals/${r.id}`)"
+          >
+            <template #title>{{ r.rentalNumber }}</template>
+            <template #tags>
+              <a-tag :color="statusColor(r.status)">{{ r.status }}</a-tag>
+            </template>
+            <template #meta>
+              <div>租客：{{ r.renter?.name || '-' }}</div>
+              <div>开始：{{ formatDateTime(r.startDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>预计结束：{{ formatDateTime(r.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>
+                总价：{{ r.totalPrice != null ? '¥' + Number(r.totalPrice).toFixed(1) : '-' }}
+                <span v-if="r.assignedTo" style="margin-left: 8px">· 负责人 {{ r.assignedTo }}</span>
+              </div>
+            </template>
+          </MobileListCard>
+          <a-empty v-if="rentalStore.rentals.length === 0 && !rentalStore.loading" description="暂无租赁记录" />
+        </a-skeleton>
+      </div>
     </a-card>
   </div>
 </template>
@@ -47,7 +92,10 @@
 import { onMounted, ref } from 'vue';
 import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { formatDateTime } from '../utils/formatters';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
@@ -81,3 +129,24 @@ const search = async () => {
 
 onMounted(search);
 </script>
+
+<style scoped>
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+@media (max-width: 767.98px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.mobile-list {
+  margin-top: 8px;
+}
+</style>

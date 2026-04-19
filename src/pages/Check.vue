@@ -2,46 +2,48 @@
   <div>
     <a-page-header title="连续盘点" sub-title="使用扫描枪或手动输入短ID进行快速盘点" />
     <div class="page-container">
-      <a-card>
-        <a-row :gutter="24">
+      <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-row :gutter="isMobile ? [0, 12] : 24">
           <!-- Left Side: Input and Controls -->
-          <a-col :span="8">
-            <a-form-item label="扫描或输入物品短ID">
-              <a-input-search
-                v-model:value="currentShortId"
-                placeholder="在此处扫描或输入ID..."
-                size="large"
-                autofocus
-                @search="handleSingleCheck"
-                @keydown.enter.prevent="handleSingleCheck"
-              >
-                <template #enterButton>
-                  <a-button type="primary">盘点</a-button>
-                </template>
-              </a-input-search>
-            </a-form-item>
-            
-            <a-divider>统计</a-divider>
-            
-            <a-row :gutter="16">
-              <a-col :span="8">
-                <a-statistic title="成功" :value="stats.success" />
-              </a-col>
-              <a-col :span="8">
-                <a-statistic title="失败" :value="stats.failed" />
-              </a-col>
-              <a-col :span="8">
-                <a-statistic title="重复" :value="stats.duplicate" />
-              </a-col>
-            </a-row>
+          <a-col :xs="24" :span="8">
+            <div :class="{ 'mobile-sticky-controls': isMobile }">
+              <a-form-item label="扫描或输入物品短ID" :style="isMobile ? { marginBottom: '8px' } : {}">
+                <a-input-search
+                  v-model:value="currentShortId"
+                  placeholder="在此处扫描或输入ID..."
+                  size="large"
+                  autofocus
+                  @search="handleSingleCheck"
+                  @keydown.enter.prevent="handleSingleCheck"
+                >
+                  <template #enterButton>
+                    <a-button type="primary">盘点</a-button>
+                  </template>
+                </a-input-search>
+              </a-form-item>
 
-            <a-divider />
-            <a-button @click="clearResults" block>清空列表</a-button>
+              <a-divider v-if="!isMobile">统计</a-divider>
+              <div v-else style="margin: 4px 0 8px;" />
 
+              <a-row :gutter="isMobile ? 8 : 16">
+                <a-col :span="8">
+                  <a-statistic title="成功" :value="stats.success" />
+                </a-col>
+                <a-col :span="8">
+                  <a-statistic title="失败" :value="stats.failed" />
+                </a-col>
+                <a-col :span="8">
+                  <a-statistic title="重复" :value="stats.duplicate" />
+                </a-col>
+              </a-row>
+
+              <a-divider :style="isMobile ? { margin: '8px 0' } : {}" />
+              <a-button @click="clearResults" block>清空列表</a-button>
+            </div>
           </a-col>
 
           <!-- Right Side: Results -->
-          <a-col :span="16">
+          <a-col :xs="24" :span="16">
             <a-list :data-source="scannedItems" bordered :loading="isLoading">
               <template #renderItem="{ item }">
                 <a-list-item :class="`status-${item.status.toLowerCase()}`">
@@ -75,6 +77,9 @@
 import { ref, reactive } from 'vue';
 import { useItemStore } from '../stores/itemStore';
 import { message } from 'ant-design-vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+
+const { isMobile } = useBreakpoint();
 
 type ScanStatus = '成功' | '失败' | '重复';
 
@@ -202,4 +207,17 @@ const clearResults = () => {
 
 .item-name { font-weight: 500; }
 .item-short-id { color: #888; margin-left: 8px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+  .mobile-sticky-controls {
+    position: sticky;
+    top: 56px;
+    z-index: 10;
+    background: #fff;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 12px;
+  }
+}
 </style>
