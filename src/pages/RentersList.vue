@@ -20,7 +20,7 @@
         </template>
       </a-table>
 
-      <div v-else>
+      <div v-else class="mobile-card-list">
         <a-skeleton :loading="renterStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard v-for="r in renterStore.renters" :key="r.id">
             <template #title>{{ r.name }}</template>
@@ -78,7 +78,7 @@ import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const renterStore = useRenterStore();
 const keyword = ref('');
 const visible = ref(false);

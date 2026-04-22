@@ -58,6 +58,17 @@
           </a-col>
         </a-row>
 
+        <div v-if="isMobile" class="mobile-summary-grid">
+          <div class="mobile-summary-card">
+            <div class="mobile-summary-label">租客匹配</div>
+            <div class="mobile-summary-value">{{ matchedRenter?.name || '未匹配' }}</div>
+          </div>
+          <div class="mobile-summary-card">
+            <div class="mobile-summary-label">已选物品</div>
+            <div class="mobile-summary-value">{{ selectedItemIds.length }} 件</div>
+          </div>
+        </div>
+
         <a-row :gutter="16">
           <a-col :xs="24" :span="8">
             <a-form-item label="默认地址">
@@ -114,7 +125,17 @@
 
         <a-divider>选择物品（在库）</a-divider>
 
-        <a-space style="margin-bottom: 12px">
+        <div v-if="isMobile" class="mobile-selection-toolbar">
+          <div class="meta">
+            <div class="title">在库物品 {{ itemStore.items.length }} 件</div>
+            <div class="desc">刷新库存后，可直接点卡片勾选要加入租赁的物品。</div>
+          </div>
+          <div class="actions">
+            <a-button @click="loadStockItems">刷新物品</a-button>
+          </div>
+        </div>
+
+        <a-space v-else style="margin-bottom: 12px">
           <a-button @click="loadStockItems">刷新物品</a-button>
           <span>已选 {{ selectedItemIds.length }} 件</span>
         </a-space>
@@ -129,7 +150,7 @@
           :pagination="{ pageSize: 20 }"
         />
 
-        <div v-else>
+        <div v-else class="mobile-card-list">
           <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 4 }">
             <MobileListCard
               v-for="item in itemStore.items"
@@ -166,7 +187,7 @@
           <a-button block @click="$router.back()">取消</a-button>
           <a-button type="primary" block :loading="submitting" @click="submit">创建租赁</a-button>
         </div>
-        <div v-if="isMobile" style="height: 80px;"></div>
+        <div v-if="isMobile" class="mobile-selection-spacer"></div>
       </a-form>
     </a-card>
 
@@ -200,12 +221,12 @@
         </a-form-item>
       </a-form>
       <template #footer>
-        <a-space>
+        <div class="quick-create-footer">
           <a-button @click="quickCreateVisible = false">取消</a-button>
           <a-button type="primary" :loading="quickCreating" @click="submitQuickCreate">
             保存并使用
           </a-button>
-        </a-space>
+        </div>
       </template>
     </a-drawer>
   </div>
@@ -223,7 +244,7 @@ import { useUserStore } from '../stores/userStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
 const renterStore = useRenterStore();
 const itemStore = useItemStore();
@@ -429,3 +450,15 @@ onMounted(async () => {
   await Promise.all([userStore.fetchUsers({ status: 'Active', limit: 200 }), loadStockItems()]);
 });
 </script>
+
+<style scoped>
+.quick-create-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quick-create-footer .ant-btn {
+  width: 100%;
+}
+</style>

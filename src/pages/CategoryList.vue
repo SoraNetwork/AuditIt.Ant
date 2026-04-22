@@ -1,10 +1,5 @@
 <template>
   <div>
-    <div v-if="isMobile" class="mobile-toolbar">
-      <h2 style="margin: 0">分类管理</h2>
-      <a-button type="primary" @click="showAddModal">添加分类</a-button>
-    </div>
-
     <a-table
       v-if="!isMobile"
       :columns="columns"
@@ -38,24 +33,44 @@
     </a-table>
 
     <div v-else>
+      <div class="mobile-toolbar admin-mobile-toolbar">
+        <div>
+          <h2>分类管理</h2>
+          <p>维护物品分类，供物品定义和库存资料引用。</p>
+        </div>
+        <a-button type="primary" block @click="showAddModal">添加分类</a-button>
+      </div>
+
+      <div class="mobile-section-note">
+        <strong>共 {{ categoryStore.categories.length }} 个分类</strong>
+        <span>卡片中展示分类名称和描述，可直接执行编辑或删除。</span>
+      </div>
+
       <a-skeleton :loading="categoryStore.loading" active :paragraph="{ rows: 3 }">
-        <MobileListCard v-for="cat in categoryStore.categories" :key="cat.id">
-          <template #title>{{ cat.name }}</template>
-          <template #meta>
-            <div v-if="cat.description">{{ cat.description }}</div>
-          </template>
-          <template #footer>
-            <a-button size="small" @click="showEditModal(cat)">编辑</a-button>
-            <a-popconfirm title="您确定要删除这个分类吗？" @confirm="handleDelete(cat.id)" ok-text="确定" cancel-text="取消">
-              <a-button size="small" danger>删除</a-button>
-            </a-popconfirm>
-          </template>
-        </MobileListCard>
-        <a-empty v-if="categoryStore.categories.length === 0 && !categoryStore.loading" description="暂无分类" />
+        <div v-if="categoryStore.categories.length > 0" class="mobile-card-list">
+          <MobileListCard v-for="cat in categoryStore.categories" :key="cat.id">
+            <template #title>{{ cat.name }}</template>
+            <template #meta>
+              <div v-if="cat.description">{{ cat.description }}</div>
+              <div v-else>暂无描述</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="showEditModal(cat)">编辑</a-button>
+              <a-popconfirm
+                title="您确定要删除这个分类吗？"
+                @confirm="handleDelete(cat.id)"
+                ok-text="确定"
+                cancel-text="取消"
+              >
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </template>
+          </MobileListCard>
+        </div>
+        <a-empty v-else description="暂无分类" />
       </a-skeleton>
     </div>
 
-    <!-- Modal for Add/Edit -->
     <a-modal
       v-model:open="isModalVisible"
       :title="modalTitle"
@@ -71,14 +86,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useCategoryStore, type Category, type CreateCategoryPayload } from '../stores/categoryStore';
-import CategoryForm from '../components/CategoryForm.vue';
+import { computed, onMounted, ref } from 'vue';
 import { message } from 'ant-design-vue';
-import { useBreakpoint } from '../composables/useBreakpoint';
+import CategoryForm from '../components/CategoryForm.vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import {
+  useCategoryStore,
+  type Category,
+  type CreateCategoryPayload,
+} from '../stores/categoryStore';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const categoryStore = useCategoryStore();
 const categoryFormRef = ref<InstanceType<typeof CategoryForm> | null>(null);
 
@@ -86,7 +105,9 @@ const isModalVisible = ref(false);
 const editingId = ref<number | null>(null);
 const currentCategory = ref<Partial<Category>>({});
 
-const modalTitle = computed(() => (editingId.value !== null ? '编辑分类' : '添加分类'));
+const modalTitle = computed(() =>
+  editingId.value !== null ? '编辑分类' : '添加分类'
+);
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
@@ -148,10 +169,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mobile-toolbar {
+.admin-mobile-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 12px;
+}
+
+.admin-mobile-toolbar h2 {
+  margin: 0;
+}
+
+.admin-mobile-toolbar p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
 }
 </style>

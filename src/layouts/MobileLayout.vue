@@ -63,14 +63,12 @@ watch(() => route.fullPath, () => {
 
 let pollTimer: number | undefined;
 onMounted(() => {
-  document.body.classList.add('is-mobile');
   if (auth.hasPermission(P.ReminderView)) {
     reminderStore.fetchUnreadCount();
     pollTimer = window.setInterval(() => reminderStore.fetchUnreadCount(), 60_000);
   }
 });
 onUnmounted(() => {
-  document.body.classList.remove('is-mobile');
   if (pollTimer) window.clearInterval(pollTimer);
 });
 </script>

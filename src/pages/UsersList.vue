@@ -54,7 +54,7 @@
         </template>
       </a-table>
 
-      <div v-else>
+      <div v-else class="mobile-card-list">
         <a-skeleton :loading="userStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard v-for="u in userStore.users" :key="u.id">
             <template #title>{{ u.name }}</template>
@@ -99,7 +99,7 @@ import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const userStore = useUserStore();
 const roleStore = useRoleStore();
 

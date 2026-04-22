@@ -37,6 +37,45 @@ body.is-mobile .ant-form-horizontal .ant-form-item-label {
   text-align: left;
 }
 
+body.is-mobile .ant-page-header {
+  padding: 4px 2px 14px;
+}
+
+body.is-mobile .ant-page-header-heading {
+  align-items: flex-start;
+  row-gap: 8px;
+}
+
+body.is-mobile .ant-page-header-heading-left,
+body.is-mobile .ant-page-header-heading-extra {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+body.is-mobile .ant-page-header-heading-title {
+  font-size: 20px;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+body.is-mobile .ant-page-header-heading-sub-title {
+  margin-inline-start: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  color: #667085;
+}
+
+body.is-mobile .ant-page-header-heading-extra {
+  width: 100%;
+  gap: 8px;
+}
+
+body.is-mobile .ant-page-header-heading-extra .ant-btn,
+body.is-mobile .ant-page-header-heading-extra .ant-tag {
+  margin-inline-start: 0;
+}
+
 body.is-mobile .ant-input,
 body.is-mobile .ant-input-number,
 body.is-mobile .ant-input-affix-wrapper,
@@ -56,6 +95,21 @@ body.is-mobile .ant-modal {
   top: 8px;
 }
 
+body.is-mobile .ant-modal .ant-modal-content {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+body.is-mobile .ant-modal .ant-modal-footer {
+  display: flex;
+  gap: 8px;
+}
+
+body.is-mobile .ant-modal .ant-modal-footer .ant-btn {
+  flex: 1;
+  margin-inline-start: 0 !important;
+}
+
 body.is-mobile .ant-drawer-content-wrapper {
   max-width: 95vw;
 }
@@ -64,15 +118,78 @@ body.is-mobile .ant-table {
   font-size: 13px;
 }
 
+body.is-mobile .ant-card {
+  border-radius: 16px;
+  border-color: #edf2f7;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+body.is-mobile .ant-card-head {
+  min-height: 52px;
+  padding: 0 14px;
+}
+
+body.is-mobile .ant-card-head-title {
+  padding: 14px 0;
+  white-space: normal;
+}
+
+body.is-mobile .ant-card-extra {
+  padding: 10px 0;
+}
+
+body.is-mobile .ant-tabs-nav {
+  margin-bottom: 14px;
+}
+
+body.is-mobile .ant-tabs-tab {
+  padding: 10px 0 12px;
+  font-weight: 600;
+}
+
+body.is-mobile .ant-tabs-tab-btn {
+  white-space: nowrap;
+}
+
+body.is-mobile .ant-list-bordered,
+body.is-mobile .ant-descriptions-bordered {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+body.is-mobile .ant-list-item {
+  padding: 12px 14px;
+}
+
+body.is-mobile .ant-list-item-meta {
+  align-items: flex-start;
+}
+
+body.is-mobile .ant-list-item-meta-title {
+  margin-bottom: 4px;
+}
+
+body.is-mobile .ant-timeline {
+  margin-top: 4px;
+}
+
+body.is-mobile .ant-timeline-item-content {
+  min-width: 0;
+  line-height: 1.6;
+}
+
 /* 手机端底部粘性操作栏：位于底部 Tab 栏之上 */
 .mobile-action-bar {
   position: fixed;
   bottom: calc(56px + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
-  padding: 8px 12px;
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.08);
   display: flex;
   gap: 8px;
   z-index: 99;
@@ -80,6 +197,7 @@ body.is-mobile .ant-table {
 
 .mobile-action-bar .ant-btn {
   flex: 1;
+  min-height: 40px;
 }
 
 /* 手机抽屉菜单中徽标对齐 */
@@ -90,4 +208,127 @@ body.is-mobile .menu-link-with-badge {
 }
 body.is-mobile .menu-link-with-badge .reminder-badge {
   margin-left: auto;
+}
+
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-card-list > * {
+  margin-bottom: 0 !important;
+}
+
+.mobile-section-note {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 100%);
+  border: 1px solid #e2e8f0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.mobile-section-note strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+  color: #101828;
+}
+
+.mobile-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+  border: 1px solid #dbeafe;
+}
+
+.mobile-selection-toolbar .meta {
+  min-width: 0;
+}
+
+.mobile-selection-toolbar .title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2939;
+}
+
+.mobile-selection-toolbar .desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.mobile-selection-toolbar .actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mobile-selection-toolbar .actions .ant-btn {
+  min-width: 112px;
+}
+
+.mobile-selection-spacer {
+  height: 96px;
+}
+
+.mobile-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobile-summary-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.mobile-summary-label {
+  font-size: 12px;
+  color: #667085;
+}
+
+.mobile-summary-value {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #101828;
+  word-break: break-word;
+}
+
+.mobile-grid-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-grid-actions .ant-btn {
+  width: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .mobile-selection-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-selection-toolbar .actions {
+    width: 100%;
+  }
+
+  .mobile-selection-toolbar .actions .ant-btn {
+    flex: 1;
+  }
 }

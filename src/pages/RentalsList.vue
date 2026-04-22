@@ -29,6 +29,11 @@
         </a-button>
       </div>
 
+      <div v-if="isMobile && rentalStore.rentals.length > 0" class="mobile-section-note">
+        <strong>租赁列表</strong>
+        <span>共 {{ rentalStore.rentals.length }} 条记录，点卡片可查看详情。</span>
+      </div>
+
       <a-table
         v-if="!isMobile"
         :loading="rentalStore.loading"
@@ -59,7 +64,7 @@
         </template>
       </a-table>
 
-      <div v-else class="mobile-list">
+      <div v-else class="mobile-list mobile-card-list">
         <a-skeleton :loading="rentalStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard
             v-for="r in rentalStore.rentals"
@@ -95,7 +100,7 @@ import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');

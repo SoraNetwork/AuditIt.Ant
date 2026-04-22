@@ -30,11 +30,12 @@ function onClick(ev: MouseEvent) {
 <style scoped>
 .mobile-list-card {
   background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1px solid #f0f0f0;
-  transition: background 0.15s;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 0;
+  border: 1px solid #edf1f5;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .mobile-list-card.clickable {
@@ -42,12 +43,15 @@ function onClick(ev: MouseEvent) {
 }
 
 .mobile-list-card.clickable:active {
+  transform: scale(0.995);
   background: #fafafa;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
 }
 
 .mobile-list-card.active {
-  border-color: #1890ff;
-  background: #e6f7ff;
+  border-color: #91caff;
+  background: linear-gradient(180deg, #f0f8ff 0%, #ffffff 100%);
+  box-shadow: 0 0 0 1px rgba(24, 144, 255, 0.08), 0 10px 28px rgba(24, 144, 255, 0.12);
 }
 
 .card-header {
@@ -77,6 +81,7 @@ function onClick(ev: MouseEvent) {
   font-size: 13px;
   color: #595959;
   margin-bottom: 6px;
+  line-height: 1.5;
 }
 
 .card-meta {
@@ -84,19 +89,25 @@ function onClick(ev: MouseEvent) {
   color: #8c8c8c;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 .card-meta :deep(> div) {
   line-height: 1.6;
+  word-break: break-word;
 }
 
 .card-footer {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #f5f5f5;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f3f4f6;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.card-footer :deep(.ant-btn) {
+  flex: 1 1 120px;
+  min-height: 36px;
 }
 </style>

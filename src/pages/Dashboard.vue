@@ -144,7 +144,7 @@ import { formatDateTime } from '../utils/formatters';
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement);
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const rentalStore = useRentalStore();
@@ -241,7 +241,30 @@ const chartOptions = {
 .page-container { padding: 24px; }
 .chart-wrapper { height: 240px; }
 
+.page-container :deep(.ant-card) {
+  height: 100%;
+}
+
+.page-container :deep(.ant-card-body) {
+  padding: 16px;
+}
+
 @media (max-width: 767.98px) {
   .page-container { padding: 12px; }
+
+  .page-container :deep(.ant-card-body) {
+    padding: 14px 12px;
+  }
+
+  .page-container :deep(.ant-statistic-content) {
+    font-size: 24px;
+  }
+
+  .page-container :deep(.ant-list-item) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .chart-wrapper { height: 220px; }
 }
 </style>

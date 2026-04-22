@@ -2,8 +2,10 @@
   <div>
     <a-page-header :title="`物品详情: ${item?.shortId || ''}`" @back="router.back()">
       <template #extra>
-        <a-button @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
-        <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
+        <div class="header-actions">
+          <a-button @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
+          <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
+        </div>
       </template>
     </a-page-header>
 
@@ -11,7 +13,7 @@
       <a-card :loading="itemStore.loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <!-- Mobile: photo on top, then descriptions -->
         <div v-if="isMobile">
-          <div style="text-align: center; margin-bottom: 12px;">
+          <div class="mobile-photo-frame">
             <a-image v-if="photoFullUrl" :src="photoFullUrl" alt="物品图片" style="max-height: 240px; object-fit: cover; width: 100%;" />
             <a-empty v-else description="暂无图片" />
           </div>
@@ -70,7 +72,7 @@
           </template>
         </a-table>
 
-        <div v-else>
+        <div v-else class="mobile-card-list">
           <MobileListCard v-for="l in currentListings" :key="l.id">
             <template #title>{{ l.platform }} · {{ l.title || '无标题' }}</template>
             <template #tags><a-tag>{{ l.status }}</a-tag></template>
@@ -89,7 +91,7 @@
         </div>
       </a-card>
 
-      <a-card title="生命周期日志" style="margin-top: 16px">
+      <a-card class="lifecycle-card" title="生命周期日志" style="margin-top: 16px">
         <a-timeline>
           <a-timeline-item v-for="log in auditLogStore.logs" :key="log.id">
             <p><strong>{{ log.action }}</strong> - {{ formatDateTime(log.timestamp) }}</p>
@@ -146,7 +148,7 @@ import apiClient from '../services/api';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();
@@ -268,7 +270,39 @@ onMounted(loadItem);
   padding: 24px;
 }
 
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mobile-photo-frame {
+  text-align: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+}
+
+.lifecycle-card :deep(.ant-timeline-item-content p) {
+  margin-bottom: 4px;
+}
+
 @media (max-width: 767.98px) {
   .page-container { padding: 0; }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions :deep(.ant-btn) {
+    flex: 1;
+  }
+
+  .mobile-photo-frame :deep(.ant-image) {
+    display: block;
+  }
 }
 </style>

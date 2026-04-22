@@ -65,6 +65,11 @@
         <a-divider />
 
         <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 5 }">
+          <div v-if="isMobile && filteredData.length > 0" class="mobile-section-note">
+            <strong>库存结果</strong>
+            <span>共 {{ filteredData.length }} 条记录，点卡片可进入详情页。</span>
+          </div>
+
           <template v-if="filteredData.length > 0">
             <a-table
               v-if="!isMobile"
@@ -82,7 +87,7 @@
               </template>
             </a-table>
 
-            <div v-else>
+            <div v-else class="mobile-card-list">
               <MobileListCard
                 v-for="item in filteredData"
                 :key="item.id"
@@ -128,7 +133,7 @@ import type { Warehouse } from '../stores/warehouseStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const router = useRouter();
 
 const itemStore = useItemStore();

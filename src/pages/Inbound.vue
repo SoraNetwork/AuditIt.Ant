@@ -3,7 +3,7 @@
     <a-page-header title="入库" sub-title="执行快速入库或手动生成新物品" />
 
     <div class="page-container">
-      <a-tabs v-model:activeKey="activeTab">
+      <a-tabs v-model:activeKey="activeTab" class="inbound-tabs">
         <!-- Tab 1: Quick Inbound with External Barcode -->
         <a-tab-pane key="quick" tab="快速入库 (带条码)">
           <a-card title="扫描或输入已有条码的物品" :body-style="{ padding: isMobile ? '12px' : '24px' }">
@@ -204,6 +204,7 @@ GHI789"
                 </template>
 
                 <a-table
+                  v-if="!isMobile"
                   :data-source="batchItems"
                   :columns="batchColumns"
                   :pagination="{ pageSize: 10 }"
@@ -227,6 +228,30 @@ GHI789"
                     </template>
                   </template>
                 </a-table>
+
+                <div v-else class="mobile-card-list">
+                  <MobileListCard v-for="(record, index) in batchItems" :key="record.tempId">
+                    <template #title>导入项 {{ index + 1 }}</template>
+                    <template #meta>
+                      <div>
+                        <span class="mobile-field-label">条码</span>
+                        <a-input
+                          v-model:value="record.shortId"
+                          @blur="validateShortId(record)"
+                          :status="record.error ? 'error' : ''"
+                        />
+                        <div v-if="record.error" class="field-error">{{ record.error }}</div>
+                      </div>
+                      <div>
+                        <span class="mobile-field-label">备注</span>
+                        <a-input v-model:value="record.remarks" />
+                      </div>
+                    </template>
+                    <template #footer>
+                      <a-button size="small" danger @click="removeBatchItem(index)">删除</a-button>
+                    </template>
+                  </MobileListCard>
+                </div>
 
                 <!-- 添加单个物品 -->
                 <a-divider />
@@ -313,7 +338,7 @@ GHI789"
                     全部保存并导出XLSX
                   </a-button>
                 </template>
-                <a-table :data-source="exportList" :columns="[
+                <a-table v-if="!isMobile" :data-source="exportList" :columns="[
                   { title: '物品定义', dataIndex: 'definitionName', key: 'definitionName' },
                   { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
                   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
@@ -331,6 +356,23 @@ GHI789"
                     </template>
                   </template>
                 </a-table>
+
+                <div v-else class="mobile-card-list">
+                  <MobileListCard v-for="(record, index) in exportList" :key="record.tempId">
+                    <template #title>{{ record.definitionName }}</template>
+                    <template #subtitle>{{ record.warehouseName }}</template>
+                    <template #meta>
+                      <div v-if="record.remarks">备注：{{ record.remarks }}</div>
+                      <div v-else>备注：-</div>
+                    </template>
+                    <template #footer>
+                      <a-image v-if="record.photoPreview" :width="56" :src="record.photoPreview" />
+                      <a-popconfirm title="纭畾瑕佺Щ闄ゅ悧?" @confirm="removeFromExportList(index)">
+                        <a-button size="small" danger>移除</a-button>
+                      </a-popconfirm>
+                    </template>
+                  </MobileListCard>
+                </div>
               </a-card>
             </a-col>
           </a-row>
@@ -406,8 +448,9 @@ import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 
 interface QuickRemarkDto { id: number; content: string; }
 const quickRemarks = ref<QuickRemarkDto[]>([]);
@@ -999,9 +1042,23 @@ onMounted(() => {
   padding: 24px;
 }
 
+.mobile-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #667085;
+}
+
+.field-error {
+  margin-top: 4px;
+  color: #cf1322;
+  font-size: 12px;
+}
+
 @media (max-width: 767.98px) {
   .page-container { padding: 0; }
   .page-container :deep(.ant-table-wrapper) { overflow-x: auto; }
+  .inbound-tabs :deep(.ant-tabs-tab) { min-width: 92px; justify-content: center; }
 }
 
 .quick-remark-tag {

@@ -25,7 +25,7 @@
         </template>
       </a-table>
 
-      <div v-else>
+      <div v-else class="mobile-card-list">
         <a-skeleton :loading="roleStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard v-for="role in roleStore.roles" :key="role.id">
             <template #title>{{ role.name }}</template>
@@ -71,7 +71,7 @@ import { useRoleStore, type Role } from '../stores/roleStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const roleStore = useRoleStore();
 const visible = ref(false);
 const editing = ref<Role | null>(null);

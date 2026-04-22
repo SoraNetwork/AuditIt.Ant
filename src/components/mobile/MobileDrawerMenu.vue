@@ -58,7 +58,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { LogoutOutlined } from '@ant-design/icons-vue';
 import { useAuthStore } from '../../stores/authStore';
 import { useReminderStore } from '../../stores/reminderStore';
-import { getVisibleMenu, menuTree, type MenuNode } from '../../utils/menuConfig';
+import { getVisibleMenu, menuTree } from '../../utils/menuConfig';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 
@@ -111,9 +111,6 @@ function handleLogout() {
   emit('close');
   auth.logout();
 }
-
-// suppress unused warning for optional child node type import
-type _ = MenuNode;
 </script>
 
 <style scoped>

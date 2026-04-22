@@ -3,7 +3,16 @@
     <a-page-header title="归还操作" sub-title="将借出或疑似丢失的物品归还入库" />
     <div class="page-container">
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
-        <a-space style="margin-bottom: 16px;">
+        <div v-if="isMobile" class="mobile-selection-toolbar">
+          <div class="meta">
+            <div class="title">待归还物品 {{ tableData.length }} 件</div>
+            <div class="desc">
+              {{ hasSelected ? `已勾选 ${selectedRowKeys.length} 件，底部可直接提交归还。` : '点卡片勾选要归还的物品。' }}
+            </div>
+          </div>
+        </div>
+
+        <a-space v-if="!isMobile" style="margin-bottom: 16px;">
           <a-button type="primary" :block="isMobile" :disabled="!hasSelected" :loading="itemStore.loading" @click="handleReturn">
             归还选中项 ({{ selectedRowKeys.length }})
           </a-button>
@@ -24,7 +33,7 @@
           </template>
         </a-table>
 
-        <div v-else-if="isMobile && tableData.length > 0">
+        <div v-else-if="isMobile && tableData.length > 0" class="mobile-card-list">
           <MobileListCard
             v-for="item in tableData"
             :key="item.id"
@@ -51,6 +60,19 @@
         </div>
 
         <a-empty v-if="!itemStore.loading && tableData.length === 0" description="当前没有已借出或疑似丢失的物品" />
+        <template v-if="isMobile && tableData.length > 0">
+          <div class="mobile-action-bar">
+            <a-button
+              type="primary"
+              :disabled="!hasSelected"
+              :loading="itemStore.loading"
+              @click="handleReturn"
+            >
+              褰掕繕{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+            </a-button>
+          </div>
+          <div class="mobile-selection-spacer" />
+        </template>
       </a-card>
     </div>
   </div>
@@ -65,7 +87,7 @@ import { message, Modal } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
@@ -187,4 +209,8 @@ onMounted(() => {
 
 <style scoped>
 .page-container { padding: 24px; }
+
+@media (max-width: 767.98px) {
+  .page-container { padding: 0; }
+}
 </style>

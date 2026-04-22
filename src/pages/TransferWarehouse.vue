@@ -45,7 +45,17 @@
         <a-divider />
 
         <div v-if="filterState.warehouseId">
+          <div v-if="isMobile" class="mobile-selection-toolbar">
+            <div class="meta">
+              <div class="title">当前仓库：{{ currentWarehouseName }}</div>
+              <div class="desc">
+                {{ hasSelected ? `已选中 ${selectedRowKeys.length} 件，可直接发起转移。` : `共 ${filteredData.length} 件，点卡片勾选后再转移。` }}
+              </div>
+            </div>
+          </div>
+
           <a-space
+            v-if="!isMobile"
             :direction="isMobile ? 'vertical' : 'horizontal'"
             :style="isMobile ? { width: '100%', marginBottom: '16px' } : { marginBottom: '16px' }"
           >
@@ -92,7 +102,7 @@
             </template>
           </a-table>
 
-          <div v-else-if="isMobile">
+          <div v-else-if="isMobile" class="mobile-card-list">
             <MobileListCard
               v-for="item in filteredData"
               :key="item.id"
@@ -128,6 +138,19 @@
           <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该库房中没有符合条件的物品" />
         </div>
         <a-empty v-else description="请先选择一个源库房以加载物品" />
+        <template v-if="isMobile && filterState.warehouseId && filteredData.length > 0">
+          <div class="mobile-action-bar">
+            <a-button
+              type="primary"
+              :disabled="!hasSelected"
+              :loading="itemStore.loading"
+              @click="showTransferModal"
+            >
+              杞Щ{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+            </a-button>
+          </div>
+          <div class="mobile-selection-spacer" />
+        </template>
       </a-card>
     </div>
 
@@ -187,7 +210,7 @@ import { message } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 
@@ -346,5 +369,11 @@ const getPhotoUrl = (photoUrl: string) => {
 <style scoped>
 .page-container { 
   padding: 24px; 
+}
+
+@media (max-width: 767.98px) {
+  .page-container {
+    padding: 0;
+  }
 }
 </style>

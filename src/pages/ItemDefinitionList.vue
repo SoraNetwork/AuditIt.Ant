@@ -1,10 +1,5 @@
 <template>
   <div>
-    <div v-if="isMobile" class="mobile-toolbar">
-      <h2 style="margin: 0">物品定义管理</h2>
-      <a-button type="primary" @click="showAddModal">添加</a-button>
-    </div>
-
     <a-table
       v-if="!isMobile"
       :columns="columns"
@@ -38,22 +33,43 @@
     </a-table>
 
     <div v-else>
+      <div class="mobile-toolbar admin-mobile-toolbar">
+        <div>
+          <h2>物品定义管理</h2>
+          <p>维护物品模板、分类、单位和描述信息。</p>
+        </div>
+        <a-button type="primary" block @click="showAddModal">新增定义</a-button>
+      </div>
+
+      <div class="mobile-section-note">
+        <strong>共 {{ tableData.length }} 条定义</strong>
+        <span>移动端按卡片展示分类、单位和描述，方便快速浏览与维护。</span>
+      </div>
+
       <a-skeleton :loading="itemDefStore.loading || categoryStore.loading" active :paragraph="{ rows: 3 }">
-        <MobileListCard v-for="def in tableData" :key="def.id">
-          <template #title>{{ def.name }}</template>
-          <template #meta>
-            <div>分类：{{ def.categoryName }}</div>
-            <div v-if="def.unit">单位：{{ def.unit }}</div>
-            <div v-if="def.description">{{ def.description }}</div>
-          </template>
-          <template #footer>
-            <a-button size="small" @click="showEditModal(def)">编辑</a-button>
-            <a-popconfirm title="您确定要删除这个物品定义吗？" @confirm="handleDelete(def.id)" ok-text="确定" cancel-text="取消">
-              <a-button size="small" danger>删除</a-button>
-            </a-popconfirm>
-          </template>
-        </MobileListCard>
-        <a-empty v-if="tableData.length === 0 && !itemDefStore.loading" description="暂无物品定义" />
+        <div v-if="tableData.length > 0" class="mobile-card-list">
+          <MobileListCard v-for="def in tableData" :key="def.id">
+            <template #title>{{ def.name }}</template>
+            <template #meta>
+              <div>分类：{{ def.categoryName }}</div>
+              <div v-if="def.unit">单位：{{ def.unit }}</div>
+              <div v-if="def.description">{{ def.description }}</div>
+              <div v-else>暂无描述</div>
+            </template>
+            <template #footer>
+              <a-button size="small" @click="showEditModal(def)">编辑</a-button>
+              <a-popconfirm
+                title="您确定要删除这个物品定义吗？"
+                @confirm="handleDelete(def.id)"
+                ok-text="确定"
+                cancel-text="取消"
+              >
+                <a-button size="small" danger>删除</a-button>
+              </a-popconfirm>
+            </template>
+          </MobileListCard>
+        </div>
+        <a-empty v-else description="暂无物品定义" />
       </a-skeleton>
     </div>
 
@@ -72,15 +88,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useItemDefinitionStore, type ItemDefinition, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
-import { useCategoryStore } from '../stores/categoryStore';
-import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
+import { computed, onMounted, ref } from 'vue';
 import { message } from 'ant-design-vue';
-import { useBreakpoint } from '../composables/useBreakpoint';
+import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import { useCategoryStore } from '../stores/categoryStore';
+import {
+  useItemDefinitionStore,
+  type CreateItemDefinitionPayload,
+  type ItemDefinition,
+} from '../stores/itemDefinitionStore';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemDefStore = useItemDefinitionStore();
 const categoryStore = useCategoryStore();
 const itemDefFormRef = ref<InstanceType<typeof ItemDefinitionForm> | null>(null);
@@ -89,21 +109,23 @@ const isModalVisible = ref(false);
 const editingId = ref<number | null>(null);
 const currentItemDef = ref<Partial<ItemDefinition>>({});
 
-const modalTitle = computed(() => (editingId.value !== null ? '编辑物品定义' : '添加物品定义'));
+const modalTitle = computed(() =>
+  editingId.value !== null ? '编辑物品定义' : '添加物品定义'
+);
 
-const categoryMap = computed(() => {
-  return categoryStore.categories.reduce((map, cat) => {
+const categoryMap = computed(() =>
+  categoryStore.categories.reduce((map, cat) => {
     map[cat.id] = cat.name;
     return map;
-  }, {} as Record<number, string>);
-});
+  }, {} as Record<number, string>)
+);
 
-const tableData = computed(() => {
-  return itemDefStore.itemDefinitions.map(item => ({
+const tableData = computed(() =>
+  itemDefStore.itemDefinitions.map(item => ({
     ...item,
     categoryName: categoryMap.value[item.categoryId] || 'N/A',
-  }));
-});
+  }))
+);
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
@@ -115,7 +137,12 @@ const columns = [
 
 const showAddModal = () => {
   editingId.value = null;
-  currentItemDef.value = { name: '', categoryId: undefined, unit: '', description: '' };
+  currentItemDef.value = {
+    name: '',
+    categoryId: undefined,
+    unit: '',
+    description: '',
+  };
   isModalVisible.value = true;
 };
 
@@ -170,10 +197,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mobile-toolbar {
+.admin-mobile-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 12px;
+}
+
+.admin-mobile-toolbar h2 {
+  margin: 0;
+}
+
+.admin-mobile-toolbar p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
 }
 </style>

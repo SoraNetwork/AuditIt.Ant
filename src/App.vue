@@ -6,8 +6,28 @@
 </template>
 
 <script setup lang="ts">
+import { onUnmounted, watchEffect } from 'vue';
+import { useBreakpoint } from './composables/useBreakpoint';
 import { useUiStore } from './stores/uiStore';
+
 const uiStore = useUiStore();
+const { shouldUseMobileLayout } = useBreakpoint();
+
+watchEffect(() => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.body.classList.toggle('is-mobile', shouldUseMobileLayout.value);
+});
+
+onUnmounted(() => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.body.classList.remove('is-mobile');
+});
 </script>
 
 <style>

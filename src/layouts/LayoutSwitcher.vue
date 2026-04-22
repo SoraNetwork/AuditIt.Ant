@@ -1,5 +1,5 @@
 <template>
-  <MobileLayout v-if="isMobile" />
+  <MobileLayout v-if="shouldUseMobileLayout" />
   <DefaultLayout v-else />
 </template>
 
@@ -8,5 +8,5 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import DefaultLayout from './Default.vue';
 import MobileLayout from './MobileLayout.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout } = useBreakpoint();
 </script>

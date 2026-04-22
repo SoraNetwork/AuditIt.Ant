@@ -21,8 +21,27 @@
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
       </a-descriptions>
 
+      <div v-if="isMobile" class="mobile-summary-grid">
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">状态</div>
+          <div class="mobile-summary-value">{{ rental.status }}</div>
+        </div>
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">租客</div>
+          <div class="mobile-summary-value">{{ rental.renter?.name || rental.renterId }}</div>
+        </div>
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">总价</div>
+          <div class="mobile-summary-value">{{ formatMoney(rental.totalPrice) }}</div>
+        </div>
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">负责人</div>
+          <div class="mobile-summary-value">{{ rental.assignedTo || '-' }}</div>
+        </div>
+      </div>
+
       <a-divider />
-      <a-space style="margin-bottom: 12px" wrap>
+      <div :class="isMobile ? 'mobile-grid-actions rental-actions' : 'rental-actions'">
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
         <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
@@ -30,7 +49,7 @@
         </a-tooltip>
         <a-button v-if="canReturn" @click="returnVisible = true">登记归还</a-button>
         <a-button v-if="canCancel" danger @click="cancelVisible = true">取消租赁</a-button>
-      </a-space>
+      </div>
 
       <a-divider>租赁物品</a-divider>
       <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
@@ -52,7 +71,7 @@
         </template>
       </a-table>
 
-      <div v-else>
+      <div v-else class="mobile-card-list">
         <MobileListCard v-for="ri in rental.items" :key="ri.id">
           <template #title>{{ ri.itemShortIdSnapshot }} · {{ ri.itemNameSnapshot }}</template>
           <template #tags>
@@ -94,7 +113,7 @@
         </template>
       </a-table>
 
-      <div v-else>
+      <div v-else class="mobile-card-list">
         <MobileListCard v-for="sh in rental.shipments" :key="sh.id">
           <template #title>
             {{ sh.carrier || '未知物流' }}
@@ -218,7 +237,7 @@ import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();
@@ -525,3 +544,16 @@ onMounted(async () => {
   await load();
 });
 </script>
+
+<style scoped>
+.rental-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rental-actions :deep(.ant-btn) {
+  min-width: 120px;
+}
+</style>

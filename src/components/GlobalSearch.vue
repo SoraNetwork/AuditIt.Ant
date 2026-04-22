@@ -16,7 +16,7 @@ import { useItemStore } from '../stores/itemStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 
 const searchText = ref('');
 const router = useRouter();

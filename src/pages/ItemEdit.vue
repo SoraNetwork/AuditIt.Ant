@@ -62,7 +62,7 @@ import apiClient from '../services/api';
 import imageCompression from 'browser-image-compression';
 import { useBreakpoint } from '../composables/useBreakpoint';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();

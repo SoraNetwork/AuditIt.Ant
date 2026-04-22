@@ -31,6 +31,11 @@
 
         <a-divider />
 
+        <div v-if="isMobile && filteredLogs.length > 0" class="mobile-section-note">
+          <strong>审计结果</strong>
+          <span>共 {{ filteredLogs.length }} 条日志，支持按动作、日期和操作人继续筛选。</span>
+        </div>
+
         <a-table
           v-if="!isMobile"
           :columns="columns"
@@ -45,7 +50,7 @@
           </template>
         </a-table>
 
-        <div v-else>
+        <div v-else class="mobile-card-list">
           <a-skeleton :loading="auditLogStore.loading" active :paragraph="{ rows: 5 }">
             <MobileListCard v-for="log in filteredLogs" :key="log.id">
               <template #title>{{ log.itemName }} <span style="color: #999; font-weight: 400">· {{ log.itemShortId }}</span></template>
@@ -77,7 +82,7 @@ import { exportToXlsx } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
-const { isMobile } = useBreakpoint();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const auditLogStore = useAuditLogStore();
 
 const filters = reactive<{
