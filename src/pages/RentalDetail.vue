@@ -14,7 +14,8 @@
         <a-descriptions-item label="实际结束">{{ formatDate(rental.actualEndDate) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="总价">{{ formatMoney(rental.totalPrice) }}</a-descriptions-item>
         <a-descriptions-item label="押金">{{ formatMoney(rental.deposit) || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="地址">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="平台订单号">{{ rental.platformOrderNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="收货地址" :span="isMobile ? 1 : 3">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="isMobile ? 1 : 3">{{ rental.notes || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建时间">{{ formatDateTime(rental.createdAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="更新时间">{{ formatDateTime(rental.updatedAt) || '-' }}</a-descriptions-item>
@@ -35,23 +36,27 @@
           <div class="mobile-summary-value">{{ formatMoney(rental.totalPrice) }}</div>
         </div>
         <div class="mobile-summary-card">
-          <div class="mobile-summary-label">负责人</div>
-          <div class="mobile-summary-value">{{ rental.assignedTo || '-' }}</div>
+          <div class="mobile-summary-label">平台订单号</div>
+          <div class="mobile-summary-value">{{ rental.platformOrderNo || '-' }}</div>
         </div>
       </div>
 
       <a-divider />
+
       <div :class="isMobile ? 'mobile-grid-actions rental-actions' : 'rental-actions'">
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
         <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
-          <a-button :disabled="!canReceive" @click="openInbound">登记收货</a-button>
+          <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
         </a-tooltip>
-        <a-button v-if="canReturn" @click="returnVisible = true">登记归还</a-button>
+        <a-tooltip :title="returnDisabledReason" :open="canReturn ? false : undefined">
+          <a-button :disabled="!canReturn" @click="returnVisible = true">登记归还</a-button>
+        </a-tooltip>
         <a-button v-if="canCancel" danger @click="cancelVisible = true">取消租赁</a-button>
       </div>
 
-      <a-divider>租赁物品</a-divider>
+      <a-divider>租赁商品</a-divider>
+
       <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
         <a-button :block="isMobile" @click="exportItemsXlsx">导出 xlsx</a-button>
         <a-upload :before-upload="importItemsXlsx" :show-upload-list="false" accept=".xlsx,.xls">
@@ -72,28 +77,29 @@
       </a-table>
 
       <div v-else class="mobile-card-list">
-        <MobileListCard v-for="ri in rental.items" :key="ri.id">
-          <template #title>{{ ri.itemShortIdSnapshot }} · {{ ri.itemNameSnapshot }}</template>
+        <MobileListCard v-for="item in rental.items" :key="item.id">
+          <template #title>{{ item.itemShortIdSnapshot }} | {{ item.itemNameSnapshot }}</template>
           <template #tags>
-            <a-tag v-if="ri.returnCondition" :color="ri.returnCondition === 'Good' ? 'green' : 'red'">
-              {{ ri.returnCondition }}
+            <a-tag v-if="item.returnCondition" :color="item.returnCondition === 'Good' ? 'green' : 'red'">
+              {{ item.returnCondition }}
             </a-tag>
           </template>
           <template #meta>
-            <div>单价：{{ formatMoney(ri.perItemPrice) || '-' }}</div>
-            <div v-if="ri.listingRemarks">平台备注：{{ ri.listingRemarks }}</div>
-            <div v-if="ri.returnedAt">归还时间：{{ formatDateTime(ri.returnedAt) }}</div>
+            <div>单价：{{ formatMoney(item.perItemPrice) || '-' }}</div>
+            <div v-if="item.listingRemarks">平台备注：{{ item.listingRemarks }}</div>
+            <div v-if="item.returnedAt">归还时间：{{ formatDateTime(item.returnedAt) }}</div>
           </template>
         </MobileListCard>
-        <a-empty v-if="!rental.items?.length" description="暂无物品" />
+        <a-empty v-if="!rental.items?.length" description="暂无商品" />
       </div>
 
       <a-divider>物流记录</a-divider>
+
       <a-table v-if="!isMobile" row-key="id" :columns="shipmentColumns" :data-source="rental.shipments" :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'direction'">
             <a-tag :color="record.direction === 'Outbound' ? 'blue' : 'geekblue'">
-              {{ record.direction === 'Outbound' ? '发货' : '收货' }}
+              {{ record.direction === 'Outbound' ? '发货' : '回货' }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'shippedAt'">
@@ -106,34 +112,30 @@
             {{ formatMoney(record.shippingFee) || '-' }}
           </template>
           <template v-else-if="column.key === 'actions'">
-            <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">
-              标记签收
-            </a-button>
+            <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">标记签收</a-button>
           </template>
         </template>
       </a-table>
 
       <div v-else class="mobile-card-list">
-        <MobileListCard v-for="sh in rental.shipments" :key="sh.id">
+        <MobileListCard v-for="shipment in rental.shipments" :key="shipment.id">
           <template #title>
-            {{ sh.carrier || '未知物流' }}
-            <span v-if="sh.trackingNumber" style="color: #999; font-weight: 400">
-              · {{ sh.trackingNumber }}
-            </span>
+            {{ shipment.carrier || '未知物流' }}
+            <span v-if="shipment.trackingNumber" style="color: #999; font-weight: 400"> | {{ shipment.trackingNumber }}</span>
           </template>
           <template #tags>
-            <a-tag :color="sh.direction === 'Outbound' ? 'blue' : 'geekblue'">
-              {{ sh.direction === 'Outbound' ? '发货' : '收货' }}
+            <a-tag :color="shipment.direction === 'Outbound' ? 'blue' : 'geekblue'">
+              {{ shipment.direction === 'Outbound' ? '发货' : '回货' }}
             </a-tag>
           </template>
           <template #meta>
-            <div v-if="sh.originWarehouseName">仓库：{{ sh.originWarehouseName }}</div>
-            <div v-if="sh.shippingFee">运费：{{ formatMoney(sh.shippingFee) }}</div>
-            <div v-if="sh.shippedAt">发货：{{ formatDateTime(sh.shippedAt) }}</div>
-            <div v-if="sh.deliveredAt">签收：{{ formatDateTime(sh.deliveredAt) }}</div>
+            <div v-if="shipment.originWarehouseName">仓库：{{ shipment.originWarehouseName }}</div>
+            <div v-if="shipment.shippingFee">运费：{{ formatMoney(shipment.shippingFee) }}</div>
+            <div v-if="shipment.shippedAt">发货时间：{{ formatDateTime(shipment.shippedAt) }}</div>
+            <div v-if="shipment.deliveredAt">签收时间：{{ formatDateTime(shipment.deliveredAt) }}</div>
           </template>
-          <template #footer v-if="!sh.deliveredAt">
-            <a-button size="small" type="primary" @click="deliver(sh.id)">标记签收</a-button>
+          <template #footer v-if="!shipment.deliveredAt">
+            <a-button size="small" type="primary" @click="deliver(shipment.id)">标记签收</a-button>
           </template>
         </MobileListCard>
         <a-empty v-if="!rental.shipments?.length" description="暂无物流" />
@@ -143,9 +145,11 @@
 
   <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="submitShip">
     <a-form layout="vertical">
-      <a-form-item :label="shipForm.direction === 'Outbound' ? '发货仓库' : '收货仓库'" required>
+      <a-form-item :label="shipForm.direction === 'Outbound' ? '发货仓库' : '回货仓库'" required>
         <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库">
-          <a-select-option v-for="w in warehouseStore.warehouses" :key="w.id" :value="w.id">{{ w.name }}</a-select-option>
+          <a-select-option v-for="warehouse in warehouseStore.warehouses" :key="warehouse.id" :value="warehouse.id">
+            {{ warehouse.name }}
+          </a-select-option>
         </a-select>
       </a-form-item>
       <a-form-item label="物流公司" required>
@@ -195,7 +199,7 @@
 
   <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit">
     <a-form layout="vertical">
-      <a-form-item label="预计结束">
+      <a-form-item label="预计结束日期">
         <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
       </a-form-item>
       <a-form-item label="总价">
@@ -204,14 +208,17 @@
       <a-form-item label="押金">
         <a-input-number v-model:value="editForm.deposit" :min="0" :step="0.1" :precision="1" style="width: 100%" />
       </a-form-item>
-      <a-form-item label="地址">
+      <a-form-item label="收货地址">
         <a-input v-model:value="editForm.shippingAddress" :maxlength="500" />
+      </a-form-item>
+      <a-form-item label="平台订单号">
+        <a-input v-model:value="editForm.platformOrderNo" :maxlength="100" />
       </a-form-item>
       <a-form-item label="负责人">
         <a-select
           v-model:value="editForm.assignedUsers"
           mode="multiple"
-          placeholder="选择负责人（可多选）"
+          placeholder="选择负责人"
           :options="userOptions"
           :loading="userStore.loading"
           allow-clear
@@ -228,7 +235,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { message } from 'ant-design-vue';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
@@ -243,24 +250,25 @@ const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();
 const userStore = useUserStore();
 
-const userOptions = computed(() =>
-  userStore.users.map(u => ({ label: u.name, value: u.name }))
-);
-
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
-
 const shipVisible = ref(false);
 const returnVisible = ref(false);
 const cancelVisible = ref(false);
 const editVisible = ref(false);
 const saving = ref(false);
+const importing = ref(false);
+
+const userOptions = computed(() =>
+  userStore.users.map(user => ({ label: user.name, value: user.name }))
+);
 
 const editForm = reactive({
   expectedEndDate: null as Dayjs | null,
   totalPrice: null as number | null,
   deposit: null as number | null,
   shippingAddress: '',
+  platformOrderNo: '',
   assignedUsers: [] as string[],
   notes: '',
 });
@@ -280,7 +288,6 @@ const returnForm = reactive({
 });
 
 const cancelReason = ref('');
-const importing = ref(false);
 
 const carrierOptions = [
   { value: '顺丰速运' },
@@ -291,7 +298,7 @@ const carrierOptions = [
   { value: '韵达快递' },
   { value: '京东物流' },
   { value: '德邦快递' },
-  { value: '邮政EMS' },
+  { value: '邮政 EMS' },
   { value: '极兔速递' },
   { value: '菜鸟裹裹' },
   { value: '其他' },
@@ -301,22 +308,22 @@ const filterCarrier = (input: string, option: { value: string }) =>
   !!option.value && option.value.toLowerCase().includes(input.toLowerCase());
 
 const itemColumns = [
-  { title: '物品ID', dataIndex: 'itemShortIdSnapshot', key: 'itemShortIdSnapshot' },
+  { title: '商品 ID', dataIndex: 'itemShortIdSnapshot', key: 'itemShortIdSnapshot' },
   { title: '名称', dataIndex: 'itemNameSnapshot', key: 'itemNameSnapshot' },
-  { title: '单价', dataIndex: 'perItemPrice', key: 'perItemPrice', width: 100 },
+  { title: '单价', dataIndex: 'perItemPrice', key: 'perItemPrice', width: 120 },
   { title: '平台备注', dataIndex: 'listingRemarks', key: 'listingRemarks' },
-  { title: '归还时间', dataIndex: 'returnedAt', key: 'returnedAt', width: 170 },
-  { title: '归还状态', dataIndex: 'returnCondition', key: 'returnCondition', width: 120 },
+  { title: '归还时间', dataIndex: 'returnedAt', key: 'returnedAt', width: 180 },
+  { title: '归还状态', dataIndex: 'returnCondition', key: 'returnCondition', width: 140 },
 ];
 
 const shipmentColumns = [
   { title: '方向', dataIndex: 'direction', key: 'direction', width: 90 },
-  { title: '仓库', dataIndex: 'originWarehouseName', key: 'originWarehouseName' },
-  { title: '物流', dataIndex: 'carrier', key: 'carrier' },
-  { title: '运单号', dataIndex: 'trackingNumber', key: 'trackingNumber' },
-  { title: '运费', dataIndex: 'shippingFee', key: 'shippingFee', width: 90 },
-  { title: '发货时间', dataIndex: 'shippedAt', key: 'shippedAt', width: 170 },
-  { title: '签收时间', dataIndex: 'deliveredAt', key: 'deliveredAt', width: 170 },
+  { title: '仓库', dataIndex: 'originWarehouseName', key: 'originWarehouseName', width: 160 },
+  { title: '物流公司', dataIndex: 'carrier', key: 'carrier', width: 140 },
+  { title: '运单号', dataIndex: 'trackingNumber', key: 'trackingNumber', width: 180 },
+  { title: '运费', dataIndex: 'shippingFee', key: 'shippingFee', width: 100 },
+  { title: '发货时间', dataIndex: 'shippedAt', key: 'shippedAt', width: 180 },
+  { title: '签收时间', dataIndex: 'deliveredAt', key: 'deliveredAt', width: 180 },
   { title: '操作', key: 'actions', width: 100 },
 ];
 
@@ -324,33 +331,41 @@ const isRentalClosed = computed(() =>
   !!rental.value && ['Returned', 'Cancelled'].includes(rental.value.status)
 );
 
-const canShip = computed(() => !!rental.value && !isRentalClosed.value);
-
-const hasDeliveredOutbound = computed(() =>
-  !!rental.value?.shipments?.some(s => s.direction === 'Outbound' && !!s.deliveredAt)
+const hasOutboundShipment = computed(() =>
+  !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound')
 );
 
-const canReceive = computed(() => !isRentalClosed.value && hasDeliveredOutbound.value);
+const hasDeliveredOutbound = computed(() =>
+  !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
+);
 
-const receiveDisabledReason = computed(() => {
-  if (isRentalClosed.value) return '租赁单已结束，不能再登记收货';
-  if (!hasDeliveredOutbound.value) return '请先登记发货并签收后再登记收货';
-  return '';
-});
-
-const canReturn = computed(() => !!rental.value && !isRentalClosed.value);
+const canShip = computed(() => !!rental.value && !isRentalClosed.value);
+const canReceive = computed(() => !!rental.value && !isRentalClosed.value && hasDeliveredOutbound.value);
+const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasOutboundShipment.value);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
 
+const receiveDisabledReason = computed(() => {
+  if (isRentalClosed.value) return '租赁单已结束，不能再登记回货物流';
+  if (!hasDeliveredOutbound.value) return '请先完成发货并签收后再登记回货物流';
+  return '';
+});
+
+const returnDisabledReason = computed(() => {
+  if (isRentalClosed.value) return '租赁单已结束，不能再登记归还';
+  if (!hasOutboundShipment.value) return '租赁尚未发货，不能直接登记归还';
+  return '';
+});
+
 const shipModalTitle = computed(() =>
-  shipForm.direction === 'Outbound' ? '登记发货' : '登记收货'
+  shipForm.direction === 'Outbound' ? '登记发货' : '登记回货物流'
 );
 
-const statusColor = (s: string) => {
-  if (s === 'Pending') return 'default';
-  if (s === 'Active') return 'blue';
-  if (s === 'Overdue') return 'red';
-  if (s === 'Returned') return 'green';
+const statusColor = (status: string) => {
+  if (status === 'Pending') return 'default';
+  if (status === 'Active') return 'blue';
+  if (status === 'Overdue') return 'red';
+  if (status === 'Returned') return 'green';
   return 'orange';
 };
 
@@ -359,7 +374,7 @@ const formatDate = (value?: string | null) =>
 
 const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '';
-  return `¥${Number(value).toFixed(1)}`;
+  return `￥${Number(value).toFixed(1)}`;
 };
 
 const resetShipForm = (direction: ShipmentDirection) => {
@@ -397,43 +412,63 @@ const submitShip = async () => {
     message.error('请填写仓库和物流公司');
     return;
   }
-  await rentalStore.ship(rental.value.id, {
-    direction: shipForm.direction,
-    originWarehouseId: shipForm.originWarehouseId,
-    carrier: shipForm.carrier,
-    trackingNumber: shipForm.trackingNumber || undefined,
-    shippingFee: shipForm.shippingFee,
-    notes: shipForm.notes || undefined,
-  });
-  shipVisible.value = false;
-  message.success(shipForm.direction === 'Outbound' ? '发货登记成功' : '收货登记成功');
-  await load();
+
+  try {
+    await rentalStore.ship(rental.value.id, {
+      direction: shipForm.direction,
+      originWarehouseId: shipForm.originWarehouseId,
+      carrier: shipForm.carrier.trim(),
+      trackingNumber: shipForm.trackingNumber.trim() || undefined,
+      shippingFee: shipForm.shippingFee,
+      notes: shipForm.notes.trim() || undefined,
+    });
+    shipVisible.value = false;
+    message.success(shipForm.direction === 'Outbound' ? '发货登记成功' : '回货物流登记成功');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '提交失败');
+  }
 };
 
 const deliver = async (shipmentId: number) => {
   if (!rental.value) return;
-  await rentalStore.deliver(rental.value.id, shipmentId, {});
-  message.success('已标记签收');
-  await load();
+
+  try {
+    await rentalStore.deliver(rental.value.id, shipmentId, {});
+    message.success('已标记签收');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '操作失败');
+  }
 };
 
 const submitReturn = async () => {
   if (!rental.value) return;
-  await rentalStore.returnRental(rental.value.id, {
-    condition: returnForm.condition,
-    notes: returnForm.notes || undefined,
-  });
-  returnVisible.value = false;
-  message.success('归还登记成功');
-  await load();
+
+  try {
+    await rentalStore.returnRental(rental.value.id, {
+      condition: returnForm.condition,
+      notes: returnForm.notes.trim() || undefined,
+    });
+    returnVisible.value = false;
+    message.success('归还登记成功');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '归还失败');
+  }
 };
 
 const submitCancel = async () => {
   if (!rental.value) return;
-  await rentalStore.cancel(rental.value.id, cancelReason.value || undefined);
-  cancelVisible.value = false;
-  message.success('租赁已取消');
-  await load();
+
+  try {
+    await rentalStore.cancel(rental.value.id, cancelReason.value.trim() || undefined);
+    cancelVisible.value = false;
+    message.success('租赁已取消');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '取消失败');
+  }
 };
 
 const openEdit = () => {
@@ -442,8 +477,11 @@ const openEdit = () => {
   editForm.totalPrice = rental.value.totalPrice ?? null;
   editForm.deposit = rental.value.deposit ?? null;
   editForm.shippingAddress = rental.value.shippingAddress || '';
+  editForm.platformOrderNo = rental.value.platformOrderNo || '';
   editForm.assignedUsers = (rental.value.assignedTo || '')
-    .split(/[,;，；]/).map(s => s.trim()).filter(Boolean);
+    .split(/[,;，；]/)
+    .map(value => value.trim())
+    .filter(Boolean);
   editForm.notes = rental.value.notes || '';
   editVisible.value = true;
 };
@@ -454,21 +492,23 @@ const submitEdit = async () => {
     message.error('预计结束日期不能为空');
     return;
   }
+
   saving.value = true;
   try {
     await rentalStore.updateRental(rental.value.id, {
       expectedEndDate: editForm.expectedEndDate.toISOString(),
       totalPrice: editForm.totalPrice ?? undefined,
       deposit: editForm.deposit,
-      shippingAddress: editForm.shippingAddress,
-      notes: editForm.notes,
+      shippingAddress: editForm.shippingAddress.trim(),
+      platformOrderNo: editForm.platformOrderNo.trim(),
+      notes: editForm.notes.trim(),
       assignedTo: editForm.assignedUsers.join(','),
     });
     editVisible.value = false;
     message.success('已保存');
     await load();
   } catch (err: any) {
-    message.error('保存失败：' + (err?.response?.data || err?.message || err));
+    message.error(err?.response?.data || err?.message || '保存失败');
   } finally {
     saving.value = false;
   }
@@ -476,63 +516,79 @@ const submitEdit = async () => {
 
 const exportItemsXlsx = () => {
   if (!rental.value) return;
-  const rows = rental.value.items.map(ri => ({
-    RentalItemId: ri.id,
-    物品ID: ri.itemShortIdSnapshot || '',
-    名称: ri.itemNameSnapshot || '',
-    单价: ri.perItemPrice ?? '',
-    平台备注: ri.listingRemarks || '',
-    归还时间: formatDateTime(ri.returnedAt) || '',
-    归还状态: ri.returnCondition || '',
+
+  const rows = rental.value.items.map(item => ({
+    RentalItemId: item.id,
+    商品ID: item.itemShortIdSnapshot || '',
+    名称: item.itemNameSnapshot || '',
+    单价: item.perItemPrice ?? '',
+    平台备注: item.listingRemarks || '',
+    归还时间: formatDateTime(item.returnedAt) || '',
+    归还状态: item.returnCondition || '',
   }));
-  const filename = `租赁物品-${rental.value.rentalNumber}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  exportToXlsx(rows, filename, '租赁物品');
+
+  const filename = `租赁商品-${rental.value.rentalNumber}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  exportToXlsx(rows, filename, '租赁商品');
 };
 
 const downloadItemsTemplate = () => {
   if (!rental.value) return;
-  const rows = rental.value.items.map(ri => ({
-    RentalItemId: ri.id,
-    物品ID: ri.itemShortIdSnapshot || '',
-    名称: ri.itemNameSnapshot || '',
-    单价: ri.perItemPrice ?? '',
-    平台备注: ri.listingRemarks || '',
+
+  const rows = rental.value.items.map(item => ({
+    RentalItemId: item.id,
+    商品ID: item.itemShortIdSnapshot || '',
+    名称: item.itemNameSnapshot || '',
+    单价: item.perItemPrice ?? '',
+    平台备注: item.listingRemarks || '',
   }));
-  exportToXlsx(rows, `租赁物品模板-${rental.value.rentalNumber}.xlsx`, '租赁物品');
+
+  exportToXlsx(rows, `租赁商品模板-${rental.value.rentalNumber}.xlsx`, '租赁商品');
 };
 
 const importItemsXlsx = async (file: File) => {
   if (!rental.value) return false;
+
   importing.value = true;
   try {
     const raw = await parseXlsxFile<Record<string, any>>(file);
     const updates: BulkUpdateRentalItemPayload[] = [];
+
     for (const row of raw) {
-      const idRaw = row['RentalItemId'] ?? row['rentalItemId'] ?? row['ID'] ?? row['id'];
+      const idRaw = row.RentalItemId ?? row.rentalItemId ?? row.ID ?? row.id;
       const rentalItemId = Number(idRaw);
       if (!Number.isFinite(rentalItemId) || rentalItemId <= 0) continue;
+
       const payload: BulkUpdateRentalItemPayload = { rentalItemId };
-      const remarksRaw = row['平台备注'] ?? row['listingRemarks'];
-      if (remarksRaw !== undefined) payload.listingRemarks = String(remarksRaw ?? '').trim();
-      const priceRaw = row['单价'] ?? row['perItemPrice'];
+      const remarksRaw = row['平台备注'] ?? row.listingRemarks;
+      if (remarksRaw !== undefined) {
+        payload.listingRemarks = String(remarksRaw ?? '').trim();
+      }
+
+      const priceRaw = row['单价'] ?? row.perItemPrice;
       if (priceRaw !== undefined && priceRaw !== '' && priceRaw !== null) {
         const price = Number(priceRaw);
-        if (Number.isFinite(price) && price >= 0) payload.perItemPrice = price;
+        if (Number.isFinite(price) && price >= 0) {
+          payload.perItemPrice = price;
+        }
       }
+
       updates.push(payload);
     }
+
     if (updates.length === 0) {
-      message.warning('没有可导入的行（请检查 RentalItemId 列）');
+      message.warning('没有可导入的数据，请检查 RentalItemId 列');
       return false;
     }
+
     await rentalStore.bulkUpdateItems(rental.value.id, updates);
-    message.success(`已更新 ${updates.length} 条`);
+    message.success(`已更新 ${updates.length} 条商品数据`);
     await load();
   } catch (err: any) {
-    message.error('导入失败：' + (err?.response?.data || err?.message || err));
+    message.error(err?.response?.data || err?.message || '导入失败');
   } finally {
     importing.value = false;
   }
+
   return false;
 };
 

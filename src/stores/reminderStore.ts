@@ -1,7 +1,7 @@
 ﻿import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
-export type ReminderType = 'RentalDueSoon' | 'RentalOverdue' | 'Manual';
+export type ReminderType = 'RentalShipmentSoon' | 'RentalDueSoon' | 'RentalOverdue' | 'Manual';
 export type ReminderLevel = 'Info' | 'Warning' | 'Critical';
 
 export interface Reminder {

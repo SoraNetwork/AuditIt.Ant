@@ -46,6 +46,7 @@ export interface Rental {
   totalPrice: number;
   deposit?: number | null;
   shippingAddress?: string | null;
+  platformOrderNo?: string | null;
   notes?: string | null;
   assignedTo?: string | null;
   createdAt: string;
@@ -61,6 +62,7 @@ export interface CreateRentalPayload {
     renterId?: string;
     name?: string;
     phone?: string;
+    idCardNo?: string;
     xianyuId?: string;
     taobaoId?: string;
     xiaohongshuId?: string;
@@ -73,6 +75,7 @@ export interface CreateRentalPayload {
   totalPrice: number;
   deposit?: number | null;
   shippingAddress?: string;
+  platformOrderNo?: string;
   notes?: string;
   assignedTo?: string;
 }
@@ -82,6 +85,7 @@ export interface UpdateRentalPayload {
   totalPrice?: number;
   deposit?: number | null;
   shippingAddress?: string;
+  platformOrderNo?: string;
   notes?: string;
   assignedTo?: string;
 }

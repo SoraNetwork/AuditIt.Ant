@@ -92,7 +92,9 @@ router.beforeEach((to, _from, next) => {
 
 router.afterEach(to => {
   const uiStore = useUiStore();
-  if (to.meta.title) {
+  if (to.name === 'login') {
+    document.title = '租一个铺';
+  } else if (to.meta.title) {
     document.title = `租一个铺 | ${to.meta.title}`;
   } else {
     document.title = '租一个铺';

@@ -1,6 +1,7 @@
 <template>
   <div>
     <a-page-header title="租赁列表" sub-title="查看和筛选租赁单" />
+
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <div class="toolbar">
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
@@ -29,15 +30,10 @@
         </a-button>
       </div>
 
-      <div v-if="isMobile && rentalStore.rentals.length > 0" class="mobile-section-note">
-        <strong>租赁列表</strong>
-        <span>共 {{ rentalStore.rentals.length }} 条记录，点卡片可查看详情。</span>
-      </div>
-
       <a-table
         v-if="!isMobile"
-        :loading="rentalStore.loading"
         row-key="id"
+        :loading="rentalStore.loading"
         :columns="columns"
         :data-source="rentalStore.rentals"
         :pagination="false"
@@ -46,43 +42,44 @@
           <template v-if="column.key === 'rentalNumber'">
             <router-link :to="`/rentals/${record.id}`">{{ record.rentalNumber }}</router-link>
           </template>
-          <template v-if="column.key === 'status'">
+          <template v-else-if="column.key === 'status'">
             <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
           </template>
-          <template v-if="column.key === 'renter'">
+          <template v-else-if="column.key === 'renter'">
             {{ record.renter?.name || '-' }}
           </template>
-          <template v-if="column.key === 'startDate'">
+          <template v-else-if="column.key === 'startDate'">
             {{ formatDateTime(record.startDate, 'YYYY-MM-DD') || '-' }}
           </template>
-          <template v-if="column.key === 'expectedEndDate'">
+          <template v-else-if="column.key === 'expectedEndDate'">
             {{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}
           </template>
-          <template v-if="column.key === 'totalPrice'">
-            {{ record.totalPrice != null ? '¥' + Number(record.totalPrice).toFixed(1) : '-' }}
+          <template v-else-if="column.key === 'totalPrice'">
+            {{ record.totalPrice != null ? `￥${Number(record.totalPrice).toFixed(1)}` : '-' }}
           </template>
         </template>
       </a-table>
 
-      <div v-else class="mobile-list mobile-card-list">
+      <div v-else class="mobile-card-list">
         <a-skeleton :loading="rentalStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard
-            v-for="r in rentalStore.rentals"
-            :key="r.id"
+            v-for="record in rentalStore.rentals"
+            :key="record.id"
             clickable
-            @click="$router.push(`/rentals/${r.id}`)"
+            @click="$router.push(`/rentals/${record.id}`)"
           >
-            <template #title>{{ r.rentalNumber }}</template>
+            <template #title>{{ record.rentalNumber }}</template>
             <template #tags>
-              <a-tag :color="statusColor(r.status)">{{ r.status }}</a-tag>
+              <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
             </template>
             <template #meta>
-              <div>租客：{{ r.renter?.name || '-' }}</div>
-              <div>开始：{{ formatDateTime(r.startDate, 'YYYY-MM-DD') || '-' }}</div>
-              <div>预计结束：{{ formatDateTime(r.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>租客：{{ record.renter?.name || '-' }}</div>
+              <div>开始：{{ formatDateTime(record.startDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
               <div>
-                总价：{{ r.totalPrice != null ? '¥' + Number(r.totalPrice).toFixed(1) : '-' }}
-                <span v-if="r.assignedTo" style="margin-left: 8px">· 负责人 {{ r.assignedTo }}</span>
+                总价：{{ record.totalPrice != null ? `￥${Number(record.totalPrice).toFixed(1)}` : '-' }}
+                <span v-if="record.assignedTo" style="margin-left: 8px">| 负责人：{{ record.assignedTo }}</span>
               </div>
             </template>
           </MobileListCard>
@@ -102,24 +99,26 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
+
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
 
 const columns = [
-  { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber' },
+  { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber', width: 180 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
-  { title: '租客', key: 'renter', width: 180 },
-  { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 180 },
-  { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 180 },
+  { title: '租客', key: 'renter', width: 160 },
+  { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 140 },
+  { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 140 },
+  { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
-  { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 150 },
+  { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
 ];
 
-const statusColor = (s: string) => {
-  if (s === 'Pending') return 'default';
-  if (s === 'Active') return 'blue';
-  if (s === 'Overdue') return 'red';
-  if (s === 'Returned') return 'green';
+const statusColor = (value: string) => {
+  if (value === 'Pending') return 'default';
+  if (value === 'Active') return 'blue';
+  if (value === 'Overdue') return 'red';
+  if (value === 'Returned') return 'green';
   return 'orange';
 };
 
@@ -149,9 +148,5 @@ onMounted(search);
     flex-direction: column;
     align-items: stretch;
   }
-}
-
-.mobile-list {
-  margin-top: 8px;
 }
 </style>

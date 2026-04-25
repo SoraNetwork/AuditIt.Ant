@@ -1,15 +1,33 @@
-﻿<template>
+<template>
   <div>
     <a-page-header title="租客管理" sub-title="维护租客档案" />
+
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
-      <a-space style="margin-bottom: 12px" :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }">
-        <a-input-search v-model:value="keyword" placeholder="姓名/电话" :style="isMobile ? { width: '100%' } : { width: '240px' }" @search="search" />
+      <a-space
+        :direction="isMobile ? 'vertical' : 'horizontal'"
+        :style="isMobile ? { width: '100%', marginBottom: '12px' } : { marginBottom: '12px' }"
+      >
+        <a-input-search
+          v-model:value="keyword"
+          placeholder="姓名 / 电话 / 身份证号"
+          :style="isMobile ? { width: '100%' } : { width: '280px' }"
+          @search="search"
+        />
         <a-button type="primary" :block="isMobile" @click="openCreate">新增租客</a-button>
       </a-space>
 
-      <a-table v-if="!isMobile" :loading="renterStore.loading" row-key="id" :columns="columns" :data-source="renterStore.renters">
+      <a-table
+        v-if="!isMobile"
+        row-key="id"
+        :loading="renterStore.loading"
+        :columns="columns"
+        :data-source="renterStore.renters"
+      >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'actions'">
+          <template v-if="column.key === 'platformRemark'">
+            <div class="platform-remark">{{ getPlatformRemark(record) || '-' }}</div>
+          </template>
+          <template v-else-if="column.key === 'actions'">
             <a-space>
               <a-button type="link" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确认删除？" @confirm="remove(record.id)">
@@ -22,18 +40,17 @@
 
       <div v-else class="mobile-card-list">
         <a-skeleton :loading="renterStore.loading" active :paragraph="{ rows: 4 }">
-          <MobileListCard v-for="r in renterStore.renters" :key="r.id">
-            <template #title>{{ r.name }}</template>
+          <MobileListCard v-for="renter in renterStore.renters" :key="renter.id">
+            <template #title>{{ renter.name }}</template>
             <template #meta>
-              <div v-if="r.phone">电话：{{ r.phone }}</div>
-              <div v-if="r.xianyuId">闲鱼：{{ r.xianyuId }}</div>
-              <div v-if="r.taobaoId">淘宝：{{ r.taobaoId }}</div>
-              <div v-if="r.xiaohongshuId">小红书：{{ r.xiaohongshuId }}</div>
-              <div v-if="r.defaultAddress">地址：{{ r.defaultAddress }}</div>
+              <div v-if="renter.phone">电话：{{ renter.phone }}</div>
+              <div v-if="renter.idCardNo">身份证号：{{ renter.idCardNo }}</div>
+              <div v-if="getPlatformRemark(renter)" class="platform-remark">平台备注：{{ getPlatformRemark(renter) }}</div>
+              <div v-if="renter.defaultAddress">默认地址：{{ renter.defaultAddress }}</div>
             </template>
             <template #footer>
-              <a-button size="small" @click="openEdit(r)">编辑</a-button>
-              <a-popconfirm title="确认删除？" @confirm="remove(r.id)">
+              <a-button size="small" @click="openEdit(renter)">编辑</a-button>
+              <a-popconfirm title="确认删除？" @confirm="remove(renter.id)">
                 <a-button size="small" danger>删除</a-button>
               </a-popconfirm>
             </template>
@@ -43,7 +60,13 @@
       </div>
     </a-card>
 
-    <a-modal v-model:open="visible" :title="editingId ? '编辑租客' : '新增租客'" ok-text="保存" cancel-text="取消" @ok="save">
+    <a-modal
+      v-model:open="visible"
+      :title="editingId ? '编辑租客' : '新增租客'"
+      ok-text="保存"
+      cancel-text="取消"
+      @ok="save"
+    >
       <a-form layout="vertical">
         <a-form-item label="姓名" required>
           <a-input v-model:value="form.name" />
@@ -51,14 +74,25 @@
         <a-form-item label="电话">
           <a-input v-model:value="form.phone" />
         </a-form-item>
-        <a-form-item label="闲鱼ID">
-          <a-input v-model:value="form.xianyuId" />
+        <a-form-item label="身份证号">
+          <a-input v-model:value="form.idCardNo" />
         </a-form-item>
-        <a-form-item label="淘宝ID">
-          <a-input v-model:value="form.taobaoId" />
-        </a-form-item>
-        <a-form-item label="小红书ID">
-          <a-input v-model:value="form.xiaohongshuId" />
+        <a-form-item label="平台备注">
+          <a-space wrap style="margin-bottom: 8px">
+            <a-button
+              v-for="template in PLATFORM_TEMPLATES"
+              :key="template.key"
+              size="small"
+              @click="appendPlatformTemplateToForm(template.key)"
+            >
+              {{ template.label }}
+            </a-button>
+          </a-space>
+          <a-textarea
+            v-model:value="form.platformRemark"
+            :rows="4"
+            placeholder="点击上方快捷填写插入平台ID模板，例如：闲鱼_ID: xxx"
+          />
         </a-form-item>
         <a-form-item label="默认地址">
           <a-textarea v-model:value="form.defaultAddress" :rows="2" />
@@ -77,9 +111,17 @@ import { message } from 'ant-design-vue';
 import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import {
+  PLATFORM_TEMPLATES,
+  appendPlatformTemplate,
+  buildPlatformRemark,
+  parsePlatformRemark,
+  type PlatformFieldKey,
+} from '../utils/renterPlatformNotes';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const renterStore = useRenterStore();
+
 const keyword = ref('');
 const visible = ref(false);
 const editingId = ref<string | null>(null);
@@ -88,31 +130,32 @@ const form = reactive({
   name: '',
   phone: '',
   idCardNo: '',
-  xianyuId: '',
-  taobaoId: '',
-  xiaohongshuId: '',
+  platformRemark: '',
   defaultAddress: '',
   notes: '',
 });
 
 const columns = [
   { title: '姓名', dataIndex: 'name', key: 'name' },
-  { title: '电话', dataIndex: 'phone', key: 'phone' },
-  { title: '闲鱼ID', dataIndex: 'xianyuId', key: 'xianyuId' },
-  { title: '淘宝ID', dataIndex: 'taobaoId', key: 'taobaoId' },
-  { title: '小红书ID', dataIndex: 'xiaohongshuId', key: 'xiaohongshuId' },
+  { title: '电话', dataIndex: 'phone', key: 'phone', width: 150 },
+  { title: '身份证号', dataIndex: 'idCardNo', key: 'idCardNo', width: 220 },
+  { title: '平台备注', key: 'platformRemark', width: 240 },
   { title: '操作', key: 'actions', width: 140 },
 ];
+
+const getPlatformRemark = (record: Renter) => buildPlatformRemark(record);
 
 const resetForm = () => {
   form.name = '';
   form.phone = '';
   form.idCardNo = '';
-  form.xianyuId = '';
-  form.taobaoId = '';
-  form.xiaohongshuId = '';
+  form.platformRemark = '';
   form.defaultAddress = '';
   form.notes = '';
+};
+
+const appendPlatformTemplateToForm = (key: PlatformFieldKey) => {
+  form.platformRemark = appendPlatformTemplate(form.platformRemark, key);
 };
 
 const search = async () => {
@@ -130,9 +173,7 @@ const openEdit = (record: Renter) => {
   form.name = record.name || '';
   form.phone = record.phone || '';
   form.idCardNo = record.idCardNo || '';
-  form.xianyuId = record.xianyuId || '';
-  form.taobaoId = record.taobaoId || '';
-  form.xiaohongshuId = record.xiaohongshuId || '';
+  form.platformRemark = buildPlatformRemark(record);
   form.defaultAddress = record.defaultAddress || '';
   form.notes = record.notes || '';
   visible.value = true;
@@ -144,15 +185,14 @@ const save = async () => {
     return;
   }
 
+  const platformFields = parsePlatformRemark(form.platformRemark);
   const payload = {
-    name: form.name,
-    phone: form.phone || null,
-    idCardNo: form.idCardNo || null,
-    xianyuId: form.xianyuId || null,
-    taobaoId: form.taobaoId || null,
-    xiaohongshuId: form.xiaohongshuId || null,
-    defaultAddress: form.defaultAddress || null,
-    notes: form.notes || null,
+    name: form.name.trim(),
+    phone: form.phone.trim() || null,
+    idCardNo: form.idCardNo.trim() || null,
+    ...platformFields,
+    defaultAddress: form.defaultAddress.trim() || null,
+    notes: form.notes.trim() || null,
   };
 
   if (editingId.value) {
@@ -178,3 +218,9 @@ const remove = async (id: string) => {
 
 onMounted(search);
 </script>
+
+<style scoped>
+.platform-remark {
+  white-space: pre-line;
+}
+</style>
