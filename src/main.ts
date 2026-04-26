@@ -4,6 +4,7 @@ import router from './router';
 import { createPinia } from 'pinia';
 import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
+import { installFormDraftPersistence } from './utils/formDraft';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -16,5 +17,6 @@ pinia.use(({ store }) => {
 app.use(pinia);
 app.use(router);
 app.use(Antd);
+installFormDraftPersistence(router);
 
 app.mount('#app');

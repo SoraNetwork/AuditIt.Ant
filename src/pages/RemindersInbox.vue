@@ -190,6 +190,9 @@ const sortedReminders = computed(() =>
     if (!!a.dismissedAt !== !!b.dismissedAt) {
       return a.dismissedAt ? 1 : -1;
     }
+    if (a.dismissedAt && b.dismissedAt) {
+      return new Date(b.dismissedAt).getTime() - new Date(a.dismissedAt).getTime();
+    }
     return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
   })
 );

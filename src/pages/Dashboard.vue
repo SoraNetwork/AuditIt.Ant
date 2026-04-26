@@ -33,33 +33,59 @@
       <a-divider orientation="left">租赁概览</a-divider>
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]">
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Active')">
             <a-statistic title="进行中租赁" :value="activeRentals" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Pending')">
             <a-statistic title="待发货" :value="pendingRentals" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Overdue')">
             <a-statistic title="逾期租赁" :value="overdueRentals" :value-style="{ color: overdueRentals > 0 ? '#cf1322' : undefined }" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Returned')">
             <a-statistic title="已归还" :value="returnedRentals" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Cancelled')">
             <a-statistic title="已取消" :value="cancelledRentals" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card>
             <a-statistic title="进行中租赁金额" :value="activeRevenue" :precision="1" prefix="¥" />
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
+          <a-card title="待发货">
+            <a-list size="small" :data-source="pendingShipmentList" :locale="{ emptyText: '暂无待发货租赁单' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <template #actions>
+                    <router-link :to="`/rentals/${item.id}`">处理</router-link>
+                  </template>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag :color="statusColor(item.status)" style="margin-left: 8px">{{ item.status }}</a-tag>
+                    </template>
+                    <template #description>
+                      {{ item.renter?.name || '-' }} · 开始 {{ formatDate(item.startDate) }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
           </a-card>
         </a-col>
       </a-row>
@@ -133,10 +159,11 @@
 
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import { useItemStore } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useRentalStore } from '../stores/rentalStore';
+import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { Pie, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js';
@@ -148,6 +175,7 @@ const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const rentalStore = useRentalStore();
+const router = useRouter();
 
 onMounted(() => {
   itemStore.fetchItems();
@@ -180,6 +208,17 @@ const recentRentals = computed(() =>
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8)
 );
+
+const pendingShipmentList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(r => r.status === 'Pending')
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .slice(0, 8)
+);
+
+const goToRentalsByStatus = (status: RentalStatus) => {
+  router.push({ path: '/rentals', query: { status } });
+};
 
 const daysUntil = (dateStr: string) => {
   const now = dayjs().startOf('day');
@@ -247,6 +286,10 @@ const chartOptions = {
 
 .page-container :deep(.ant-card-body) {
   padding: 16px;
+}
+
+.overview-card {
+  cursor: pointer;
 }
 
 @media (max-width: 767.98px) {

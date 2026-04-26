@@ -91,7 +91,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -99,9 +100,12 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
+const route = useRoute();
+const router = useRouter();
 
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
+const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled'];
 
 const columns = [
   { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber', width: 180 },
@@ -122,7 +126,24 @@ const statusColor = (value: string) => {
   return 'orange';
 };
 
-const search = async () => {
+const readQueryString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value[0] || '';
+  }
+  return typeof value === 'string' ? value : '';
+};
+
+const readQueryStatus = (value: unknown): RentalStatus | undefined => {
+  const nextStatus = readQueryString(value);
+  return rentalStatuses.includes(nextStatus as RentalStatus) ? (nextStatus as RentalStatus) : undefined;
+};
+
+const applyQueryFilters = () => {
+  status.value = readQueryStatus(route.query.status);
+  rentalNumber.value = readQueryString(route.query.rentalNumber);
+};
+
+const fetchList = async () => {
   await rentalStore.fetchRentals({
     status: status.value,
     rentalNumber: rentalNumber.value.trim() || undefined,
@@ -131,7 +152,24 @@ const search = async () => {
   });
 };
 
-onMounted(search);
+const search = async () => {
+  await router.push({
+    path: '/rentals',
+    query: {
+      status: status.value,
+      rentalNumber: rentalNumber.value.trim() || undefined,
+    },
+  });
+};
+
+watch(
+  () => [route.query.status, route.query.rentalNumber],
+  async () => {
+    applyQueryFilters();
+    await fetchList();
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
