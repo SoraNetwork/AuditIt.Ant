@@ -36,16 +36,9 @@
       <div class="mobile-toolbar admin-mobile-toolbar">
         <div>
           <h2>分类管理</h2>
-          <p>维护物品分类，供物品定义和库存资料引用。</p>
         </div>
         <a-button type="primary" block @click="showAddModal">添加分类</a-button>
       </div>
-
-      <div class="mobile-section-note">
-        <strong>共 {{ categoryStore.categories.length }} 个分类</strong>
-        <span>卡片中展示分类名称和描述，可直接执行编辑或删除。</span>
-      </div>
-
       <a-skeleton :loading="categoryStore.loading" active :paragraph="{ rows: 3 }">
         <div v-if="categoryStore.categories.length > 0" class="mobile-card-list">
           <MobileListCard v-for="cat in categoryStore.categories" :key="cat.id">
@@ -173,17 +166,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
 .admin-mobile-toolbar h2 {
   margin: 0;
 }
 
-.admin-mobile-toolbar p {
-  margin: 4px 0 0;
-  color: #667085;
-  font-size: 13px;
-  line-height: 1.5;
-}
 </style>

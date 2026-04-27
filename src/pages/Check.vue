@@ -9,11 +9,6 @@
         <a-row :gutter="isMobile ? [0, 12] : 24">
           <a-col :xs="24" :span="8">
             <div :class="['check-controls', { 'mobile-sticky-controls': isMobile }]">
-              <div v-if="isMobile" class="mobile-section-note">
-                <strong>扫描入口</strong>
-                <span>支持连续扫码，最近一次扫描结果会固定排在最上方。</span>
-              </div>
-
               <a-form layout="vertical" class="check-form">
                 <a-form-item label="扫描或输入物品短 ID" :style="isMobile ? { marginBottom: '10px' } : {}">
                   <a-space-compact block style="width: 100%">
@@ -71,11 +66,6 @@
           </a-col>
 
           <a-col :xs="24" :span="16">
-            <div v-if="isMobile && hasResults" class="mobile-section-note">
-              <strong>盘点结果</strong>
-              <span>共 {{ scannedItems.length }} 条记录，列表按时间倒序显示，方便连续复核。</span>
-            </div>
-
             <a-list
               v-if="!isMobile"
               :data-source="scannedItems"

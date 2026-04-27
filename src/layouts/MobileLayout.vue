@@ -11,7 +11,12 @@
           to="/reminders"
           class="icon-btn"
         >
-          <a-badge :count="reminderStore.unreadCount" :offset="[-2, 2]">
+          <a-badge
+            :count="reminderStore.unreadCount"
+            :overflow-count="99"
+            :offset="[-1, 3]"
+            class="header-reminder-badge"
+          >
             <bell-outlined style="font-size: 18px; color: #333" />
           </a-badge>
         </router-link>
@@ -85,9 +90,9 @@ onUnmounted(() => {
   z-index: 80;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 48px;
-  padding: 0 8px;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
   padding-top: env(safe-area-inset-top);
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
@@ -119,8 +124,19 @@ onUnmounted(() => {
   font-size: 18px;
 }
 
+.header-reminder-badge :deep(.ant-badge-count) {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
 .mobile-content {
-  padding: 12px 12px calc(72px + env(safe-area-inset-bottom));
-  min-height: calc(100vh - 48px);
+  padding: 16px 16px calc(88px + env(safe-area-inset-bottom));
+  min-height: calc(100vh - 52px);
 }
 </style>

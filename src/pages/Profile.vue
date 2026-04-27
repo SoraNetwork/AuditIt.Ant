@@ -21,12 +21,6 @@
             <div class="mobile-summary-value">{{ gitSha }}</div>
           </div>
         </div>
-
-        <div class="mobile-section-note">
-          <strong>版本信息</strong>
-          <span>构建版本可用于排查线上与本地环境差异。</span>
-        </div>
-
         <a-button block danger @click="logout">退出登录</a-button>
       </template>
 

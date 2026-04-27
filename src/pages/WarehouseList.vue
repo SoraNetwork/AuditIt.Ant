@@ -36,16 +36,9 @@
       <div class="mobile-toolbar admin-mobile-toolbar">
         <div>
           <h2>库房管理</h2>
-          <p>维护库房位置、容量和备注，用于库存流转与盘点。</p>
         </div>
         <a-button type="primary" block @click="showAddModal">添加库房</a-button>
       </div>
-
-      <div class="mobile-section-note">
-        <strong>共 {{ warehouseStore.warehouses.length }} 个库房</strong>
-        <span>卡片中集中展示位置、容量和描述，便于在手机上快速核对。</span>
-      </div>
-
       <a-skeleton :loading="warehouseStore.loading" active :paragraph="{ rows: 3 }">
         <div v-if="warehouseStore.warehouses.length > 0" class="mobile-card-list">
           <MobileListCard v-for="wh in warehouseStore.warehouses" :key="wh.id">
@@ -182,17 +175,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
 .admin-mobile-toolbar h2 {
   margin: 0;
 }
 
-.admin-mobile-toolbar p {
-  margin: 4px 0 0;
-  color: #667085;
-  font-size: 13px;
-  line-height: 1.5;
-}
 </style>

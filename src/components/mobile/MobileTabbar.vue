@@ -10,8 +10,10 @@
       <a-badge
         v-if="item.key === 'reminders'"
         :count="reminderStore.unreadCount"
-        :offset="[2, 0]"
+        :overflow-count="99"
+        :offset="[4, 2]"
         :number-style="{ boxShadow: 'none' }"
+        class="tab-reminder-badge"
       >
         <component :is="item.icon" class="tab-icon" />
       </a-badge>
@@ -107,5 +109,15 @@ function isActive(item: TabItem) {
 .tab-label {
   font-size: 11px;
   line-height: 1.2;
+}
+
+.tab-reminder-badge :deep(.ant-badge-count) {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
 }
 </style>

@@ -3,21 +3,23 @@
     <a-page-header title="提醒中心" sub-title="查看、处理和创建提醒。" />
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <div v-if="isMobile" class="mobile-summary-grid reminder-summary">
-        <div class="mobile-summary-card">
+        <div class="mobile-summary-card reminder-summary-card reminder-summary-card--unread">
           <div class="mobile-summary-label">未读</div>
-          <div class="mobile-summary-value unread-text">{{ unreadCount }}</div>
+          <div class="mobile-summary-value reminder-summary-number unread-text">{{ unreadCount }}</div>
         </div>
-        <div class="mobile-summary-card">
+        <div class="mobile-summary-card reminder-summary-card">
           <div class="mobile-summary-label">已处理</div>
-          <div class="mobile-summary-value">{{ readCount }}</div>
+          <div class="mobile-summary-value reminder-summary-number">{{ readCount }}</div>
         </div>
-        <div class="mobile-summary-card">
+        <div class="mobile-summary-card reminder-summary-card">
           <div class="mobile-summary-label">总数</div>
-          <div class="mobile-summary-value">{{ sortedReminders.length }}</div>
+          <div class="mobile-summary-value reminder-summary-number">{{ sortedReminders.length }}</div>
         </div>
-        <div class="mobile-summary-card">
+        <div class="mobile-summary-card reminder-summary-card reminder-summary-card--level">
           <div class="mobile-summary-label">最高级别</div>
-          <div class="mobile-summary-value">{{ highestLevel }}</div>
+          <div class="reminder-summary-level">
+            <a-tag class="reminder-summary-tag" :color="highestLevelColor">{{ highestLevel }}</a-tag>
+          </div>
         </div>
       </div>
 
@@ -36,17 +38,6 @@
           全部忽略
         </a-button>
       </a-space>
-
-      <div v-if="isMobile && sortedReminders.length > 0" class="mobile-section-note">
-        <strong>处理建议</strong>
-        <span>
-          {{
-            unreadCount > 0
-              ? `当前还有 ${unreadCount} 条未读提醒，建议优先处理 Critical 和即将到期项。`
-              : '当前提醒均已处理完成，可按需创建新的手动提醒。'
-          }}
-        </span>
-      </div>
 
       <a-list
         v-if="!isMobile"
@@ -214,6 +205,13 @@ const highestLevel = computed(() => {
   return 'Info';
 });
 
+const highestLevelColor = computed(() => {
+  if (highestLevel.value === 'Critical') return 'red';
+  if (highestLevel.value === 'Warning') return 'orange';
+  if (highestLevel.value === 'Info') return 'blue';
+  return 'default';
+});
+
 const levelColor = (level: string) => {
   if (level === 'Critical') return 'red';
   if (level === 'Warning') return 'orange';
@@ -270,11 +268,51 @@ onMounted(async () => {
 
 <style scoped>
 .reminder-summary {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .reminder-actions {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.reminder-actions :deep(.ant-btn) {
+  min-height: 40px;
+}
+
+.reminder-summary-card {
+  min-height: 96px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.reminder-summary-card--unread {
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+  border-color: #fed7aa;
+}
+
+.reminder-summary-card--level {
+  align-items: flex-start;
+}
+
+.reminder-summary-number {
+  margin-top: 10px;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-summary-level {
+  margin-top: 10px;
+}
+
+.reminder-summary-tag {
+  margin-inline-end: 0;
+  padding-inline: 10px;
+  border-radius: 999px;
+  font-weight: 600;
 }
 
 .reminder-meta {

@@ -36,6 +36,7 @@
           <a-badge
             v-if="node.key === 'reminders' && reminderStore.unreadCount > 0"
             :count="reminderStore.unreadCount"
+            :overflow-count="99"
             :number-style="{ boxShadow: 'none' }"
             class="reminder-badge"
           />
@@ -156,5 +157,12 @@ function handleLogout() {
 
 .reminder-badge :deep(.ant-badge-count) {
   box-shadow: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
 }
 </style>

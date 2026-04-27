@@ -36,16 +36,9 @@
       <div class="mobile-toolbar admin-mobile-toolbar">
         <div>
           <h2>物品定义管理</h2>
-          <p>维护物品模板、分类、单位和描述信息。</p>
         </div>
         <a-button type="primary" block @click="showAddModal">新增定义</a-button>
       </div>
-
-      <div class="mobile-section-note">
-        <strong>共 {{ tableData.length }} 条定义</strong>
-        <span>移动端按卡片展示分类、单位和描述，方便快速浏览与维护。</span>
-      </div>
-
       <a-skeleton :loading="itemDefStore.loading || categoryStore.loading" active :paragraph="{ rows: 3 }">
         <div v-if="tableData.length > 0" class="mobile-card-list">
           <MobileListCard v-for="def in tableData" :key="def.id">
@@ -201,17 +194,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
 .admin-mobile-toolbar h2 {
   margin: 0;
 }
 
-.admin-mobile-toolbar p {
-  margin: 4px 0 0;
-  color: #667085;
-  font-size: 13px;
-  line-height: 1.5;
-}
 </style>

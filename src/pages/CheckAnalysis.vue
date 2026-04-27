@@ -6,11 +6,6 @@
     />
     <div class="page-container">
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
-        <div v-if="isMobile" class="mobile-section-note">
-          <strong>分析条件</strong>
-          <span>先选择库房和时间范围，再查看盘点结果和待处理物品。</span>
-        </div>
-
         <a-form
           :layout="isMobile ? 'vertical' : 'inline'"
           :model="filterState"

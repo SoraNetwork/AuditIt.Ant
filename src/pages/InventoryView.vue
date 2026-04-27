@@ -65,11 +65,6 @@
         <a-divider />
 
         <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 5 }">
-          <div v-if="isMobile && filteredData.length > 0" class="mobile-section-note">
-            <strong>库存结果</strong>
-            <span>共 {{ filteredData.length }} 条记录，点卡片可进入详情页。</span>
-          </div>
-
           <template v-if="filteredData.length > 0">
             <a-table
               v-if="!isMobile"
