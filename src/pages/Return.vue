@@ -30,6 +30,9 @@
             <template v-if="column.key === 'status'">
               <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
             </template>
+            <template v-else-if="column.key === 'currentDestination'">
+              <RentalReferenceText :text="record.currentDestination || '-'" />
+            </template>
           </template>
         </a-table>
 
@@ -53,7 +56,7 @@
               <a-tag :color="getStatusColor(item.status)">{{ getStatusText(item.status) }}</a-tag>
             </template>
             <template #meta>
-              <div v-if="item.currentDestination">去向：{{ item.currentDestination }}</div>
+              <div v-if="item.currentDestination">去向：<RentalReferenceText :text="item.currentDestination" /></div>
               <div>原属仓库：{{ item.warehouseName }}</div>
             </template>
           </MobileListCard>
@@ -86,6 +89,7 @@ import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefin
 import { message, Modal } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RentalReferenceText from '../components/RentalReferenceText.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemStore = useItemStore();

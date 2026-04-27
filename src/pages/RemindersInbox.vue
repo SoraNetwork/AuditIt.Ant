@@ -50,14 +50,16 @@
             <a-list-item-meta>
               <template #title>
                 <a-space>
-                  <span>{{ item.title }}</span>
+                  <span><RentalReferenceText :text="item.title" /></span>
                   <a-tag :color="levelColor(item.level)">{{ item.level }}</a-tag>
                   <a-tag v-if="!item.dismissedAt" color="orange">未读</a-tag>
                 </a-space>
               </template>
               <template #description>
                 <div>
-                  <div>{{ item.message || '-' }}</div>
+                  <div>
+                    <RentalReferenceText :text="item.message || '-'" />
+                  </div>
                   <div class="reminder-meta">
                     <span>到期：{{ formatDateTime(item.dueAt) || '-' }}</span>
                     <span v-if="item.targetUser">接收人：{{ item.targetUser }}</span>
@@ -87,13 +89,13 @@
               :key="item.id"
               :active="!item.dismissedAt"
             >
-              <template #title>{{ item.title }}</template>
+              <template #title><RentalReferenceText :text="item.title" /></template>
               <template #tags>
                 <a-tag :color="levelColor(item.level)">{{ item.level }}</a-tag>
                 <a-tag v-if="!item.dismissedAt" color="orange">未读</a-tag>
               </template>
               <template #meta>
-                <div>{{ item.message || '-' }}</div>
+                <div><RentalReferenceText :text="item.message || '-'" /></div>
                 <div>到期：{{ formatDateTime(item.dueAt) || '-' }}</div>
                 <div v-if="item.targetUser">接收人：{{ item.targetUser }}</div>
                 <div v-if="item.dismissedAt">已读：{{ formatDateTime(item.dismissedAt) }}</div>
@@ -155,6 +157,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RentalReferenceText from '../components/RentalReferenceText.vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { useReminderStore } from '../stores/reminderStore';
 import { useUserStore } from '../stores/userStore';

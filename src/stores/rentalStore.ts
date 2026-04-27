@@ -45,6 +45,9 @@ export interface Rental {
   actualEndDate?: string | null;
   totalPrice: number;
   deposit?: number | null;
+  otherFee: number;
+  totalShippingFee: number;
+  accountedAmount: number;
   shippingAddress?: string | null;
   platformOrderNo?: string | null;
   notes?: string | null;
@@ -74,6 +77,7 @@ export interface CreateRentalPayload {
   expectedEndDate: string;
   totalPrice: number;
   deposit?: number | null;
+  otherFee?: number;
   shippingAddress?: string;
   platformOrderNo?: string;
   notes?: string;
@@ -81,9 +85,12 @@ export interface CreateRentalPayload {
 }
 
 export interface UpdateRentalPayload {
+  renterId?: string;
+  startDate?: string;
   expectedEndDate?: string;
   totalPrice?: number;
   deposit?: number | null;
+  otherFee?: number | null;
   shippingAddress?: string;
   platformOrderNo?: string;
   notes?: string;

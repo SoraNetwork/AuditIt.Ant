@@ -24,6 +24,9 @@
           <a-select-option value="Left">Left</a-select-option>
         </a-select>
         <a-button :block="isMobile" @click="search">查询</a-button>
+        <a-popconfirm title="从钉钉通讯录同步员工？" @confirm="syncDingTalkUsers">
+          <a-button :block="isMobile" :loading="syncing">同步钉钉通讯录</a-button>
+        </a-popconfirm>
       </a-space>
 
       <a-table
@@ -36,6 +39,9 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="record.status === 'Active' ? 'green' : 'red'">{{ record.status }}</a-tag>
+          </template>
+          <template v-if="column.key === 'dingTalkUserId'">
+            {{ record.dingTalkUserId || record.lastDingTalkId || '-' }}
           </template>
           <template v-if="column.key === 'roles'">
             <a-space wrap>
@@ -66,6 +72,8 @@
                 角色：
                 <a-tag v-for="r in u.roles" :key="r" style="margin-right: 4px">{{ r }}</a-tag>
               </div>
+              <div>钉钉：{{ u.dingTalkUserId || u.lastDingTalkId || '-' }}</div>
+              <div v-if="u.mobile">手机号：{{ u.mobile }}</div>
               <div>最近登录：{{ formatDateTime(u.lastLoginAt) || '-' }}</div>
             </template>
             <template #footer>
@@ -106,12 +114,15 @@ const roleStore = useRoleStore();
 const keyword = ref('');
 const status = ref<'Active' | 'Left' | undefined>(undefined);
 const roleVisible = ref(false);
+const syncing = ref(false);
 const currentUserId = ref<string | null>(null);
 const selectedRoleIds = ref<number[]>([]);
 
 const columns = [
   { title: '姓名', dataIndex: 'name', key: 'name', width: 160 },
   { title: '状态', key: 'status', width: 120 },
+  { title: '钉钉 UserId', key: 'dingTalkUserId', width: 180 },
+  { title: '手机号', dataIndex: 'mobile', key: 'mobile', width: 140 },
   { title: '最近登录', dataIndex: 'lastLoginAt', key: 'lastLoginAt', width: 200 },
   { title: '角色', key: 'roles' },
   { title: '操作', key: 'actions', width: 220 },
@@ -121,6 +132,22 @@ const roleOptions = computed(() => roleStore.roles.map(r => ({ value: r.id, labe
 
 const search = async () => {
   await userStore.fetchUsers({ keyword: keyword.value.trim() || undefined, status: status.value, limit: 300 });
+};
+
+const syncDingTalkUsers = async () => {
+  syncing.value = true;
+  try {
+    const result = await userStore.syncDingTalkUsers({ deactivateMissing: false });
+    message.success(`同步完成：拉取 ${result.pulled} 人，新增 ${result.created}，更新 ${result.updated}`);
+    if (result.skipped > 0) {
+      message.warning(`有 ${result.skipped} 条记录被跳过，请检查姓名重复或异常数据`);
+    }
+    await search();
+  } catch (err: any) {
+    message.error(err?.response?.data?.error || err?.response?.data || err?.message || '同步失败');
+  } finally {
+    syncing.value = false;
+  }
 };
 
 const toggleStatus = async (user: AdminUser) => {

@@ -57,6 +57,9 @@
           <template v-else-if="column.key === 'totalPrice'">
             {{ record.totalPrice != null ? `￥${Number(record.totalPrice).toFixed(1)}` : '-' }}
           </template>
+          <template v-else-if="column.key === 'accountedAmount'">
+            {{ record.accountedAmount != null ? `￥${Number(record.accountedAmount).toFixed(1)}` : '-' }}
+          </template>
         </template>
       </a-table>
 
@@ -78,7 +81,7 @@
               <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
               <div>
-                总价：{{ record.totalPrice != null ? `￥${Number(record.totalPrice).toFixed(1)}` : '-' }}
+                核算：{{ record.accountedAmount != null ? `￥${Number(record.accountedAmount).toFixed(1)}` : '-' }}
                 <span v-if="record.assignedTo" style="margin-left: 8px">| 负责人：{{ record.assignedTo }}</span>
               </div>
             </template>
@@ -115,6 +118,7 @@ const columns = [
   { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 140 },
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
+  { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
 ];
 

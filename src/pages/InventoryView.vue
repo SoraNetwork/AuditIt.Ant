@@ -79,6 +79,9 @@
                 <template v-if="column.key === 'status'">
                   <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
                 </template>
+                <template v-else-if="column.key === 'currentDestination'">
+                  <RentalReferenceText :text="record.currentDestination || '-'" />
+                </template>
               </template>
             </a-table>
 
@@ -95,7 +98,9 @@
                 </template>
                 <template #meta>
                   <div>仓库：{{ item.warehouseName }}</div>
-                  <div v-if="item.currentDestination">当前去向：{{ item.currentDestination }}</div>
+                  <div v-if="item.currentDestination">
+                    当前去向：<RentalReferenceText :text="item.currentDestination" />
+                  </div>
                   <div>最后更新：{{ formatDateTime(item.lastUpdated) }}</div>
                 </template>
               </MobileListCard>
@@ -127,6 +132,7 @@ import apiClient from '../services/api';
 import type { Warehouse } from '../stores/warehouseStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RentalReferenceText from '../components/RentalReferenceText.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const router = useRouter();

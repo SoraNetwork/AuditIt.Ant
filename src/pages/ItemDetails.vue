@@ -24,7 +24,9 @@
             <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
             <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
             <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
-            <a-descriptions-item label="当前去向">{{ item?.currentDestination || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="当前去向">
+              <RentalReferenceText :text="item?.currentDestination || '-'" />
+            </a-descriptions-item>
             <a-descriptions-item label="备注">{{ item?.remarks || '-' }}</a-descriptions-item>
             <a-descriptions-item label="UUID">{{ item?.id }}</a-descriptions-item>
           </a-descriptions>
@@ -39,7 +41,9 @@
               <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
               <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
               <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
-              <a-descriptions-item label="当前去向" :span="2">{{ item?.currentDestination || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="当前去向" :span="2">
+                <RentalReferenceText :text="item?.currentDestination || '-'" />
+              </a-descriptions-item>
               <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '-' }}</a-descriptions-item>
               <a-descriptions-item label="UUID" :span="2">{{ item?.id }}</a-descriptions-item>
             </a-descriptions>
@@ -97,7 +101,7 @@
             <p><strong>{{ log.action }}</strong> - {{ formatDateTime(log.timestamp) }}</p>
             <p>操作人: {{ log.user }}</p>
             <p>仓库: {{ log.warehouseName }}</p>
-            <p v-if="log.destination">目的地/原因: {{ log.destination }}</p>
+            <p v-if="log.destination">目的地/原因: <RentalReferenceText :text="log.destination" /></p>
           </a-timeline-item>
         </a-timeline>
       </a-card>
@@ -147,6 +151,7 @@ import { formatDateTime } from '../utils/formatters';
 import apiClient from '../services/api';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RentalReferenceText from '../components/RentalReferenceText.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();

@@ -7,6 +7,11 @@ export interface AdminUser {
   name: string;
   status: UserStatus;
   lastDingTalkId?: string | null;
+  dingTalkUserId?: string | null;
+  mobile?: string | null;
+  jobNumber?: string | null;
+  jobTitle?: string | null;
+  lastDingTalkSyncAt?: string | null;
   lastLoginAt?: string | null;
   notes?: string | null;
   createdAt?: string;
@@ -55,6 +60,19 @@ export const useUserStore = defineStore('adminUser', {
     async updateRoles(id: string, roleIds: number[]): Promise<AdminUser> {
       const response = await apiClient.put<AdminUser>(`/users/${id}/roles`, { roleIds });
       this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async syncDingTalkUsers(payload: { deactivateMissing?: boolean; defaultRoleName?: string } = {}) {
+      const response = await apiClient.post<{
+        pulled: number;
+        created: number;
+        updated: number;
+        deactivated: number;
+        skipped: number;
+        messages: string[];
+      }>('/users/sync-dingtalk', payload);
+      await this.fetchUsers({ status: 'Active', limit: 300 });
       return response.data;
     },
 

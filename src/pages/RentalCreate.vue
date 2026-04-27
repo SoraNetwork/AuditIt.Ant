@@ -193,8 +193,27 @@
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="8">
+            <a-form-item label="其他费用">
+              <a-input-number
+                v-model:value="form.otherFee"
+                :min="0"
+                :step="0.1"
+                :precision="1"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="16">
+          <a-col :xs="24" :span="8">
             <a-form-item label="默认收货地址">
               <a-input v-model:value="form.shippingAddress" placeholder="填写物流收货地址" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :span="8">
+            <a-form-item label="核算金额">
+              <a-input :value="formatMoney(accountedAmount)" disabled />
             </a-form-item>
           </a-col>
         </a-row>
@@ -247,7 +266,7 @@
               <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
             </template>
             <template v-else-if="column.key === 'currentDestination'">
-              {{ record.currentDestination || '-' }}
+              <RentalReferenceText :text="record.currentDestination || '-'" />
             </template>
           </template>
         </a-table>
@@ -274,7 +293,7 @@
               </template>
               <template #meta>
                 <div>仓库：{{ item.warehouse?.name || '-' }}</div>
-                <div>当前去向：{{ item.currentDestination || '-' }}</div>
+                <div>当前去向：<RentalReferenceText :text="item.currentDestination || '-'" /></div>
                 <div v-if="item.remarks">备注：{{ item.remarks }}</div>
               </template>
             </MobileListCard>
@@ -371,6 +390,7 @@ import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStor
 import { useUserStore } from '../stores/userStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RentalReferenceText from '../components/RentalReferenceText.vue';
 import {
   PLATFORM_TEMPLATES,
   appendPlatformTemplate,
@@ -434,9 +454,14 @@ const form = reactive({
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
   totalPrice: 0,
   deposit: null as number | null,
+  otherFee: 0,
   platformOrderNo: '',
   notes: '',
 });
+
+const accountedAmount = computed(() =>
+  Number(form.totalPrice || 0) - Number(form.otherFee || 0)
+);
 
 const normalizePhone = (value?: string | null) => (value || '').replace(/\D/g, '');
 
@@ -669,6 +694,10 @@ const statusColor = (status: ItemStatus) => {
 };
 
 const formatDate = (value: string) => dayjs(value).format('YYYY-MM-DD');
+const formatMoney = (value?: number | null) => {
+  if (value === null || value === undefined) return '￥0.0';
+  return `￥${Number(value).toFixed(1)}`;
+};
 
 const showConflictModal = (payload: RentalCreateConflictResponse) => {
   const sections: string[] = [];
@@ -736,6 +765,7 @@ const submit = async () => {
       expectedEndDate: form.expectedEndDate.toISOString(),
       totalPrice: Number(form.totalPrice || 0),
       deposit: form.deposit,
+      otherFee: Number(form.otherFee || 0),
       shippingAddress: form.shippingAddress.trim() || undefined,
       platformOrderNo: form.platformOrderNo.trim() || undefined,
       notes: form.notes.trim() || undefined,

@@ -14,6 +14,9 @@
         <a-descriptions-item label="实际结束">{{ formatDate(rental.actualEndDate) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="总价">{{ formatMoney(rental.totalPrice) }}</a-descriptions-item>
         <a-descriptions-item label="押金">{{ formatMoney(rental.deposit) || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="运费合计">{{ formatMoney(rental.totalShippingFee) }}</a-descriptions-item>
+        <a-descriptions-item label="其他费用">{{ formatMoney(rental.otherFee) }}</a-descriptions-item>
+        <a-descriptions-item label="核算金额">{{ formatMoney(rental.accountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="平台订单号">{{ rental.platformOrderNo || '-' }}</a-descriptions-item>
         <a-descriptions-item label="收货地址" :span="isMobile ? 1 : 3">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="isMobile ? 1 : 3">{{ rental.notes || '-' }}</a-descriptions-item>
@@ -32,8 +35,8 @@
           <div class="mobile-summary-value">{{ rental.renter?.name || rental.renterId }}</div>
         </div>
         <div class="mobile-summary-card">
-          <div class="mobile-summary-label">总价</div>
-          <div class="mobile-summary-value">{{ formatMoney(rental.totalPrice) }}</div>
+          <div class="mobile-summary-label">核算金额</div>
+          <div class="mobile-summary-value">{{ formatMoney(rental.accountedAmount) }}</div>
         </div>
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">平台订单号</div>
@@ -199,6 +202,19 @@
 
   <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit">
     <a-form layout="vertical">
+      <a-form-item label="租客">
+        <a-select
+          v-model:value="editForm.renterId"
+          show-search
+          option-filter-prop="label"
+          :options="renterOptions"
+          :loading="renterStore.loading"
+          placeholder="选择租客"
+        />
+      </a-form-item>
+      <a-form-item label="开始日期">
+        <a-date-picker v-model:value="editForm.startDate" style="width: 100%" />
+      </a-form-item>
       <a-form-item label="预计结束日期">
         <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
       </a-form-item>
@@ -207,6 +223,12 @@
       </a-form-item>
       <a-form-item label="押金">
         <a-input-number v-model:value="editForm.deposit" :min="0" :step="0.1" :precision="1" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="其他费用">
+        <a-input-number v-model:value="editForm.otherFee" :min="0" :step="0.1" :precision="1" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="核算金额">
+        <a-input :value="formatMoney(editAccountedAmount)" disabled />
       </a-form-item>
       <a-form-item label="收货地址">
         <a-input v-model:value="editForm.shippingAddress" :maxlength="500" />
@@ -239,6 +261,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
+import { useRenterStore } from '../stores/renterStore';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -250,6 +273,7 @@ const route = useRoute();
 const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();
 const userStore = useUserStore();
+const renterStore = useRenterStore();
 
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
@@ -264,15 +288,31 @@ const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
 );
 
+const renterOptions = computed(() =>
+  renterStore.renters.map(renter => ({
+    label: `${renter.name}${renter.phone ? ` / ${renter.phone}` : ''}`,
+    value: renter.id,
+  }))
+);
+
 const editForm = reactive({
+  renterId: undefined as string | undefined,
+  startDate: null as Dayjs | null,
   expectedEndDate: null as Dayjs | null,
   totalPrice: null as number | null,
   deposit: null as number | null,
+  otherFee: 0,
   shippingAddress: '',
   platformOrderNo: '',
   assignedUsers: [] as string[],
   notes: '',
 });
+
+const editAccountedAmount = computed(() =>
+  Number(editForm.totalPrice || 0)
+  - Number(rental.value?.totalShippingFee || 0)
+  - Number(editForm.otherFee || 0)
+);
 
 const shipForm = reactive({
   direction: 'Outbound' as ShipmentDirection,
@@ -475,8 +515,11 @@ const submitCancel = async () => {
 const openEdit = () => {
   if (!rental.value) return;
   editForm.expectedEndDate = rental.value.expectedEndDate ? dayjs(rental.value.expectedEndDate) : null;
+  editForm.startDate = rental.value.startDate ? dayjs(rental.value.startDate) : null;
+  editForm.renterId = rental.value.renterId;
   editForm.totalPrice = rental.value.totalPrice ?? null;
   editForm.deposit = rental.value.deposit ?? null;
+  editForm.otherFee = rental.value.otherFee ?? 0;
   editForm.shippingAddress = rental.value.shippingAddress || '';
   editForm.platformOrderNo = rental.value.platformOrderNo || '';
   editForm.assignedUsers = (rental.value.assignedTo || '')
@@ -489,17 +532,25 @@ const openEdit = () => {
 
 const submitEdit = async () => {
   if (!rental.value) return;
-  if (!editForm.expectedEndDate) {
-    message.error('预计结束日期不能为空');
+  if (!editForm.startDate || !editForm.expectedEndDate) {
+    message.error('开始日期和预计结束日期不能为空');
+    return;
+  }
+
+  if (!editForm.renterId) {
+    message.error('请选择租客');
     return;
   }
 
   saving.value = true;
   try {
     await rentalStore.updateRental(rental.value.id, {
+      renterId: editForm.renterId,
+      startDate: editForm.startDate.toISOString(),
       expectedEndDate: editForm.expectedEndDate.toISOString(),
       totalPrice: editForm.totalPrice ?? undefined,
       deposit: editForm.deposit,
+      otherFee: editForm.otherFee,
       shippingAddress: editForm.shippingAddress.trim(),
       platformOrderNo: editForm.platformOrderNo.trim(),
       notes: editForm.notes.trim(),
@@ -597,6 +648,7 @@ onMounted(async () => {
   await Promise.all([
     warehouseStore.fetchWarehouses(),
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
+    renterStore.fetchRenters('', 300),
   ]);
   await load();
 });
