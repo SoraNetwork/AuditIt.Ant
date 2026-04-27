@@ -24,7 +24,7 @@
           <a-select-option value="Left">Left</a-select-option>
         </a-select>
         <a-button :block="isMobile" @click="search">查询</a-button>
-        <a-popconfirm title="从钉钉通讯录同步员工？" @confirm="syncDingTalkUsers">
+        <a-popconfirm title="从钉钉通讯录同步员工，并将本地缺失员工标记为离职？" @confirm="syncDingTalkUsers">
           <a-button :block="isMobile" :loading="syncing">同步钉钉通讯录</a-button>
         </a-popconfirm>
       </a-space>
@@ -137,8 +137,8 @@ const search = async () => {
 const syncDingTalkUsers = async () => {
   syncing.value = true;
   try {
-    const result = await userStore.syncDingTalkUsers({ deactivateMissing: false });
-    message.success(`同步完成：拉取 ${result.pulled} 人，新增 ${result.created}，更新 ${result.updated}`);
+    const result = await userStore.syncDingTalkUsers({ deactivateMissing: true });
+    message.success(`同步完成：拉取 ${result.pulled} 人，新增 ${result.created}，更新 ${result.updated}，离职 ${result.deactivated}`);
     if (result.skipped > 0) {
       message.warning(`有 ${result.skipped} 条记录被跳过，请检查姓名重复或异常数据`);
     }

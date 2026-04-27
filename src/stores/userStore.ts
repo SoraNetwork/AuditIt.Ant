@@ -63,7 +63,7 @@ export const useUserStore = defineStore('adminUser', {
       return response.data;
     },
 
-    async syncDingTalkUsers(payload: { deactivateMissing?: boolean; defaultRoleName?: string } = {}) {
+    async syncDingTalkUsers(payload: { deactivateMissing?: boolean; defaultRoleName?: string } = { deactivateMissing: true }) {
       const response = await apiClient.post<{
         pulled: number;
         created: number;
