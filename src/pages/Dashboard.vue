@@ -66,6 +66,14 @@
 
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
+          <a-card title="提醒日历">
+            <RentalCalendarPanel compact />
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
           <a-card title="待发货">
             <a-list size="small" :data-source="pendingShipmentList" :locale="{ emptyText: '暂无待发货租赁单' }">
               <template #renderItem="{ item }">
@@ -165,6 +173,7 @@ import { useItemStore } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import RentalCalendarPanel from '../components/RentalCalendarPanel.vue';
 import { Pie, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js';
 import { formatDateTime } from '../utils/formatters';

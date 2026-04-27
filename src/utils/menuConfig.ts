@@ -4,6 +4,7 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   BellOutlined,
+  CalendarOutlined,
   CheckCircleOutlined,
   DashboardOutlined,
   DatabaseOutlined,
@@ -75,6 +76,7 @@ export const menuTree: MenuNode[] = [
     children: [
       { key: 'renters', title: '租客管理', icon: TeamOutlined, to: '/renters', permission: P.RenterView },
       { key: 'rentals', title: '租赁列表', icon: FileDoneOutlined, to: '/rentals', permission: P.RentalView },
+      { key: 'rental-calendar', title: '提醒日历', icon: CalendarOutlined, to: '/calendar', permission: P.RentalView },
       { key: 'rental-new', title: '新建租赁', icon: PlusOutlined, to: '/rentals/new', permission: P.RentalCreate },
     ],
   },
