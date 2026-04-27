@@ -162,7 +162,7 @@
         />
       </a-form-item>
       <a-form-item label="运单号">
-        <a-input v-model:value="shipForm.trackingNumber" placeholder="填写运单号" />
+        <MobileScanInput v-model="shipForm.trackingNumber" placeholder="填写运单号" />
       </a-form-item>
       <a-form-item label="运费">
         <a-input-number v-model:value="shipForm.shippingFee" :min="0" :step="0.1" :precision="1" style="width: 100%" />
@@ -243,6 +243,7 @@ import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();

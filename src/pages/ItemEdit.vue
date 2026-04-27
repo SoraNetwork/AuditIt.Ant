@@ -5,7 +5,7 @@
       <a-card v-if="!itemStore.loading && item" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-form :model="formState" @finish="handleSave" layout="vertical">
           <a-form-item label="Short ID">
-            <a-input v-model:value="formState.shortId" />
+            <MobileScanInput v-model="formState.shortId" />
           </a-form-item>
           <a-form-item label="去向 (可选)">
             <a-input v-model:value="formState.currentDestination" />
@@ -61,6 +61,7 @@ import { PlusOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
 import imageCompression from 'browser-image-compression';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();

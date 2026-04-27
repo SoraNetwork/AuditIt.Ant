@@ -9,7 +9,7 @@
           <a-card title="扫描或输入已有条码的物品" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-form ref="quickFormRef" :model="quickFormState" layout="vertical" :style="isMobile ? {} : { maxWidth: '500px', margin: 'auto' }">
               <a-form-item label="外部条码 (ShortId)" name="shortId" :rules="[{ required: true, message: '请输入外部条码' }]">
-                <a-input v-model:value="quickFormState.shortId" placeholder="扫描或输入外部条码" />
+                <MobileScanInput v-model="quickFormState.shortId" placeholder="扫描或输入外部条码" />
               </a-form-item>
               <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
                  <a-space-compact style="width: 100%">
@@ -213,11 +213,12 @@ GHI789"
                 >
                   <template #bodyCell="{ column, record, index }">
                     <template v-if="column.key === 'shortId'">
-                      <a-input 
-                        v-model:value="record.shortId" 
-                        @blur="validateShortId(record)"
-                        :status="record.error ? 'error' : ''"
-                      />
+                      <MobileScanInput
+                          v-model="record.shortId"
+                          @blur="validateShortId(record)"
+                          @scan-success="validateShortId(record)"
+                          :status="record.error ? 'error' : ''"
+                        />
                       <div v-if="record.error" style="color: red; font-size: 12px;">{{ record.error }}</div>
                     </template>
                     <template v-if="column.key === 'remarks'">
@@ -235,9 +236,10 @@ GHI789"
                     <template #meta>
                       <div>
                         <span class="mobile-field-label">条码</span>
-                        <a-input
-                          v-model:value="record.shortId"
+                        <MobileScanInput
+                          v-model="record.shortId"
                           @blur="validateShortId(record)"
+                          @scan-success="validateShortId(record)"
                           :status="record.error ? 'error' : ''"
                         />
                         <div v-if="record.error" class="field-error">{{ record.error }}</div>
@@ -256,7 +258,7 @@ GHI789"
                 <!-- 添加单个物品 -->
                 <a-divider />
                 <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
-                  <a-input v-model:value="singleItemInput.shortId" placeholder="条码" :style="isMobile ? { width: '100%' } : { width: '200px' }" />
+                  <MobileScanInput v-model="singleItemInput.shortId" placeholder="条码" :style="isMobile ? { width: '100%' } : { width: '200px' }" />
                   <a-input v-model:value="singleItemInput.remarks" placeholder="备注（选填）" :style="isMobile ? { width: '100%' } : { width: '200px' }" />
                   <a-button :block="isMobile" @click="addSingleItem">添加</a-button>
                 </a-space>
@@ -449,6 +451,7 @@ import * as XLSX from 'xlsx';
 import apiClient from '../services/api';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 

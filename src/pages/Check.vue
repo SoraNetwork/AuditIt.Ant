@@ -16,19 +16,18 @@
 
               <a-form layout="vertical" class="check-form">
                 <a-form-item label="扫描或输入物品短 ID" :style="isMobile ? { marginBottom: '10px' } : {}">
-                  <a-input-search
-                    ref="scanInputRef"
-                    v-model:value="currentShortId"
-                    placeholder="在这里扫码或输入短 ID"
-                    size="large"
-                    autofocus
-                    @search="handleSingleCheck"
-                    @keydown.enter.prevent="handleSingleCheck"
-                  >
-                    <template #enterButton>
-                      <a-button type="primary">盘点</a-button>
-                    </template>
-                  </a-input-search>
+                  <a-space-compact block style="width: 100%">
+                    <MobileScanInput
+                      ref="scanInputRef"
+                      v-model="currentShortId"
+                      placeholder="在这里扫码或输入短 ID"
+                      size="large"
+                      autofocus
+                      @pressEnter="handleSingleCheck"
+                      @scan-success="handleSingleCheck"
+                    />
+                    <a-button type="primary" size="large" @click="handleSingleCheck">盘点</a-button>
+                  </a-space-compact>
                 </a-form-item>
               </a-form>
 
@@ -144,6 +143,7 @@ import { computed, nextTick, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 import { getStatusText as getItemStatusText, useItemStore } from '../stores/itemStore';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
