@@ -46,9 +46,11 @@
               :key="`${day.format('YYYY-MM-DD')}-${event.id}`"
               class="event-pill"
               :class="eventClass(event)"
+              :title="detailTitle(event)"
               @click.stop="openEvent(event)"
             >
-              {{ eventTitle(event) }}
+              <span class="event-type">{{ eventTypeText(event, true) }}</span>
+              <span class="event-ref">{{ eventReference(event) }}</span>
             </span>
             <span v-if="eventsForDate(day).length > (compact ? 2 : 4)" class="event-more">
               +{{ eventsForDate(day).length - (compact ? 2 : 4) }}
@@ -62,12 +64,12 @@
       <div class="detail-heading">{{ selectedDate.format('YYYY-MM-DD') }}</div>
       <a-list size="small" :data-source="selectedEvents" :locale="{ emptyText: '当天没有日程' }">
         <template #renderItem="{ item }">
-          <a-list-item class="detail-event" @click="openEvent(item)">
+          <a-list-item class="detail-event" :class="{ 'detail-event-muted': isMutedReminder(item) }" @click="openEvent(item)">
             <a-list-item-meta>
               <template #title>
                 <a-space wrap>
-                  <a-tag :color="tagColor(item)">{{ kindText(item.kind) }}</a-tag>
-                  <span>{{ item.title }}</span>
+                  <a-tag :color="tagColor(item)">{{ eventTypeText(item) }}</a-tag>
+                  <span class="detail-title">{{ detailTitle(item) }}</span>
                 </a-space>
               </template>
               <template #description>
@@ -187,8 +189,44 @@ const openEvent = (event: RentalCalendarEvent) => {
   }
 };
 
-const eventTitle = (event: RentalCalendarEvent) =>
-  event.rentalNumber || event.title;
+const rentalNumberPattern = /R\d{8}-\d{4,}/i;
+
+const eventTypeText = (event: RentalCalendarEvent, short = false) => {
+  if (event.kind === 'ShipmentRequired') return short ? '需发货' : '需要发货';
+  if (event.kind === 'ReturnRequired') return short ? '需收货' : '需要收货';
+  if (event.kind === 'RentalPeriod') return '租期';
+  if (event.kind === 'OutboundShipment') return short ? '已发货' : '已发货';
+  if (event.kind === 'InboundShipment') return short ? '回货' : '回货物流';
+
+  if (event.reminderType === 'RentalShipmentSoon') return short ? '发货提醒' : '发货提醒';
+  if (event.reminderType === 'RentalDueSoon') return short ? '到期提醒' : '到期提醒';
+  if (event.reminderType === 'RentalOverdue') return short ? '逾期提醒' : '逾期提醒';
+  return short ? '普通提醒' : '普通提醒';
+};
+
+const extractedRentalNumber = (event: RentalCalendarEvent) =>
+  event.rentalNumber
+  || event.title.match(rentalNumberPattern)?.[0]
+  || event.description?.match(rentalNumberPattern)?.[0]
+  || '';
+
+const stripRentalNumber = (value: string, rentalNumber: string) =>
+  rentalNumber ? value.replace(rentalNumber, '').replace(/租赁|租赁单|已|需要|提醒|[|：:]/g, '').trim() : value;
+
+const eventReference = (event: RentalCalendarEvent) => {
+  const rentalNumber = extractedRentalNumber(event);
+  if (rentalNumber) return rentalNumber;
+  return stripRentalNumber(event.title, '').replace(eventTypeText(event), '').trim() || event.title;
+};
+
+const detailTitle = (event: RentalCalendarEvent) => {
+  const reference = eventReference(event);
+  const type = eventTypeText(event);
+  return reference ? `${type} ${reference}` : type;
+};
+
+const isMutedReminder = (event: RentalCalendarEvent) =>
+  event.kind === 'Reminder' && event.level === 'Info';
 
 const sortEvents = (a: RentalCalendarEvent, b: RentalCalendarEvent) => {
   const priority = (event: RentalCalendarEvent) => {
@@ -206,6 +244,7 @@ const eventClass = (event: RentalCalendarEvent) => ({
   'event-warning': event.level === 'Warning',
   'event-period': event.kind === 'RentalPeriod',
   'event-logistics': event.kind === 'OutboundShipment' || event.kind === 'InboundShipment',
+  'event-muted-reminder': isMutedReminder(event),
   'event-closed': !event.isOpen,
 });
 
@@ -215,15 +254,6 @@ const tagColor = (event: RentalCalendarEvent) => {
   if (event.kind === 'RentalPeriod') return 'blue';
   if (event.kind === 'OutboundShipment' || event.kind === 'InboundShipment') return 'cyan';
   return 'default';
-};
-
-const kindText = (kind: string) => {
-  if (kind === 'RentalPeriod') return '租期';
-  if (kind === 'ShipmentRequired') return '发货';
-  if (kind === 'ReturnRequired') return '收货';
-  if (kind === 'OutboundShipment') return '出库';
-  if (kind === 'InboundShipment') return '回货';
-  return '提醒';
 };
 
 const formatEventRange = (event: RentalCalendarEvent) => {
@@ -338,7 +368,9 @@ onMounted(async () => {
 }
 
 .event-pill {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   overflow: hidden;
   padding: 1px 5px;
   border-radius: 4px;
@@ -346,6 +378,22 @@ onMounted(async () => {
   color: #0958d9;
   font-size: 11px;
   line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.event-type {
+  flex: 0 0 auto;
+  max-width: 52px;
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.event-ref {
+  min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -368,6 +416,15 @@ onMounted(async () => {
 .event-logistics {
   background: #e6fffb;
   color: #006d75;
+}
+
+.event-muted-reminder {
+  background: #f5f5f5;
+  color: #697386;
+}
+
+.event-muted-reminder .event-type {
+  font-weight: 500;
 }
 
 .event-closed {
@@ -393,6 +450,14 @@ onMounted(async () => {
   cursor: pointer;
 }
 
+.detail-event-muted {
+  opacity: 0.72;
+}
+
+.detail-title {
+  font-weight: 600;
+}
+
 @media (max-width: 767.98px) {
   .calendar-toolbar {
     align-items: flex-start;
@@ -405,9 +470,14 @@ onMounted(async () => {
   }
 
   .event-pill {
+    gap: 2px;
     padding: 0 3px;
     font-size: 10px;
     line-height: 16px;
+  }
+
+  .event-type {
+    max-width: 42px;
   }
 }
 </style>
