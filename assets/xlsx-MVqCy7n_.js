@@ -1,1 +1,0 @@
-import{u as o,w as n,r as c}from"./xlsx-480hx4lC.js";function h(s,r,a="Sheet1"){const t=o.json_to_sheet(s),e=o.book_new();o.book_append_sheet(e,t,a.slice(0,31)),n(e,r)}async function p(s,r){const a=await s.arrayBuffer(),t=c(a,{type:"array"}),e=t.Sheets[t.SheetNames[0]];return e?o.sheet_to_json(e,{defval:""}):[]}export{h as e,p};
