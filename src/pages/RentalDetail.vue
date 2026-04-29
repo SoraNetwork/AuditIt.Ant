@@ -61,6 +61,7 @@
       <a-divider>租赁商品</a-divider>
 
       <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+        <a-button v-if="canEdit" :block="isMobile" type="primary" ghost @click="openItemPicker">修改租赁物品</a-button>
         <a-button :block="isMobile" @click="exportItemsXlsx">导出 xlsx</a-button>
         <a-upload :before-upload="importItemsXlsx" :show-upload-list="false" accept=".xlsx,.xls">
           <a-button :block="isMobile" :loading="importing">导入 xlsx</a-button>
@@ -200,6 +201,34 @@
     </a-form>
   </a-modal>
 
+  <a-modal
+    v-model:open="itemPickerVisible"
+    title="修改租赁物品"
+    ok-text="保存"
+    cancel-text="取消"
+    :confirm-loading="itemPickerSaving"
+    @ok="submitItemPicker(false)"
+  >
+    <a-form layout="vertical">
+      <a-form-item label="租赁物品" required>
+        <a-select
+          v-model:value="selectedRentalItemIds"
+          mode="multiple"
+          show-search
+          option-filter-prop="label"
+          :options="itemPickerOptions"
+          :loading="itemStore.loading"
+          placeholder="选择当前租赁中需要保留/新增的物品"
+        />
+      </a-form-item>
+      <a-alert
+        type="info"
+        show-icon
+        :message="`当前选中 ${selectedRentalItemIds.length} 件。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
+      />
+    </a-form>
+  </a-modal>
+
   <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit">
     <a-form layout="vertical">
       <a-form-item label="租客">
@@ -256,17 +285,36 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { message } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
+import { useItemStore, type Item } from '../stores/itemStore';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
+
+interface RentalScheduleConflict {
+  rentalId: string;
+  rentalNumber: string;
+  rentalStatus: string;
+  itemId: string;
+  itemShortId: string;
+  itemName: string;
+  startDate: string;
+  expectedEndDate: string;
+  hasOutboundShipment: boolean;
+}
+
+interface RentalCreateConflictResponse {
+  message: string;
+  pendingShipmentConflicts: RentalScheduleConflict[];
+  shippedConflicts: RentalScheduleConflict[];
+}
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
@@ -274,6 +322,7 @@ const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();
 const userStore = useUserStore();
 const renterStore = useRenterStore();
+const itemStore = useItemStore();
 
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
@@ -283,6 +332,9 @@ const cancelVisible = ref(false);
 const editVisible = ref(false);
 const saving = ref(false);
 const importing = ref(false);
+const itemPickerVisible = ref(false);
+const itemPickerSaving = ref(false);
+const selectedRentalItemIds = ref<string[]>([]);
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -294,6 +346,22 @@ const renterOptions = computed(() =>
     value: renter.id,
   }))
 );
+
+const currentActiveRentalItemIds = computed(() =>
+  rental.value?.items
+    .filter(item => !item.returnedAt)
+    .map(item => item.itemId) || []
+);
+
+const itemPickerOptions = computed(() => {
+  const current = new Set(currentActiveRentalItemIds.value);
+  return itemStore.items
+    .filter((item: Item) => item.status !== 'Disposed' || current.has(item.id))
+    .map((item: Item) => ({
+      value: item.id,
+      label: `${item.shortId} / ${item.itemDefinitionName || item.name || '-'} / ${item.warehouseName || '-'}`,
+    }));
+});
 
 const editForm = reactive({
   renterId: undefined as string | undefined,
@@ -509,6 +577,70 @@ const submitCancel = async () => {
     await load();
   } catch (err: any) {
     message.error(err?.response?.data || err?.message || '取消失败');
+  }
+};
+
+const openItemPicker = async () => {
+  if (!rental.value) return;
+  selectedRentalItemIds.value = [...currentActiveRentalItemIds.value];
+  itemPickerVisible.value = true;
+  await itemStore.fetchItems();
+};
+
+const conflictLines = (payload: RentalCreateConflictResponse) => {
+  const lines: string[] = [payload.message];
+  const append = (title: string, items: RentalScheduleConflict[]) => {
+    if (items.length === 0) return;
+    lines.push('', title);
+    items.forEach(conflict => {
+      lines.push(
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）`
+      );
+    });
+  };
+  append('未发货订单冲突：', payload.pendingShipmentConflicts);
+  append('已发货订单冲突：', payload.shippedConflicts);
+  return lines.join('\n');
+};
+
+const showItemConflictConfirm = (payload: RentalCreateConflictResponse) => {
+  Modal.confirm({
+    title: '新增物品存在租赁时间冲突',
+    width: 720,
+    okText: '仍然保存',
+    cancelText: '返回修改',
+    content: conflictLines(payload),
+    async onOk() {
+      await submitItemPicker(true);
+    },
+  });
+};
+
+const submitItemPicker = async (allowScheduleConflict: boolean) => {
+  if (!rental.value) return;
+  if (selectedRentalItemIds.value.length === 0) {
+    message.error('至少保留一件租赁物品');
+    return;
+  }
+
+  itemPickerSaving.value = true;
+  try {
+    rental.value = await rentalStore.updateRentalItems(rental.value.id, {
+      itemIds: selectedRentalItemIds.value,
+      allowScheduleConflict,
+    });
+    itemPickerVisible.value = false;
+    message.success('租赁物品已更新');
+    await load();
+  } catch (err: any) {
+    if (err?.response?.status === 409 && err?.response?.data) {
+      showItemConflictConfirm(err.response.data as RentalCreateConflictResponse);
+      return;
+    }
+
+    message.error(err?.response?.data || err?.message || '租赁物品更新失败');
+  } finally {
+    itemPickerSaving.value = false;
   }
 };
 

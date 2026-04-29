@@ -82,6 +82,7 @@ export interface CreateRentalPayload {
   platformOrderNo?: string;
   notes?: string;
   assignedTo?: string;
+  allowScheduleConflict?: boolean;
 }
 
 export interface UpdateRentalPayload {
@@ -121,6 +122,11 @@ export interface BulkUpdateRentalItemPayload {
   rentalItemId: number;
   listingRemarks?: string | null;
   perItemPrice?: number | null;
+}
+
+export interface UpdateRentalItemsPayload {
+  itemIds: string[];
+  allowScheduleConflict?: boolean;
 }
 
 interface RentalState {
@@ -213,6 +219,12 @@ export const useRentalStore = defineStore('rental', {
 
     async bulkUpdateItems(id: string, items: BulkUpdateRentalItemPayload[]): Promise<Rental> {
       const response = await apiClient.put<Rental>(`/rentals/${id}/items/bulk`, { items });
+      this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async updateRentalItems(id: string, payload: UpdateRentalItemsPayload): Promise<Rental> {
+      const response = await apiClient.put<Rental>(`/rentals/${id}/items`, payload);
       this.replaceInList(response.data);
       return response.data;
     },

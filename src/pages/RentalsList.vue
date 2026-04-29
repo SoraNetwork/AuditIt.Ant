@@ -25,9 +25,12 @@
           />
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
-        <a-button type="primary" :block="isMobile" :style="isMobile ? { marginTop: '8px' } : {}" @click="$router.push('/rentals/new')">
-          新建租赁
-        </a-button>
+        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">
+          <a-button :block="isMobile" @click="exportRentalsXlsx">批量导出 XLSX</a-button>
+          <a-button type="primary" :block="isMobile" @click="$router.push('/rentals/new')">
+            新建租赁
+          </a-button>
+        </a-space>
       </div>
 
       <a-table
@@ -100,6 +103,7 @@ import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import { exportToXlsx } from '../utils/xlsx';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
@@ -154,6 +158,26 @@ const fetchList = async () => {
     page: 1,
     pageSize: 100,
   });
+};
+
+const exportRentalsXlsx = () => {
+  const rows = rentalStore.rentals.map(record => ({
+    租赁单号: record.rentalNumber,
+    状态: record.status,
+    租客: record.renter?.name || '',
+    开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',
+    预计结束: formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '',
+    平台订单号: record.platformOrderNo || '',
+    总价: record.totalPrice ?? 0,
+    押金: record.deposit ?? 0,
+    运费: record.totalShippingFee ?? 0,
+    其他费用: record.otherFee ?? 0,
+    核算金额: record.accountedAmount ?? 0,
+    负责人: record.assignedTo || '',
+    创建时间: formatDateTime(record.createdAt) || '',
+  }));
+
+  exportToXlsx(rows, `租赁单批量导出-${new Date().toISOString().slice(0, 10)}.xlsx`, '租赁单');
 };
 
 const search = async () => {

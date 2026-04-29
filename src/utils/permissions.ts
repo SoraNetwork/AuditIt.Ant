@@ -29,6 +29,8 @@
   ReminderCreate: 'reminder.create',
   ReminderDismissAny: 'reminder.dismiss.any',
 
+  FinanceReportView: 'finance.report.view',
+
   AuditLogView: 'auditlog.view',
 } as const;
 

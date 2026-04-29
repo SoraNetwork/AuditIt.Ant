@@ -31,6 +31,7 @@ const routes = [
       { path: 'dashboard', name: 'dashboard', component: () => import('../pages/Dashboard.vue'), meta: { title: '仪表盘' } },
       { path: 'inventory', name: 'inventory', component: () => import('../pages/InventoryView.vue'), meta: { title: '库存总览', permissions: [PermissionCodes.ItemView] } },
       { path: 'inventory/:id', name: 'item-details', component: () => import('../pages/ItemDetails.vue'), meta: { title: '物品详情', permissions: [PermissionCodes.ItemView] } },
+      { path: 'inventory/:id/calendar', name: 'item-availability-calendar', component: () => import('../pages/ItemAvailabilityCalendar.vue'), meta: { title: '设备空闲日历', permissions: [PermissionCodes.ItemView] } },
       { path: 'inventory/edit/:id', name: 'item-edit', component: () => import('../pages/ItemEdit.vue'), meta: { title: '编辑物品', permissions: [PermissionCodes.ItemUpdate] } },
 
       { path: 'warehouses', name: 'warehouses', component: () => import('../pages/WarehouseList.vue'), meta: { title: '仓库管理', permissions: [PermissionCodes.WarehouseManage] } },
@@ -49,6 +50,7 @@ const routes = [
       { path: 'rentals/new', name: 'rental-new', component: () => import('../pages/RentalCreate.vue'), meta: { title: '新建租赁', permissions: [PermissionCodes.RentalCreate] } },
       { path: 'rentals/:id', name: 'rental-detail', component: () => import('../pages/RentalDetail.vue'), meta: { title: '租赁详情', permissions: [PermissionCodes.RentalView] } },
       { path: 'calendar', name: 'rental-calendar', component: () => import('../pages/RentalCalendarDetail.vue'), meta: { title: '提醒日历', permissions: [PermissionCodes.RentalView] } },
+      { path: 'finance-reports', name: 'finance-reports', component: () => import('../pages/FinanceReports.vue'), meta: { title: '财务报表', permissions: [PermissionCodes.FinanceReportView] } },
 
       { path: 'reminders', name: 'reminders', component: () => import('../pages/RemindersInbox.vue'), meta: { title: '提醒中心', permissions: [PermissionCodes.ReminderView] } },
 

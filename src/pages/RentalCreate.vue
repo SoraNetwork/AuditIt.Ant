@@ -384,7 +384,7 @@ import {
   TeamOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
-import { useRentalStore } from '../stores/rentalStore';
+import { useRentalStore, type CreateRentalPayload } from '../stores/rentalStore';
 import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
@@ -699,7 +699,34 @@ const formatMoney = (value?: number | null) => {
   return `￥${Number(value).toFixed(1)}`;
 };
 
-const showConflictModal = (payload: RentalCreateConflictResponse) => {
+const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload => ({
+  renter: {
+    renterId: matchedRenter.value?.id,
+    name: matchedRenter.value?.name,
+    phone: matchedRenter.value?.phone || undefined,
+    idCardNo: matchedRenter.value?.idCardNo || undefined,
+    defaultAddress: matchedRenter.value?.defaultAddress || undefined,
+  },
+  itemIds: selectedItemIds.value,
+  startDate: form.startDate?.toISOString(),
+  expectedEndDate: form.expectedEndDate.toISOString(),
+  totalPrice: Number(form.totalPrice || 0),
+  deposit: form.deposit,
+  otherFee: Number(form.otherFee || 0),
+  shippingAddress: form.shippingAddress.trim() || undefined,
+  platformOrderNo: form.platformOrderNo.trim() || undefined,
+  notes: form.notes.trim() || undefined,
+  assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
+  allowScheduleConflict,
+});
+
+const createRentalWithPayload = async (payload: CreateRentalPayload) => {
+  const rental = await rentalStore.createRental(payload);
+  message.success('创建成功');
+  await router.push(`/rentals/${rental.id}`);
+};
+
+const showConflictModal = (payload: RentalCreateConflictResponse, originalPayload: CreateRentalPayload) => {
   const sections: string[] = [];
 
   if (payload.pendingShipmentConflicts.length > 0) {
@@ -723,14 +750,26 @@ const showConflictModal = (payload: RentalCreateConflictResponse) => {
     });
   }
 
-  Modal.warning({
+  Modal.confirm({
     title: '所选商品存在租赁时间冲突',
     width: 720,
+    okText: '确认创建',
+    cancelText: '返回修改',
     content: h(
       'div',
       { style: 'white-space: pre-line; line-height: 1.8;' },
       [payload.message, '', ...sections].join('\n')
     ),
+    async onOk() {
+      submitting.value = true;
+      try {
+        await createRentalWithPayload({ ...originalPayload, allowScheduleConflict: true });
+      } catch (err: any) {
+        message.error(err?.response?.data || err?.message || '创建失败');
+      } finally {
+        submitting.value = false;
+      }
+    },
   });
 };
 
@@ -752,31 +791,11 @@ const submit = async () => {
 
   submitting.value = true;
   try {
-    const rental = await rentalStore.createRental({
-      renter: {
-        renterId: matchedRenter.value.id,
-        name: matchedRenter.value.name,
-        phone: matchedRenter.value.phone || undefined,
-        idCardNo: matchedRenter.value.idCardNo || undefined,
-        defaultAddress: matchedRenter.value.defaultAddress || undefined,
-      },
-      itemIds: selectedItemIds.value,
-      startDate: form.startDate?.toISOString(),
-      expectedEndDate: form.expectedEndDate.toISOString(),
-      totalPrice: Number(form.totalPrice || 0),
-      deposit: form.deposit,
-      otherFee: Number(form.otherFee || 0),
-      shippingAddress: form.shippingAddress.trim() || undefined,
-      platformOrderNo: form.platformOrderNo.trim() || undefined,
-      notes: form.notes.trim() || undefined,
-      assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
-    });
-
-    message.success('创建成功');
-    await router.push(`/rentals/${rental.id}`);
+    const payload = buildCreatePayload();
+    await createRentalWithPayload(payload);
   } catch (err: any) {
     if (err?.response?.status === 409 && err?.response?.data) {
-      showConflictModal(err.response.data as RentalCreateConflictResponse);
+      showConflictModal(err.response.data as RentalCreateConflictResponse, buildCreatePayload());
       return;
     }
 

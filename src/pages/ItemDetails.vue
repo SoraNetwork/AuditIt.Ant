@@ -3,7 +3,8 @@
     <a-page-header :title="`物品详情: ${item?.shortId || ''}`" @back="router.back()">
       <template #extra>
         <div class="header-actions">
-          <a-button @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
+          <a-button :disabled="!item?.id" @click="router.push({ name: 'item-availability-calendar', params: { id: item?.id } })">空闲日历</a-button>
+          <a-button :disabled="!item?.id" @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
           <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
         </div>
       </template>
