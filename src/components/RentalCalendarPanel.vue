@@ -199,6 +199,7 @@ const eventTypeText = (event: RentalCalendarEvent, short = false) => {
   if (event.kind === 'InboundShipment') return short ? '回货' : '回货物流';
 
   if (event.reminderType === 'RentalShipmentSoon') return short ? '发货提醒' : '发货提醒';
+  if (event.reminderType === 'RentalDeliveryUnsigned') return short ? '待签收' : '发货待签收';
   if (event.reminderType === 'RentalDueSoon') return short ? '到期提醒' : '到期提醒';
   if (event.reminderType === 'RentalOverdue') return short ? '逾期提醒' : '逾期提醒';
   return short ? '普通提醒' : '普通提醒';
