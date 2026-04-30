@@ -9,6 +9,13 @@ export interface FinanceReportStatusSummary {
   accountedAmount: number;
 }
 
+export interface FinanceReportCategorySummary {
+  category: '已完成' | '在租' | '未开始' | string;
+  count: number;
+  totalOrderAmount: number;
+  accountedAmount: number;
+}
+
 export interface FinanceReportSummary {
   from: string;
   to: string;
@@ -20,6 +27,7 @@ export interface FinanceReportSummary {
   totalShippingFee: number;
   totalOtherFee: number;
   accountedAmount: number;
+  categories: FinanceReportCategorySummary[];
   statuses: FinanceReportStatusSummary[];
 }
 

@@ -42,9 +42,9 @@
             </div>
 
             <a-table
-              row-key="status"
+              row-key="category"
               :columns="summaryColumns"
-              :data-source="reportStore.summary?.statuses || []"
+              :data-source="reportStore.summary?.categories || []"
               :pagination="false"
               size="small"
             />
@@ -98,7 +98,7 @@ const range = ref<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()]);
 const moneyColumns = ['totalPrice', 'deposit', 'totalShippingFee', 'otherFee', 'accountedAmount'];
 
 const summaryColumns = [
-  { title: '状态', dataIndex: 'status', key: 'status' },
+  { title: '分类', dataIndex: 'category', key: 'category' },
   { title: '单数', dataIndex: 'count', key: 'count' },
   { title: '订单总额', dataIndex: 'totalOrderAmount', key: 'totalOrderAmount' },
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount' },
@@ -146,8 +146,8 @@ const exportReport = () => {
           其他费用: summary.totalOtherFee,
           核算金额: summary.accountedAmount,
         },
-        ...summary.statuses.map(row => ({
-          状态: row.status,
+        ...summary.categories.map(row => ({
+          分类: row.category,
           单数: row.count,
           订单总额: row.totalOrderAmount,
           核算金额: row.accountedAmount,
