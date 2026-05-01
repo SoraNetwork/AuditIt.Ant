@@ -229,6 +229,12 @@ const detailTitle = (event: RentalCalendarEvent) => {
 const isMutedReminder = (event: RentalCalendarEvent) =>
   event.kind === 'Reminder' && event.level === 'Info';
 
+const isRentalAutoReminder = (event: RentalCalendarEvent) =>
+  event.reminderType === 'RentalShipmentSoon'
+  || event.reminderType === 'RentalDeliveryUnsigned'
+  || event.reminderType === 'RentalDueSoon'
+  || event.reminderType === 'RentalOverdue';
+
 const sortEvents = (a: RentalCalendarEvent, b: RentalCalendarEvent) => {
   const priority = (event: RentalCalendarEvent) => {
     if (event.level === 'Critical') return 0;
@@ -258,8 +264,9 @@ const tagColor = (event: RentalCalendarEvent) => {
 };
 
 const formatEventRange = (event: RentalCalendarEvent) => {
-  const start = formatDateTime(event.startAt, event.allDay ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm');
-  const end = formatDateTime(event.endAt, event.allDay ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm');
+  const format = event.allDay || isRentalAutoReminder(event) ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm';
+  const start = formatDateTime(event.startAt, format);
+  const end = formatDateTime(event.endAt, format);
   return start === end ? start : `${start} 至 ${end}`;
 };
 

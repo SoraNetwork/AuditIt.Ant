@@ -389,6 +389,7 @@ import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import { formatDateTime } from '../utils/formatters';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
 import {
@@ -693,7 +694,8 @@ const statusColor = (status: ItemStatus) => {
   return 'default';
 };
 
-const formatDate = (value: string) => dayjs(value).format('YYYY-MM-DD');
+const formatDate = (value: string) => formatDateTime(value, 'YYYY-MM-DD') || '';
+const toRentalDatePayload = (value?: Dayjs | null) => value?.format('YYYY-MM-DD');
 const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '￥0.0';
   return `￥${Number(value).toFixed(1)}`;
@@ -708,8 +710,8 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     defaultAddress: matchedRenter.value?.defaultAddress || undefined,
   },
   itemIds: selectedItemIds.value,
-  startDate: form.startDate?.toISOString(),
-  expectedEndDate: form.expectedEndDate.toISOString(),
+  startDate: toRentalDatePayload(form.startDate),
+  expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
   totalPrice: Number(form.totalPrice || 0),
   deposit: form.deposit,
   otherFee: Number(form.otherFee || 0),

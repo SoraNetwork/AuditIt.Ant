@@ -78,7 +78,6 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { useItemAvailabilityStore, type ItemBusyPeriod } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
-import { formatDateTime } from '../utils/formatters';
 
 const route = useRoute();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
@@ -123,7 +122,7 @@ const busyForDate = (day: Dayjs) =>
   (calendar.value?.busyPeriods || []).filter(period => intersectsDay(period, day));
 
 const selectedBusy = computed(() => busyForDate(selectedDate.value));
-const formatDate = (value?: string | null) => formatDateTime(value, 'YYYY-MM-DD') || '';
+const formatDate = (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD') : '';
 
 onMounted(loadCalendar);
 </script>

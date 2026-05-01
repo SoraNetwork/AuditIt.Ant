@@ -30,6 +30,40 @@ export interface RentalShipment {
   notes?: string | null;
 }
 
+export interface SfRouteNode {
+  acceptTime?: string | null;
+  acceptAddress?: string | null;
+  remark?: string | null;
+  opCode?: string | null;
+  firstStatusCode?: string | null;
+  firstStatusName?: string | null;
+  secondaryStatusCode?: string | null;
+  secondaryStatusName?: string | null;
+}
+
+export interface SfShipmentRoute {
+  shipmentId: number;
+  trackingNumber: string;
+  checkPhoneNo: string;
+  queryable: boolean;
+  fromCache: boolean;
+  queriedAt?: string | null;
+  serviceCode: string;
+  trackingType: number;
+  methodType: string;
+  error?: string | null;
+  deliveredAt?: string | null;
+  autoDelivered: boolean;
+  hasException: boolean;
+  exceptionMessage?: string | null;
+  routes: SfRouteNode[];
+}
+
+export interface SfRouteSyncResult {
+  rental?: Rental | null;
+  shipments: SfShipmentRoute[];
+}
+
 export interface Rental {
   id: string;
   rentalNumber: string;
@@ -202,6 +236,14 @@ export const useRentalStore = defineStore('rental', {
     async deliver(id: string, shipmentId: number, payload: DeliverPayload = {}): Promise<Rental> {
       const response = await apiClient.post<Rental>(`/rentals/${id}/shipments/${shipmentId}/deliver`, payload);
       this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async fetchSfRoutes(id: string, refresh = false): Promise<SfRouteSyncResult> {
+      const response = await apiClient.get<SfRouteSyncResult>(`/rentals/${id}/sf-routes?refresh=${refresh}`);
+      if (response.data.rental) {
+        this.replaceInList(response.data.rental);
+      }
       return response.data;
     },
 

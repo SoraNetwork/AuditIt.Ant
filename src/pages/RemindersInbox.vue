@@ -61,7 +61,7 @@
                     <RentalReferenceText :text="item.message || '-'" />
                   </div>
                   <div class="reminder-meta">
-                    <span>到期：{{ formatDateTime(item.dueAt) || '-' }}</span>
+                    <span>到期：{{ formatReminderDueAt(item) }}</span>
                     <span v-if="item.targetUser">接收人：{{ item.targetUser }}</span>
                     <span v-if="item.dismissedAt">已读：{{ formatDateTime(item.dismissedAt) }}</span>
                   </div>
@@ -96,7 +96,7 @@
               </template>
               <template #meta>
                 <div><RentalReferenceText :text="item.message || '-'" /></div>
-                <div>到期：{{ formatDateTime(item.dueAt) || '-' }}</div>
+                <div>到期：{{ formatReminderDueAt(item) }}</div>
                 <div v-if="item.targetUser">接收人：{{ item.targetUser }}</div>
                 <div v-if="item.dismissedAt">已读：{{ formatDateTime(item.dismissedAt) }}</div>
               </template>
@@ -159,7 +159,7 @@ import { message } from 'ant-design-vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
-import { useReminderStore } from '../stores/reminderStore';
+import { useReminderStore, type Reminder, type ReminderType } from '../stores/reminderStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
 
@@ -220,6 +220,16 @@ const levelColor = (level: string) => {
   if (level === 'Warning') return 'orange';
   return 'blue';
 };
+
+const rentalReminderTypes: ReminderType[] = [
+  'RentalShipmentSoon',
+  'RentalDueSoon',
+  'RentalOverdue',
+  'RentalDeliveryUnsigned',
+];
+
+const formatReminderDueAt = (item: Reminder) =>
+  formatDateTime(item.dueAt, rentalReminderTypes.includes(item.type) ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss') || '-';
 
 const refresh = async () => {
   await reminderStore.fetchReminders({ unreadOnly: false, limit: 200 });

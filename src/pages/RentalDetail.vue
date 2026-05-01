@@ -144,6 +144,74 @@
         </MobileListCard>
         <a-empty v-if="!rental.shipments?.length" description="暂无物流" />
       </div>
+
+      <template v-if="hasSfOutboundShipments">
+        <a-divider>顺丰路由</a-divider>
+        <div class="sf-route-toolbar">
+          <a-space wrap>
+            <span class="sf-route-hint">使用 SF 运单号 + 租客手机号后四位查询，默认 2 小时后端缓存。</span>
+            <a-button size="small" :loading="sfRouteLoading" @click="loadSfRoutes(true)">刷新顺丰路由</a-button>
+          </a-space>
+        </div>
+        <a-list
+          size="small"
+          :loading="sfRouteLoading"
+          :data-source="sfOutboundShipments"
+          :locale="{ emptyText: '暂无顺丰发货物流' }"
+        >
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta>
+                <template #title>
+                  <a-space wrap>
+                    <span>{{ item.trackingNumber }}</span>
+                    <a-tag :color="sfRouteStatusColor(sfRouteForShipment(item.id))">
+                      {{ sfRouteStatusText(sfRouteForShipment(item.id)) }}
+                    </a-tag>
+                    <a-tag v-if="sfRouteForShipment(item.id)?.fromCache">缓存</a-tag>
+                  </a-space>
+                </template>
+                <template #description>
+                  <div class="sf-route-detail">
+                    <template v-if="sfRouteForShipment(item.id)">
+                      <a-alert
+                        v-if="sfRouteForShipment(item.id)?.hasException"
+                        type="warning"
+                        show-icon
+                        :message="sfRouteForShipment(item.id)?.exceptionMessage || '顺丰路由存在异常，请及时跟进'"
+                      />
+                      <a-alert
+                        v-else-if="sfRouteForShipment(item.id)?.error"
+                        type="info"
+                        show-icon
+                        :message="sfRouteForShipment(item.id)?.error || ''"
+                      />
+                      <div class="sf-route-meta">
+                        <span>校验尾号：{{ sfRouteForShipment(item.id)?.checkPhoneNo || '-' }}</span>
+                        <span>查询：{{ formatDateTime(sfRouteForShipment(item.id)?.queriedAt) || '-' }}</span>
+                        <span v-if="sfRouteForShipment(item.id)?.deliveredAt">签收：{{ formatDateTime(sfRouteForShipment(item.id)?.deliveredAt) }}</span>
+                      </div>
+                      <div v-if="latestSfRouteByShipment(item.id)" class="sf-route-latest">
+                        最新：{{ latestSfRouteByShipment(item.id)?.acceptTime || '-' }}
+                        <span v-if="latestSfRouteByShipment(item.id)?.acceptAddress"> {{ latestSfRouteByShipment(item.id)?.acceptAddress }}</span>
+                        <span v-if="latestSfRouteByShipment(item.id)?.remark"> | {{ latestSfRouteByShipment(item.id)?.remark }}</span>
+                      </div>
+                      <div v-if="recentSfRoutes(item.id).length > 1" class="sf-route-nodes">
+                        <div v-for="node in recentSfRoutes(item.id)" :key="`${item.id}-${node.acceptTime}-${node.opCode}`">
+                          {{ node.acceptTime || '-' }}
+                          <span v-if="node.acceptAddress"> {{ node.acceptAddress }}</span>
+                          <span v-if="node.remark"> | {{ node.remark }}</span>
+                        </div>
+                      </div>
+                    </template>
+                    <span v-else>尚未查询。</span>
+                  </div>
+                </template>
+              </a-list-item-meta>
+            </a-list-item>
+          </template>
+        </a-list>
+      </template>
     </a-card>
   </div>
 
@@ -287,7 +355,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type ShipmentDirection } from '../stores/rentalStore';
+import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
@@ -335,6 +403,8 @@ const importing = ref(false);
 const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
 const selectedRentalItemIds = ref<string[]>([]);
+const sfRoutes = ref<SfShipmentRoute[]>([]);
+const sfRouteLoading = ref(false);
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -436,6 +506,21 @@ const shipmentColumns = [
   { title: '操作', key: 'actions', width: 100 },
 ];
 
+const sfRouteByShipment = computed(() => {
+  const map = new Map<number, SfShipmentRoute>();
+  sfRoutes.value.forEach(route => map.set(route.shipmentId, route));
+  return map;
+});
+
+const sfOutboundShipments = computed(() =>
+  rental.value?.shipments?.filter(shipment =>
+    shipment.direction === 'Outbound'
+    && !!shipment.trackingNumber
+    && shipment.trackingNumber.trim().toUpperCase().startsWith('SF')) || []
+);
+
+const hasSfOutboundShipments = computed(() => sfOutboundShipments.value.length > 0);
+
 const isRentalClosed = computed(() =>
   !!rental.value && ['Returned', 'Cancelled'].includes(rental.value.status)
 );
@@ -481,6 +566,13 @@ const statusColor = (status: string) => {
 const formatDate = (value?: string | null) =>
   value ? formatDateTime(value, 'YYYY-MM-DD') : '';
 
+const toPickerDate = (value?: string | null) => {
+  const formatted = formatDate(value);
+  return formatted ? dayjs(formatted) : null;
+};
+
+const toRentalDatePayload = (value?: Dayjs | null) => value?.format('YYYY-MM-DD');
+
 const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '';
   return `￥${Number(value).toFixed(1)}`;
@@ -515,6 +607,64 @@ const load = async () => {
   }
 };
 
+const loadSfRoutes = async (refresh = false) => {
+  if (!rental.value) return;
+  if (!hasSfOutboundShipments.value) {
+    sfRoutes.value = [];
+    return;
+  }
+
+  sfRouteLoading.value = true;
+  try {
+    const result = await rentalStore.fetchSfRoutes(rental.value.id, refresh);
+    sfRoutes.value = result.shipments;
+    if (result.rental) {
+      rental.value = result.rental;
+    }
+
+    if (refresh) {
+      message.success('顺丰路由已刷新');
+    }
+    if (result.shipments.some(item => item.autoDelivered)) {
+      message.success('顺丰已签收的物流已自动标记签收');
+    }
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '顺丰路由查询失败');
+  } finally {
+    sfRouteLoading.value = false;
+  }
+};
+
+const latestSfRoute = (route: SfShipmentRoute) => route.routes?.[route.routes.length - 1];
+
+const sfRouteForShipment = (shipmentId: number) => sfRouteByShipment.value.get(shipmentId);
+
+const latestSfRouteByShipment = (shipmentId: number) => {
+  const route = sfRouteForShipment(shipmentId);
+  return route ? latestSfRoute(route) : undefined;
+};
+
+const recentSfRoutes = (shipmentId: number) =>
+  [...(sfRouteForShipment(shipmentId)?.routes || [])].slice(-5).reverse();
+
+const sfRouteStatusColor = (route?: SfShipmentRoute) => {
+  if (!route || route.error || !route.queryable) return 'default';
+  if (route.hasException) return 'red';
+  if (route.deliveredAt) return 'green';
+  if (route.routes.length > 0) return 'blue';
+  return 'orange';
+};
+
+const sfRouteStatusText = (route?: SfShipmentRoute) => {
+  if (!route) return '未查询';
+  if (!route.queryable) return '不可查询';
+  if (route.error) return '查询失败';
+  if (route.hasException) return '物流异常';
+  if (route.deliveredAt) return route.autoDelivered ? '已自动签收' : '已签收';
+  if (route.routes.length > 0) return '运输中';
+  return '暂无路由';
+};
+
 const submitShip = async () => {
   if (!rental.value) return;
   if (!shipForm.originWarehouseId || !shipForm.carrier.trim()) {
@@ -534,6 +684,7 @@ const submitShip = async () => {
     shipVisible.value = false;
     message.success(shipForm.direction === 'Outbound' ? '发货登记成功' : '回货物流登记成功');
     await load();
+    await loadSfRoutes(true);
   } catch (err: any) {
     message.error(err?.response?.data || err?.message || '提交失败');
   }
@@ -546,6 +697,7 @@ const deliver = async (shipmentId: number) => {
     await rentalStore.deliver(rental.value.id, shipmentId, {});
     message.success('已标记签收');
     await load();
+    await loadSfRoutes(false);
   } catch (err: any) {
     message.error(err?.response?.data || err?.message || '操作失败');
   }
@@ -646,8 +798,8 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
 
 const openEdit = () => {
   if (!rental.value) return;
-  editForm.expectedEndDate = rental.value.expectedEndDate ? dayjs(rental.value.expectedEndDate) : null;
-  editForm.startDate = rental.value.startDate ? dayjs(rental.value.startDate) : null;
+  editForm.expectedEndDate = toPickerDate(rental.value.expectedEndDate);
+  editForm.startDate = toPickerDate(rental.value.startDate);
   editForm.renterId = rental.value.renterId;
   editForm.totalPrice = rental.value.totalPrice ?? null;
   editForm.deposit = rental.value.deposit ?? null;
@@ -678,8 +830,8 @@ const submitEdit = async () => {
   try {
     await rentalStore.updateRental(rental.value.id, {
       renterId: editForm.renterId,
-      startDate: editForm.startDate.toISOString(),
-      expectedEndDate: editForm.expectedEndDate.toISOString(),
+      startDate: toRentalDatePayload(editForm.startDate),
+      expectedEndDate: toRentalDatePayload(editForm.expectedEndDate),
       totalPrice: editForm.totalPrice ?? undefined,
       deposit: editForm.deposit,
       otherFee: editForm.otherFee,
@@ -783,6 +935,7 @@ onMounted(async () => {
     renterStore.fetchRenters('', 300),
   ]);
   await load();
+  await loadSfRoutes(false);
 });
 </script>
 
@@ -796,5 +949,38 @@ onMounted(async () => {
 
 .rental-actions :deep(.ant-btn) {
   min-width: 120px;
+}
+
+.sf-route-toolbar {
+  margin-bottom: 8px;
+}
+
+.sf-route-hint,
+.sf-route-meta,
+.sf-route-nodes {
+  color: #697386;
+  font-size: 12px;
+}
+
+.sf-route-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sf-route-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sf-route-latest {
+  color: #1f2937;
+}
+
+.sf-route-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 </style>
