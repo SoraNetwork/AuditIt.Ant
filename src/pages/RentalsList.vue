@@ -26,6 +26,14 @@
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">
+          <a-button
+            v-if="canRefreshSfRoutes"
+            :block="isMobile"
+            :loading="sfBulkRefreshing"
+            @click="refreshPendingSfRoutes"
+          >
+            刷新全部顺丰路由
+          </a-button>
           <a-button :block="isMobile" @click="exportRentalsXlsx">批量导出 XLSX</a-button>
           <a-button type="primary" :block="isMobile" @click="$router.push('/rentals/new')">
             新建租赁
@@ -97,22 +105,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import { exportToXlsx } from '../utils/xlsx';
+import { useAuthStore } from '../stores/authStore';
+import { PermissionCodes } from '../utils/permissions';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
+const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled'];
+const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
 
 const columns = [
   { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber', width: 180 },
@@ -158,6 +172,29 @@ const fetchList = async () => {
     page: 1,
     pageSize: 100,
   });
+};
+
+const refreshPendingSfRoutes = async () => {
+  sfBulkRefreshing.value = true;
+  try {
+    const result = await rentalStore.refreshPendingSfRoutes();
+    await fetchList();
+    const summary = `已刷新 ${result.synced} 条顺丰运单，覆盖 ${result.rentalCount} 个租赁单，自动签收 ${result.autoDelivered} 条`;
+    const warnings = [
+      result.exceptionCount > 0 ? `物流异常 ${result.exceptionCount} 条` : '',
+      result.errorCount > 0 ? `查询失败 ${result.errorCount} 条` : '',
+      result.skippedCount > 0 ? `跳过 ${result.skippedCount} 条` : '',
+    ].filter(Boolean);
+    if (warnings.length > 0) {
+      message.warning(`${summary}；${warnings.join('，')}`);
+    } else {
+      message.success(summary);
+    }
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '刷新顺丰路由失败');
+  } finally {
+    sfBulkRefreshing.value = false;
+  }
 };
 
 const exportRentalsXlsx = () => {

@@ -64,6 +64,15 @@ export interface SfRouteSyncResult {
   shipments: SfShipmentRoute[];
 }
 
+export interface SfPendingRouteRefreshResult {
+  rentalCount: number;
+  synced: number;
+  autoDelivered: number;
+  exceptionCount: number;
+  errorCount: number;
+  skippedCount: number;
+}
+
 export interface Rental {
   id: string;
   rentalNumber: string;
@@ -244,6 +253,11 @@ export const useRentalStore = defineStore('rental', {
       if (response.data.rental) {
         this.replaceInList(response.data.rental);
       }
+      return response.data;
+    },
+
+    async refreshPendingSfRoutes(): Promise<SfPendingRouteRefreshResult> {
+      const response = await apiClient.post<SfPendingRouteRefreshResult>('/rentals/sf-routes/refresh-pending');
       return response.data;
     },
 
