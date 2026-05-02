@@ -1,0 +1,1 @@
+import{n as s,N as n,O as i}from"./vendor-CuhP0GCh.js";s.extend(n);s.extend(i);const m="Asia/Shanghai",r=(t,a="YYYY-MM-DD HH:mm:ss")=>{if(!t)return"";const e=s.utc(t).tz(m);return e.isValid()?e.format(a):""};export{r as f};
