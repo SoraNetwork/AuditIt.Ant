@@ -1,7 +1,7 @@
 ﻿import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
-export type RentalStatus = 'Pending' | 'Active' | 'Overdue' | 'Returned' | 'Cancelled';
+export type RentalStatus = 'Pending' | 'Active' | 'Overdue' | 'Returned' | 'Cancelled' | 'Renewed';
 export type ShipmentDirection = 'Outbound' | 'Inbound';
 export type ReturnCondition = 'Good' | 'MinorDamage' | 'MajorDamage' | 'Lost';
 
@@ -94,6 +94,12 @@ export interface Rental {
   accountedAmount: number;
   shippingAddress?: string | null;
   platformOrderNo?: string | null;
+  renewedFromRentalId?: string | null;
+  renewedFromRentalNumber?: string | null;
+  renewedToRentalId?: string | null;
+  renewedToRentalNumber?: string | null;
+  renewalSequence?: number | null;
+  isRenewal: boolean;
   notes?: string | null;
   assignedTo?: string | null;
   createdAt: string;
@@ -142,6 +148,21 @@ export interface UpdateRentalPayload {
   platformOrderNo?: string;
   notes?: string;
   assignedTo?: string;
+}
+
+export interface RenewRentalPayload {
+  startDate?: string;
+  expectedEndDate: string;
+  totalPrice: number;
+  deposit?: number | null;
+  otherFee?: number;
+  notes?: string;
+  allowScheduleConflict?: boolean;
+}
+
+export interface RenewRentalResult {
+  originalRental?: Rental | null;
+  renewalRental?: Rental | null;
 }
 
 export interface ShipPayload {
@@ -236,6 +257,21 @@ export const useRentalStore = defineStore('rental', {
     async updateRental(id: string, payload: UpdateRentalPayload): Promise<Rental> {
       const response = await apiClient.put<Rental>(`/rentals/${id}`, payload);
       this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async renewRental(id: string, payload: RenewRentalPayload): Promise<RenewRentalResult> {
+      const response = await apiClient.post<RenewRentalResult>(`/rentals/${id}/renew`, payload);
+      if (response.data.originalRental) this.replaceInList(response.data.originalRental);
+      if (response.data.renewalRental) {
+        const idx = this.rentals.findIndex(r => r.id === response.data.renewalRental!.id);
+        if (idx === -1) {
+          this.rentals.unshift(response.data.renewalRental);
+          this.total += 1;
+        } else {
+          this.rentals[idx] = response.data.renewalRental;
+        }
+      }
       return response.data;
     },
 

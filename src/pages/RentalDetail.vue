@@ -20,6 +20,12 @@
         <a-descriptions-item label="核算金额">{{ formatMoney(rental.accountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="日均核算">{{ formatMoney(dailyAccountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="平台订单号">{{ rental.platformOrderNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item v-if="rental.renewedFromRentalId" label="续租自">
+          <router-link :to="`/rentals/${rental.renewedFromRentalId}`">{{ rental.renewedFromRentalNumber }}</router-link>
+        </a-descriptions-item>
+        <a-descriptions-item v-if="rental.renewedToRentalId" label="续租到">
+          <router-link :to="`/rentals/${rental.renewedToRentalId}`">{{ rental.renewedToRentalNumber }}</router-link>
+        </a-descriptions-item>
         <a-descriptions-item label="收货地址" :span="isMobile ? 1 : 3">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="isMobile ? 1 : 3">{{ rental.notes || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建时间">{{ formatDateTime(rental.createdAt) || '-' }}</a-descriptions-item>
@@ -54,6 +60,7 @@
 
       <div :class="isMobile ? 'mobile-grid-actions rental-actions' : 'rental-actions'">
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
+        <a-button v-if="canRenew" type="primary" ghost @click="openRenew">续租</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
         <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
           <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
@@ -276,6 +283,45 @@
   </a-modal>
 
   <a-modal
+    v-model:open="renewVisible"
+    title="续租"
+    ok-text="创建续租单"
+    cancel-text="取消"
+    :confirm-loading="renewing"
+    @ok="submitRenew(false)"
+  >
+    <a-form layout="vertical">
+      <a-alert
+        type="info"
+        show-icon
+        message="续租会创建新的租赁单；原单不再要求回货物流，新单不再要求发货物流。"
+        style="margin-bottom: 12px"
+      />
+      <a-form-item label="续租开始日期" required>
+        <a-date-picker v-model:value="renewForm.startDate" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="续租结束日期" required>
+        <a-date-picker v-model:value="renewForm.expectedEndDate" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="续租金额" required>
+        <a-input-number v-model:value="renewForm.totalPrice" :min="0" :step="0.1" :precision="1" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="押金">
+        <a-input-number v-model:value="renewForm.deposit" :min="0" :step="0.1" :precision="1" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="其他费用">
+        <a-input-number v-model:value="renewForm.otherFee" :min="0" :step="0.1" :precision="1" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="核算金额">
+        <a-input :value="formatMoney(renewAccountedAmount)" disabled />
+      </a-form-item>
+      <a-form-item label="备注">
+        <a-textarea v-model:value="renewForm.notes" :rows="3" :maxlength="500" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
+
+  <a-modal
     v-model:open="itemPickerVisible"
     title="修改租赁物品"
     ok-text="保存"
@@ -361,17 +407,19 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
+import { useAuthStore } from '../stores/authStore';
 import { useItemStore, type Item } from '../stores/itemStore';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import { PermissionCodes } from '../utils/permissions';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
@@ -395,10 +443,12 @@ interface RentalCreateConflictResponse {
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
+const router = useRouter();
 const rentalStore = useRentalStore();
 const warehouseStore = useWarehouseStore();
 const userStore = useUserStore();
 const renterStore = useRenterStore();
+const authStore = useAuthStore();
 const itemStore = useItemStore();
 
 const rental = ref<Rental | null>(null);
@@ -414,6 +464,8 @@ const itemPickerSaving = ref(false);
 const selectedRentalItemIds = ref<string[]>([]);
 const sfRoutes = ref<SfShipmentRoute[]>([]);
 const sfRouteLoading = ref(false);
+const renewVisible = ref(false);
+const renewing = ref(false);
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -460,6 +512,19 @@ const editAccountedAmount = computed(() =>
   Number(editForm.totalPrice || 0)
   - Number(rental.value?.totalShippingFee || 0)
   - Number(editForm.otherFee || 0)
+);
+
+const renewForm = reactive({
+  startDate: null as Dayjs | null,
+  expectedEndDate: null as Dayjs | null,
+  totalPrice: null as number | null,
+  deposit: null as number | null,
+  otherFee: 0,
+  notes: '',
+});
+
+const renewAccountedAmount = computed(() =>
+  Number(renewForm.totalPrice || 0) - Number(renewForm.otherFee || 0)
 );
 
 const rentalDays = computed(() => {
@@ -544,22 +609,36 @@ const sfOutboundShipments = computed(() =>
 const hasSfOutboundShipments = computed(() => sfOutboundShipments.value.length > 0);
 
 const isRentalClosed = computed(() =>
-  !!rental.value && ['Returned', 'Cancelled'].includes(rental.value.status)
+  !!rental.value && ['Returned', 'Cancelled', 'Renewed'].includes(rental.value.status)
 );
 
 const hasOutboundShipment = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound')
 );
 
+const isRenewal = computed(() => !!rental.value?.isRenewal);
+
+const hasRentalStarted = computed(() =>
+  isRenewal.value || hasOutboundShipment.value || rental.value?.status === 'Active' || rental.value?.status === 'Overdue'
+);
+
 const hasDeliveredOutbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
 );
 
-const canShip = computed(() => !!rental.value && !isRentalClosed.value);
-const canReceive = computed(() => !!rental.value && !isRentalClosed.value && hasDeliveredOutbound.value);
-const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasOutboundShipment.value);
+const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
+const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
+const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
+const canRenew = computed(() =>
+  !!rental.value
+  && !isRentalClosed.value
+  && !rental.value.renewedToRentalId
+  && ['Active', 'Overdue'].includes(rental.value.status)
+  && rental.value.items.some(item => !item.returnedAt)
+  && authStore.hasPermission(PermissionCodes.RentalCreate)
+);
 
 const receiveDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记回货物流';
@@ -582,6 +661,7 @@ const statusColor = (status: string) => {
   if (status === 'Active') return 'blue';
   if (status === 'Overdue') return 'red';
   if (status === 'Returned') return 'green';
+  if (status === 'Renewed') return 'cyan';
   return 'orange';
 };
 
@@ -617,6 +697,18 @@ const openOutbound = () => {
 const openInbound = () => {
   resetShipForm('Inbound');
   shipVisible.value = true;
+};
+
+const openRenew = () => {
+  if (!rental.value) return;
+  const startDate = toPickerDate(rental.value.expectedEndDate)?.add(1, 'day') || dayjs();
+  renewForm.startDate = startDate;
+  renewForm.expectedEndDate = startDate.add(Math.max(0, rentalDays.value - 1), 'day');
+  renewForm.totalPrice = rental.value.totalPrice ?? null;
+  renewForm.deposit = rental.value.deposit ?? null;
+  renewForm.otherFee = 0;
+  renewForm.notes = '';
+  renewVisible.value = true;
 };
 
 const load = async () => {
@@ -788,6 +880,70 @@ const showItemConflictConfirm = (payload: RentalCreateConflictResponse) => {
       await submitItemPicker(true);
     },
   });
+};
+
+const showRenewConflictConfirm = (payload: RentalCreateConflictResponse) => {
+  Modal.confirm({
+    title: '续租时间存在冲突',
+    width: 720,
+    okText: '仍然创建续租单',
+    cancelText: '返回修改',
+    content: conflictLines(payload),
+    async onOk() {
+      await submitRenew(true);
+    },
+  });
+};
+
+const submitRenew = async (allowScheduleConflict: boolean) => {
+  if (!rental.value) return;
+  if (!renewForm.startDate || !renewForm.expectedEndDate) {
+    message.error('请选择续租开始日期和结束日期');
+    return;
+  }
+
+  if (renewForm.expectedEndDate.isBefore(renewForm.startDate, 'day')) {
+    message.error('续租结束日期不能早于开始日期');
+    return;
+  }
+
+  if (renewForm.totalPrice === null || renewForm.totalPrice === undefined) {
+    message.error('请填写续租金额');
+    return;
+  }
+
+  renewing.value = true;
+  try {
+    const result = await rentalStore.renewRental(rental.value.id, {
+      startDate: toRentalDatePayload(renewForm.startDate),
+      expectedEndDate: toRentalDatePayload(renewForm.expectedEndDate)!,
+      totalPrice: Number(renewForm.totalPrice || 0),
+      deposit: renewForm.deposit,
+      otherFee: Number(renewForm.otherFee || 0),
+      notes: renewForm.notes.trim() || undefined,
+      allowScheduleConflict,
+    });
+
+    renewVisible.value = false;
+    message.success('续租单已创建');
+
+    if (result.renewalRental) {
+      rental.value = result.renewalRental;
+      sfRoutes.value = [];
+      await router.push(`/rentals/${result.renewalRental.id}`);
+    } else {
+      await load();
+    }
+  } catch (err: any) {
+    if (err?.response?.status === 409 && err?.response?.data) {
+      showRenewConflictConfirm(err.response.data as RentalCreateConflictResponse);
+      return;
+    }
+
+    message.error(err?.response?.data || err?.message || '续租失败');
+  } finally {
+    renewing.value = false;
+  }
 };
 
 const submitItemPicker = async (allowScheduleConflict: boolean) => {

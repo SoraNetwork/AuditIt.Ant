@@ -17,6 +17,7 @@
             <a-select-option value="Overdue">Overdue</a-select-option>
             <a-select-option value="Returned">Returned</a-select-option>
             <a-select-option value="Cancelled">Cancelled</a-select-option>
+            <a-select-option value="Renewed">Renewed</a-select-option>
           </a-select>
           <a-input
             v-model:value="rentalNumber"
@@ -141,7 +142,7 @@ const router = useRouter();
 const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
 const sfBulkRefreshing = ref(false);
-const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled'];
+const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
 
 const columns = [
@@ -164,6 +165,7 @@ const statusColor = (value: string) => {
   if (value === 'Active') return 'blue';
   if (value === 'Overdue') return 'red';
   if (value === 'Returned') return 'green';
+  if (value === 'Renewed') return 'cyan';
   return 'orange';
 };
 
