@@ -84,6 +84,7 @@ export interface Rental {
     phone?: string | null;
   } | null;
   startDate: string;
+  expectedShipDate: string;
   expectedEndDate: string;
   actualEndDate?: string | null;
   totalPrice: number;
@@ -117,6 +118,7 @@ export interface CreateRentalPayload {
   };
   itemIds: string[];
   startDate?: string;
+  expectedShipDate?: string;
   expectedEndDate: string;
   totalPrice: number;
   deposit?: number | null;
@@ -131,6 +133,7 @@ export interface CreateRentalPayload {
 export interface UpdateRentalPayload {
   renterId?: string;
   startDate?: string;
+  expectedShipDate?: string;
   expectedEndDate?: string;
   totalPrice?: number;
   deposit?: number | null;

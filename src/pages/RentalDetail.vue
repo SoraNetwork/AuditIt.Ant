@@ -9,6 +9,7 @@
         </a-descriptions-item>
         <a-descriptions-item label="租客">{{ rental.renter?.name || rental.renterId }}</a-descriptions-item>
         <a-descriptions-item label="负责人">{{ rental.assignedTo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="预计发货">{{ formatDate(rental.expectedShipDate) }}</a-descriptions-item>
         <a-descriptions-item label="开始日期">{{ formatDate(rental.startDate) }}</a-descriptions-item>
         <a-descriptions-item label="预计结束">{{ formatDate(rental.expectedEndDate) }}</a-descriptions-item>
         <a-descriptions-item label="实际结束">{{ formatDate(rental.actualEndDate) || '-' }}</a-descriptions-item>
@@ -17,6 +18,7 @@
         <a-descriptions-item label="运费合计">{{ formatMoney(rental.totalShippingFee) }}</a-descriptions-item>
         <a-descriptions-item label="其他费用">{{ formatMoney(rental.otherFee) }}</a-descriptions-item>
         <a-descriptions-item label="核算金额">{{ formatMoney(rental.accountedAmount) }}</a-descriptions-item>
+        <a-descriptions-item label="日均核算">{{ formatMoney(dailyAccountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="平台订单号">{{ rental.platformOrderNo || '-' }}</a-descriptions-item>
         <a-descriptions-item label="收货地址" :span="isMobile ? 1 : 3">{{ rental.shippingAddress || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="isMobile ? 1 : 3">{{ rental.notes || '-' }}</a-descriptions-item>
@@ -37,6 +39,10 @@
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">核算金额</div>
           <div class="mobile-summary-value">{{ formatMoney(rental.accountedAmount) }}</div>
+        </div>
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">日均核算</div>
+          <div class="mobile-summary-value">{{ formatMoney(dailyAccountedAmount) }}</div>
         </div>
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">平台订单号</div>
@@ -312,6 +318,9 @@
       <a-form-item label="开始日期">
         <a-date-picker v-model:value="editForm.startDate" style="width: 100%" />
       </a-form-item>
+      <a-form-item label="预计发货日期">
+        <a-date-picker v-model:value="editForm.expectedShipDate" style="width: 100%" />
+      </a-form-item>
       <a-form-item label="预计结束日期">
         <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
       </a-form-item>
@@ -436,6 +445,7 @@ const itemPickerOptions = computed(() => {
 const editForm = reactive({
   renterId: undefined as string | undefined,
   startDate: null as Dayjs | null,
+  expectedShipDate: null as Dayjs | null,
   expectedEndDate: null as Dayjs | null,
   totalPrice: null as number | null,
   deposit: null as number | null,
@@ -450,6 +460,18 @@ const editAccountedAmount = computed(() =>
   Number(editForm.totalPrice || 0)
   - Number(rental.value?.totalShippingFee || 0)
   - Number(editForm.otherFee || 0)
+);
+
+const rentalDays = computed(() => {
+  if (!rental.value) return 1;
+  const start = dayjs(formatDate(rental.value.startDate));
+  const end = dayjs(formatDate(rental.value.expectedEndDate));
+  if (!start.isValid() || !end.isValid()) return 1;
+  return Math.max(1, end.diff(start, 'day') + 1);
+});
+
+const dailyAccountedAmount = computed(() =>
+  rental.value ? Number(rental.value.accountedAmount || 0) / rentalDays.value : 0
 );
 
 const shipForm = reactive({
@@ -799,6 +821,7 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
 const openEdit = () => {
   if (!rental.value) return;
   editForm.expectedEndDate = toPickerDate(rental.value.expectedEndDate);
+  editForm.expectedShipDate = toPickerDate(rental.value.expectedShipDate);
   editForm.startDate = toPickerDate(rental.value.startDate);
   editForm.renterId = rental.value.renterId;
   editForm.totalPrice = rental.value.totalPrice ?? null;
@@ -821,6 +844,11 @@ const submitEdit = async () => {
     return;
   }
 
+  if (!editForm.expectedShipDate) {
+    message.error('预计发货日期不能为空');
+    return;
+  }
+
   if (!editForm.renterId) {
     message.error('请选择租客');
     return;
@@ -831,6 +859,7 @@ const submitEdit = async () => {
     await rentalStore.updateRental(rental.value.id, {
       renterId: editForm.renterId,
       startDate: toRentalDatePayload(editForm.startDate),
+      expectedShipDate: toRentalDatePayload(editForm.expectedShipDate),
       expectedEndDate: toRentalDatePayload(editForm.expectedEndDate),
       totalPrice: editForm.totalPrice ?? undefined,
       deposit: editForm.deposit,

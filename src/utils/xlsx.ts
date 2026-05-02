@@ -1,22 +1,31 @@
-import * as XLSX from 'xlsx';
-
 export interface SheetPayload {
   name: string;
   rows: Record<string, unknown>[];
 }
 
-export function exportToXlsx(
+type XlsxModule = typeof import('xlsx');
+
+let xlsxModulePromise: Promise<XlsxModule> | null = null;
+
+const loadXlsx = () => {
+  xlsxModulePromise ??= import('xlsx');
+  return xlsxModulePromise;
+};
+
+export async function exportToXlsx(
   rows: Record<string, unknown>[],
   filename: string,
   sheetName = 'Sheet1'
-): void {
+): Promise<void> {
+  const XLSX = await loadXlsx();
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
   XLSX.writeFile(workbook, filename);
 }
 
-export function exportMultiSheetXlsx(sheets: SheetPayload[], filename: string): void {
+export async function exportMultiSheetXlsx(sheets: SheetPayload[], filename: string): Promise<void> {
+  const XLSX = await loadXlsx();
   const workbook = XLSX.utils.book_new();
   for (const s of sheets) {
     const ws = XLSX.utils.json_to_sheet(s.rows);
@@ -29,6 +38,7 @@ export async function parseXlsxFile<T = Record<string, unknown>>(
   file: File,
   sheetName?: string
 ): Promise<T[]> {
+  const XLSX = await loadXlsx();
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: 'array' });
   const target = sheetName
@@ -41,6 +51,7 @@ export async function parseXlsxFile<T = Record<string, unknown>>(
 export async function parseXlsxFileSheets(
   file: File
 ): Promise<Record<string, Record<string, unknown>[]>> {
+  const XLSX = await loadXlsx();
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: 'array' });
   const out: Record<string, Record<string, unknown>[]> = {};

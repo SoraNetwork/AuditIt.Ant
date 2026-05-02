@@ -150,17 +150,22 @@
         </div>
 
         <a-row :gutter="16">
-          <a-col :xs="24" :span="8">
+          <a-col :xs="24" :span="6">
+            <a-form-item label="预计发货日期">
+              <a-date-picker v-model:value="form.expectedShipDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :span="6">
             <a-form-item label="开始日期">
               <a-date-picker v-model:value="form.startDate" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :span="8">
+          <a-col :xs="24" :span="6">
             <a-form-item label="预计结束日期" required>
               <a-date-picker v-model:value="form.expectedEndDate" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :span="8">
+          <a-col :xs="24" :span="6">
             <a-form-item label="平台订单号">
               <a-input v-model:value="form.platformOrderNo" placeholder="可选" />
             </a-form-item>
@@ -370,7 +375,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
@@ -451,6 +456,7 @@ const quickForm = reactive({
 
 const form = reactive({
   shippingAddress: '',
+  expectedShipDate: dayjs().subtract(1, 'day') as Dayjs,
   startDate: dayjs() as Dayjs,
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
   totalPrice: 0,
@@ -711,6 +717,7 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
   },
   itemIds: selectedItemIds.value,
   startDate: toRentalDatePayload(form.startDate),
+  expectedShipDate: toRentalDatePayload(form.expectedShipDate),
   expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
   totalPrice: Number(form.totalPrice || 0),
   deposit: form.deposit,
@@ -786,6 +793,11 @@ const submit = async () => {
     return;
   }
 
+  if (!form.expectedShipDate) {
+    message.error('请选择预计发货日期');
+    return;
+  }
+
   if (selectedItemIds.value.length === 0) {
     message.error('至少选择一件商品');
     return;
@@ -806,6 +818,19 @@ const submit = async () => {
     submitting.value = false;
   }
 };
+
+watch(
+  () => form.startDate,
+  (nextStart, previousStart) => {
+    if (!nextStart) return;
+
+    const currentShipDate = form.expectedShipDate?.format('YYYY-MM-DD');
+    const previousDefaultShipDate = previousStart?.subtract(1, 'day').format('YYYY-MM-DD');
+    if (!currentShipDate || currentShipDate === previousDefaultShipDate) {
+      form.expectedShipDate = nextStart.subtract(1, 'day');
+    }
+  }
+);
 
 onMounted(async () => {
   await Promise.all([
