@@ -200,6 +200,7 @@ const eventTypeText = (event: RentalCalendarEvent, short = false) => {
 
   if (event.reminderType === 'RentalShipmentSoon') return short ? '发货提醒' : '发货提醒';
   if (event.reminderType === 'RentalDeliveryUnsigned') return short ? '待签收' : '发货待签收';
+  if (event.reminderType === 'RentalReturnUnsigned') return short ? '回货待签' : '回货待签收';
   if (event.reminderType === 'RentalDueSoon') return short ? '到期提醒' : '到期提醒';
   if (event.reminderType === 'RentalOverdue') return short ? '逾期提醒' : '逾期提醒';
   return short ? '普通提醒' : '普通提醒';
@@ -232,6 +233,7 @@ const isMutedReminder = (event: RentalCalendarEvent) =>
 const isRentalAutoReminder = (event: RentalCalendarEvent) =>
   event.reminderType === 'RentalShipmentSoon'
   || event.reminderType === 'RentalDeliveryUnsigned'
+  || event.reminderType === 'RentalReturnUnsigned'
   || event.reminderType === 'RentalDueSoon'
   || event.reminderType === 'RentalOverdue';
 

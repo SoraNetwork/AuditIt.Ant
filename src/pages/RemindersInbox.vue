@@ -226,6 +226,7 @@ const rentalReminderTypes: ReminderType[] = [
   'RentalDueSoon',
   'RentalOverdue',
   'RentalDeliveryUnsigned',
+  'RentalReturnUnsigned',
 ];
 
 const formatReminderDueAt = (item: Reminder) =>

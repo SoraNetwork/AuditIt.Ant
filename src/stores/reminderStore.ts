@@ -6,6 +6,7 @@ export type ReminderType =
   | 'RentalDueSoon'
   | 'RentalOverdue'
   | 'RentalDeliveryUnsigned'
+  | 'RentalReturnUnsigned'
   | 'Manual';
 export type ReminderLevel = 'Info' | 'Warning' | 'Critical';
 

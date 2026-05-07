@@ -55,7 +55,7 @@
             <router-link :to="`/rentals/${record.id}`">{{ record.rentalNumber }}</router-link>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+            <a-tag :color="displayStatusColor(record)">{{ displayStatus(record) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'renter'">
             {{ record.renter?.name || '-' }}
@@ -98,7 +98,7 @@
           >
             <template #title>{{ record.rentalNumber }}</template>
             <template #tags>
-              <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+              <a-tag :color="displayStatusColor(record)">{{ displayStatus(record) }}</a-tag>
             </template>
             <template #meta>
               <div>租客：{{ record.renter?.name || '-' }}</div>
@@ -169,6 +169,16 @@ const statusColor = (value: string) => {
   if (value === 'Renewed') return 'cyan';
   return 'orange';
 };
+
+const isReturnUnsigned = (record: Rental) =>
+  record.status === 'Returned'
+  && !record.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt);
+
+const displayStatus = (record: Rental) =>
+  isReturnUnsigned(record) ? '待回货签收' : record.status;
+
+const displayStatusColor = (record: Rental) =>
+  isReturnUnsigned(record) ? 'orange' : statusColor(record.status);
 
 const readQueryString = (value: unknown) => {
   if (Array.isArray(value)) {

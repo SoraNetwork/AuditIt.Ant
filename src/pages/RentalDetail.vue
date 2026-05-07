@@ -5,7 +5,7 @@
     <a-card v-if="rental" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <a-descriptions v-if="!isMobile" bordered :column="3">
         <a-descriptions-item label="状态">
-          <a-tag :color="statusColor(rental.status)">{{ rental.status }}</a-tag>
+          <a-tag :color="rentalDisplayStatusColor">{{ rentalDisplayStatus }}</a-tag>
         </a-descriptions-item>
         <a-descriptions-item label="租客">{{ rental.renter?.name || rental.renterId }}</a-descriptions-item>
         <a-descriptions-item label="负责人">{{ rental.assignedTo || '-' }}</a-descriptions-item>
@@ -37,7 +37,7 @@
       <div class="mobile-summary-grid rental-summary-grid">
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">状态</div>
-          <div class="mobile-summary-value">{{ rental.status }}</div>
+          <div class="mobile-summary-value">{{ rentalDisplayStatus }}</div>
         </div>
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">租客</div>
@@ -710,6 +710,10 @@ const hasDeliveredInbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt)
 );
 
+const isReturnUnsigned = computed(() =>
+  rental.value?.status === 'Returned' && !hasDeliveredInbound.value
+);
+
 const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
 const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
@@ -771,6 +775,14 @@ const statusColor = (status: string) => {
   if (status === 'Renewed') return 'cyan';
   return 'orange';
 };
+
+const rentalDisplayStatus = computed(() =>
+  isReturnUnsigned.value ? '待回货签收' : rental.value?.status || '-'
+);
+
+const rentalDisplayStatusColor = computed(() =>
+  isReturnUnsigned.value ? 'orange' : statusColor(rental.value?.status || '')
+);
 
 const formatDate = (value?: string | null) =>
   value ? formatDateTime(value, 'YYYY-MM-DD') : '';
