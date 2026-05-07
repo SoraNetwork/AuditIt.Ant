@@ -21,6 +21,7 @@
           <a-descriptions bordered :column="1" size="small">
             <a-descriptions-item label="物品名称">{{ item?.itemDefinitionName || '-' }}</a-descriptions-item>
             <a-descriptions-item label="所在仓库">{{ item?.warehouseName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="物品所有者">{{ item?.ownerUserName || '-' }}</a-descriptions-item>
             <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
             <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
             <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
@@ -38,6 +39,7 @@
             <a-descriptions bordered :column="2">
               <a-descriptions-item label="物品名称">{{ item?.itemDefinitionName || '-' }}</a-descriptions-item>
               <a-descriptions-item label="所在仓库">{{ item?.warehouseName || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="物品所有者">{{ item?.ownerUserName || '-' }}</a-descriptions-item>
               <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
               <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
               <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>

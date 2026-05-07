@@ -10,6 +10,17 @@
           <a-form-item label="去向 (可选)">
             <a-input v-model:value="formState.currentDestination" />
           </a-form-item>
+          <a-form-item label="物品所有者">
+            <a-select
+              v-model:value="formState.ownerUserId"
+              show-search
+              allow-clear
+              option-filter-prop="label"
+              placeholder="未设置"
+              :options="userOptions"
+              :loading="userStore.loading"
+            />
+          </a-form-item>
           <a-form-item label="备注">
             <a-textarea v-model:value="formState.remarks" :rows="4" />
           </a-form-item>
@@ -56,6 +67,7 @@
 import { ref, onMounted, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useItemStore, type Item } from '../stores/itemStore';
+import { useUserStore } from '../stores/userStore';
 import { message, type UploadProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
@@ -67,17 +79,20 @@ const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();
+const userStore = useUserStore();
 
 const item = ref<Item | null>(null);
 const formState = reactive({
   shortId: '',
   remarks: '',
   currentDestination: '',
+  ownerUserId: null as string | null,
   photo: undefined as File | undefined,
 });
 const fileList = ref<UploadProps['fileList']>([]);
 const isPhotoDeleted = ref(false);
 const isCompressing = ref(false);
+const userOptions = computed(() => userStore.users.map(user => ({ label: user.name, value: user.id })));
 
 const currentPhotoUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
@@ -92,6 +107,7 @@ const currentPhotoUrl = computed(() => {
 });
 
 onMounted(async () => {
+  await userStore.fetchUsers({ status: 'Active', limit: 300 });
   const itemId = route.params.id as string;
   // Use find directly on the store if items are already there, otherwise fetch
   let foundItem = itemStore.items.find(i => i.id === itemId);
@@ -105,6 +121,7 @@ onMounted(async () => {
     formState.shortId = foundItem.shortId || '';
     formState.remarks = foundItem.remarks || '';
     formState.currentDestination = foundItem.currentDestination || '';
+    formState.ownerUserId = foundItem.ownerUserId || null;
   } else {
     message.error('未找到物品');
     router.back();
@@ -156,6 +173,8 @@ const handleSave = async () => {
       shortId: formState.shortId,
       remarks: formState.remarks,
       currentDestination: formState.currentDestination,
+      ownerUserId: formState.ownerUserId,
+      clearOwnerUser: !formState.ownerUserId,
       photo: formState.photo,
       deletePhoto: isPhotoDeleted.value,
     });

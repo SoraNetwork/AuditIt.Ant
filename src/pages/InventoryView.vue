@@ -98,6 +98,7 @@
                 </template>
                 <template #meta>
                   <div>仓库：{{ item.warehouseName }}</div>
+                  <div>所有者：{{ item.ownerUserName || '-' }}</div>
                   <div v-if="item.currentDestination">
                     当前去向：<RentalReferenceText :text="item.currentDestination" />
                   </div>
@@ -185,6 +186,7 @@ const filteredData = computed(() => {
 });
 
 const columns = [
+  { title: '所有者', dataIndex: 'ownerUserName', key: 'ownerUserName' },
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
   { title: '物品名称', dataIndex: 'name', key: 'name' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },

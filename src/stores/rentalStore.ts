@@ -106,6 +106,8 @@ export interface Rental {
   createdBy?: string | null;
   updatedAt: string;
   updatedBy?: string | null;
+  settlementNotifiedAt?: string | null;
+  settlementNotifiedStatus?: RentalStatus | string | null;
   items: RentalItem[];
   shipments: RentalShipment[];
 }
@@ -194,6 +196,32 @@ export interface BulkUpdateRentalItemPayload {
 export interface UpdateRentalItemsPayload {
   itemIds: string[];
   allowScheduleConflict?: boolean;
+}
+
+export interface SettlementOwnerShare {
+  ownerName: string;
+  amount: number;
+}
+
+export interface SettlementPreview {
+  rentalId: string;
+  rentalNumber: string;
+  status: RentalStatus;
+  totalPrice: number;
+  accountedAmount: number;
+  technicianPercent: number;
+  technicianAmount: number;
+  creatorPercent: number;
+  creatorAmount: number;
+  creatorName?: string | null;
+  itemOwnerPercent: number;
+  itemOwnerAmount: number;
+  ownerShares: SettlementOwnerShare[];
+  markdownText: string;
+  canSend: boolean;
+  ineligibleReason?: string | null;
+  settlementNotifiedAt?: string | null;
+  settlementNotifiedStatus?: RentalStatus | string | null;
 }
 
 interface RentalState {
@@ -292,6 +320,16 @@ export const useRentalStore = defineStore('rental', {
       if (response.data.rental) {
         this.replaceInList(response.data.rental);
       }
+      return response.data;
+    },
+
+    async fetchSettlement(id: string): Promise<SettlementPreview> {
+      const response = await apiClient.get<SettlementPreview>(`/rentals/${id}/settlement`);
+      return response.data;
+    },
+
+    async sendSettlement(id: string): Promise<SettlementPreview> {
+      const response = await apiClient.post<SettlementPreview>(`/rentals/${id}/settlement/send`);
       return response.data;
     },
 

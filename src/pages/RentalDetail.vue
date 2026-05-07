@@ -71,6 +71,64 @@
         <a-button v-if="canCancel" danger @click="cancelVisible = true">取消租赁</a-button>
       </div>
 
+      <template v-if="canShowSettlementPanel">
+        <a-divider>结算信息</a-divider>
+        <a-spin :spinning="settlementLoading">
+          <div class="settlement-section">
+            <a-alert
+              v-if="settlementInfo?.ineligibleReason"
+              type="warning"
+              show-icon
+              :message="settlementInfo.ineligibleReason"
+            />
+
+            <div class="settlement-header">
+              <a-space wrap>
+                <a-tag v-if="settlementInfo?.settlementNotifiedAt" color="green">
+                  已发送 {{ formatDateTime(settlementInfo.settlementNotifiedAt) }}
+                </a-tag>
+                <a-tag v-else color="default">未发送</a-tag>
+                <a-button
+                  type="primary"
+                  :loading="settlementSending"
+                  :disabled="!canSendSettlement"
+                  @click="confirmSendSettlement"
+                >
+                  {{ settlementInfo?.settlementNotifiedAt ? '重新发送结算信息' : '发送结算信息' }}
+                </a-button>
+              </a-space>
+            </div>
+
+            <a-descriptions v-if="settlementInfo" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
+              <a-descriptions-item label="总价">{{ formatMoney(settlementInfo.totalPrice) }}</a-descriptions-item>
+              <a-descriptions-item label="核算">{{ formatMoney(settlementInfo.accountedAmount) }}</a-descriptions-item>
+              <a-descriptions-item label="技术">
+                {{ formatMoney(settlementInfo.technicianAmount) }} / {{ settlementInfo.technicianPercent }}%
+              </a-descriptions-item>
+              <a-descriptions-item label="建单">
+                {{ formatMoney(settlementInfo.creatorAmount) }} / {{ settlementInfo.creatorPercent }}%
+                <span v-if="settlementInfo.creatorName"> / {{ settlementInfo.creatorName }}</span>
+              </a-descriptions-item>
+              <a-descriptions-item label="物品" :span="isMobile ? 1 : 2">
+                {{ formatMoney(settlementInfo.itemOwnerAmount) }} / {{ settlementInfo.itemOwnerPercent }}%
+              </a-descriptions-item>
+              <a-descriptions-item label="物品所有者" :span="isMobile ? 1 : 2">
+                <template v-if="settlementInfo.ownerShares.length">
+                  <a-space wrap>
+                    <a-tag v-for="share in settlementInfo.ownerShares" :key="share.ownerName">
+                      {{ share.ownerName }} {{ formatMoney(share.amount) }}
+                    </a-tag>
+                  </a-space>
+                </template>
+                <span v-else>-</span>
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <pre v-if="settlementInfo?.markdownText" class="settlement-preview">{{ settlementInfo.markdownText }}</pre>
+          </div>
+        </a-spin>
+      </template>
+
       <a-divider>租赁商品</a-divider>
 
       <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
@@ -410,7 +468,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
+import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
@@ -466,6 +524,9 @@ const sfRoutes = ref<SfShipmentRoute[]>([]);
 const sfRouteLoading = ref(false);
 const renewVisible = ref(false);
 const renewing = ref(false);
+const settlementInfo = ref<SettlementPreview | null>(null);
+const settlementLoading = ref(false);
+const settlementSending = ref(false);
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -640,6 +701,14 @@ const canRenew = computed(() =>
   && authStore.hasPermission(PermissionCodes.RentalCreate)
 );
 
+const canShowSettlementPanel = computed(() =>
+  !!rental.value && ['Returned', 'Overdue'].includes(rental.value.status)
+);
+
+const canSendSettlement = computed(() =>
+  !!settlementInfo.value?.canSend && authStore.hasPermission(PermissionCodes.RentalReturn)
+);
+
 const receiveDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记回货物流';
   if (!hasDeliveredOutbound.value) return '请先完成发货并签收后再登记回货物流';
@@ -711,11 +780,63 @@ const openRenew = () => {
   renewVisible.value = true;
 };
 
+const loadSettlementInfo = async (id = rental.value?.id) => {
+  if (!id) return;
+  if (!canShowSettlementPanel.value) {
+    settlementInfo.value = null;
+    return;
+  }
+
+  settlementLoading.value = true;
+  try {
+    settlementInfo.value = await rentalStore.fetchSettlement(id);
+  } catch (err: any) {
+    settlementInfo.value = null;
+    message.error(err?.response?.data || err?.message || '获取结算信息失败');
+  } finally {
+    settlementLoading.value = false;
+  }
+};
+
+const confirmSendSettlement = () => {
+  if (!rental.value || !settlementInfo.value) return;
+
+  Modal.confirm({
+    title: settlementInfo.value.settlementNotifiedAt ? '重新发送结算信息？' : '发送结算信息？',
+    content: `将把 ${rental.value.rentalNumber} 的结算信息发送到钉钉群。`,
+    okText: '发送',
+    cancelText: '取消',
+    async onOk() {
+      await sendSettlement();
+    },
+  });
+};
+
+const sendSettlement = async () => {
+  if (!rental.value) return;
+
+  settlementSending.value = true;
+  try {
+    settlementInfo.value = await rentalStore.sendSettlement(rental.value.id);
+    message.success('结算信息已发送');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '发送结算信息失败');
+  } finally {
+    settlementSending.value = false;
+  }
+};
+
 const load = async () => {
   const id = String(route.params.id);
   loading.value = true;
   try {
     rental.value = await rentalStore.getRental(id);
+    if (canShowSettlementPanel.value) {
+      await loadSettlementInfo(id);
+    } else {
+      settlementInfo.value = null;
+    }
   } finally {
     loading.value = false;
   }
@@ -1161,6 +1282,29 @@ onMounted(async () => {
 
 .sf-route-latest {
   color: #1f2937;
+}
+
+.settlement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settlement-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settlement-preview {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: #111827;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
 .sf-route-nodes {

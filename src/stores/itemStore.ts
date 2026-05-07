@@ -11,6 +11,8 @@ export interface Item {
   itemDefinitionName: string;
   warehouseId: number;
   warehouseName: string;
+  ownerUserId?: string | null;
+  ownerUserName?: string | null;
   status: ItemStatus;
   currentDestination?: string | null;
   remarks?: string | null;
@@ -26,6 +28,7 @@ export interface Item {
 interface CreateItemPayload {
   itemDefinitionId: number;
   warehouseId: number;
+  ownerUserId?: string | null;
   shortId?: string;
   serialNumber?: string;
   remarks?: string;
@@ -37,6 +40,8 @@ interface UpdateItemPayload {
   serialNumber?: string;
   remarks?: string;
   currentDestination?: string;
+  ownerUserId?: string | null;
+  clearOwnerUser?: boolean;
   photo?: File | null;
   deletePhoto?: boolean;
 }
@@ -59,6 +64,8 @@ function normalizeItem(raw: any): Item {
     itemDefinitionName,
     warehouseId: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0),
     warehouseName,
+    ownerUserId: raw.ownerUserId ?? null,
+    ownerUserName: raw.ownerUserName ?? raw.ownerUser?.name ?? null,
     status: raw.status,
     currentDestination: raw.currentDestination ?? null,
     remarks: raw.remarks ?? null,
@@ -114,6 +121,7 @@ export const useItemStore = defineStore('item', {
         const formData = new FormData();
         formData.append('itemDefinitionId', String(payload.itemDefinitionId));
         formData.append('warehouseId', String(payload.warehouseId));
+        if (payload.ownerUserId) formData.append('ownerUserId', payload.ownerUserId);
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber) formData.append('serialNumber', payload.serialNumber);
         if (payload.remarks) formData.append('remarks', payload.remarks);
@@ -139,6 +147,8 @@ export const useItemStore = defineStore('item', {
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber !== undefined) formData.append('serialNumber', payload.serialNumber || '');
         if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
+        if (payload.ownerUserId) formData.append('ownerUserId', payload.ownerUserId);
+        if (payload.clearOwnerUser) formData.append('clearOwnerUser', 'true');
 
         if (payload.photo) {
           formData.append('photo', payload.photo);

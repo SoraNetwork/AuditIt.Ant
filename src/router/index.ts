@@ -51,6 +51,7 @@ const routes = [
       { path: 'rentals/:id', name: 'rental-detail', component: () => import('../pages/RentalDetail.vue'), meta: { title: '租赁详情', permissions: [PermissionCodes.RentalView] } },
       { path: 'calendar', name: 'rental-calendar', component: () => import('../pages/RentalCalendarDetail.vue'), meta: { title: '提醒日历', permissions: [PermissionCodes.RentalView] } },
       { path: 'finance-reports', name: 'finance-reports', component: () => import('../pages/FinanceReports.vue'), meta: { title: '财务报表', permissions: [PermissionCodes.FinanceReportView] } },
+      { path: 'finance-reports/settlement-settings', name: 'settlement-settings', component: () => import('../pages/SettlementSettings.vue'), meta: { title: '设置结算单', permissions: [PermissionCodes.FinanceReportView] } },
 
       { path: 'reminders', name: 'reminders', component: () => import('../pages/RemindersInbox.vue'), meta: { title: '提醒中心', permissions: [PermissionCodes.ReminderView] } },
 

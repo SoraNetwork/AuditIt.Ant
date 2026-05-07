@@ -30,6 +30,17 @@
                   :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
                 ></a-select>
               </a-form-item>
+              <a-form-item label="物品所有者">
+                <a-select
+                  v-model:value="quickFormState.ownerUserId"
+                  show-search
+                  allow-clear
+                  option-filter-prop="label"
+                  placeholder="默认当前登录用户"
+                  :options="userOptions"
+                  :loading="userStore.loading"
+                />
+              </a-form-item>
               <a-form-item label="备注">
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <a-textarea 
@@ -126,6 +137,17 @@
                       placeholder="选择仓库"
                       :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
                     ></a-select>
+                  </a-form-item>
+                  <a-form-item label="物品所有者">
+                    <a-select
+                      v-model:value="batchFormState.ownerUserId"
+                      show-search
+                      allow-clear
+                      option-filter-prop="label"
+                      placeholder="默认当前登录用户"
+                      :options="userOptions"
+                      :loading="userStore.loading"
+                    />
                   </a-form-item>
                   <a-form-item label="默认备注（可选）">
                     <a-input v-model:value="batchFormState.defaultRemarks" placeholder="此备注将应用到所有物品" />
@@ -306,6 +328,17 @@ GHI789"
                       :options="warehouseStore.warehouses. map(w => ({ value: w.id, label: w.name }))"
                     ></a-select>
                   </a-form-item>
+                  <a-form-item label="物品所有者">
+                    <a-select
+                      v-model:value="manualFormState.ownerUserId"
+                      show-search
+                      allow-clear
+                      option-filter-prop="label"
+                      placeholder="默认当前登录用户"
+                      :options="userOptions"
+                      :loading="userStore.loading"
+                    />
+                  </a-form-item>
                    <a-form-item label="数量" name="quantity" :rules="[{ required: true, message: '请输入数量', type: 'number', min: 1 }]">
                     <a-input-number v-model:value="manualFormState.quantity" :min="1" style="width: 100%" />
                   </a-form-item>
@@ -440,10 +473,12 @@ GHI789"
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { computed, ref, reactive, onMounted } from 'vue';
 import { useItemDefinitionStore, type CreateItemDefinitionPayload } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
+import { useUserStore } from '../stores/userStore';
+import { useAuthStore } from '../stores/authStore';
 import { message, type UploadProps, type FormInstance } from 'ant-design-vue';
 import { PlusOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 import ItemDefinitionForm from '../components/ItemDefinitionForm.vue';
@@ -550,6 +585,14 @@ const deleteQuickRemark = async (id: number) => {
 const itemDefinitionStore = useItemDefinitionStore();
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
+const userStore = useUserStore();
+const authStore = useAuthStore();
+
+const userOptions = computed(() =>
+  userStore.users.map(user => ({ label: user.name, value: user.id }))
+);
+
+const defaultOwnerUserId = () => authStore.user?.id || null;
 
 // Common State
 const activeTab = ref('quick');
@@ -561,6 +604,7 @@ interface QuickFormState {
   shortId: string;
   itemDefinitionId: number | null;
   warehouseId: number | null;
+  ownerUserId: string | null;
   remarks: string;
   photo?: File;
 }
@@ -568,6 +612,7 @@ interface QuickFormState {
 interface ManualFormState {
   itemDefinitionId: number | null;
   warehouseId: number | null;
+  ownerUserId: string | null;
   quantity: number;
   remarks: string;
   photo?: File;
@@ -576,6 +621,7 @@ interface ManualFormState {
 interface BatchFormState {
   itemDefinitionId: number | null;
   warehouseId: number | null;
+  ownerUserId: string | null;
   defaultRemarks: string;
 }
 
@@ -592,6 +638,7 @@ const quickFormState = reactive<QuickFormState>({
   shortId: '',
   itemDefinitionId: null,
   warehouseId: null,
+  ownerUserId: defaultOwnerUserId(),
   remarks: '',
 });
 const quickFileList = ref<UploadProps['fileList']>([]);
@@ -607,6 +654,7 @@ const handleQuickFileChange = (info: any) => {
 
 const resetQuickForm = () => {
   quickFormRef.value?.resetFields();
+  quickFormState.ownerUserId = defaultOwnerUserId();
   quickFormState.remarks = '';
   quickFormState.  photo = undefined;
   quickFileList.value = [];
@@ -620,6 +668,7 @@ const quickInbound = async () => {
       shortId: quickFormState.shortId,
       itemDefinitionId: quickFormState.  itemDefinitionId!  ,
       warehouseId: quickFormState.warehouseId!  ,
+      ownerUserId: quickFormState.ownerUserId,
       remarks: quickFormState.remarks,
       photo: quickFormState.photo,
     });
@@ -637,6 +686,7 @@ const quickInbound = async () => {
 const batchFormState = reactive<BatchFormState>({
   itemDefinitionId: null,
   warehouseId: null,
+  ownerUserId: defaultOwnerUserId(),
   defaultRemarks: '',
 });
 
@@ -845,6 +895,7 @@ const executeBatchImport = async () => {
     const payload = {
       itemDefinitionId: batchFormState.itemDefinitionId,
       warehouseId: batchFormState.warehouseId,
+      ownerUserId: batchFormState.ownerUserId,
       items: batchItems.value.  map(item => ({
         shortId: item.shortId,
         remarks: item.remarks || undefined
@@ -920,6 +971,7 @@ const manualFormRef = ref<FormInstance>();
 const manualFormState = reactive<ManualFormState>({
   itemDefinitionId: null,
   warehouseId: null,
+  ownerUserId: defaultOwnerUserId(),
   quantity: 1,
   remarks: '',
 });
@@ -937,6 +989,7 @@ const handleManualFileChange = (info: any) => {
 
 const resetManualForm = () => {
   manualFormRef.value?.resetFields();
+  manualFormState.ownerUserId = defaultOwnerUserId();
   manualFormState.remarks = '';
   manualFormState.photo = undefined;
   manualFileList.value = [];
@@ -953,11 +1006,13 @@ const addToExportList = async () => {
         tempId: Date.now() + i,
         itemDefinitionId: manualFormState.itemDefinitionId,
         warehouseId: manualFormState.warehouseId,
+        ownerUserId: manualFormState.ownerUserId,
         remarks: manualFormState.remarks,
         photo: i === 0 ? manualFormState.photo : undefined,
         photoPreview: i === 0 && manualFormState.photo ? URL.createObjectURL(manualFormState.photo) : null,
         definitionName: definition?.name,
         warehouseName: warehouse?.name,
+        ownerUserName: userStore.users.find(user => user.id === manualFormState.ownerUserId)?.name || '',
       });
     }
     resetManualForm();
@@ -982,6 +1037,7 @@ const saveAndExport = async () => {
       const savedItem = await itemStore.createItem({
         itemDefinitionId: item.itemDefinitionId,
         warehouseId: item.warehouseId,
+        ownerUserId: item.ownerUserId,
         remarks: item.remarks,
         photo: item.photo,
       });
@@ -1036,6 +1092,7 @@ const handleNewItemDefOk = async () => {
 onMounted(() => {
   itemDefinitionStore.fetchItemDefinitions();
   warehouseStore.fetchWarehouses();
+  userStore.fetchUsers({ status: 'Active', limit: 300 });
   fetchQuickRemarks();
 });
 </script>

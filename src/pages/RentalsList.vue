@@ -108,7 +108,8 @@
               <div>物品：{{ itemSummary(record) }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
               <div>
-                核算：{{ record.accountedAmount != null ? `￥${Number(record.accountedAmount).toFixed(1)}` : '-' }}
+                总价：{{ formatMoney(record.totalPrice) }}
+                <span style="margin-left: 8px">| 核算：{{ formatMoney(record.accountedAmount) }}</span>
                 <span style="margin-left: 8px">| 日均：{{ formatMoney(dailyAccountedAmount(record)) }}</span>
                 <span v-if="record.assignedTo" style="margin-left: 8px">| 负责人：{{ record.assignedTo }}</span>
               </div>
