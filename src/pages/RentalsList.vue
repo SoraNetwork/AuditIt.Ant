@@ -107,12 +107,12 @@
               <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>物品：{{ itemSummary(record) }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
-              <div>
-                总价：{{ formatMoney(record.totalPrice) }}
-                <span style="margin-left: 8px">| 核算：{{ formatMoney(record.accountedAmount) }}</span>
-                <span style="margin-left: 8px">| 日均：{{ formatMoney(dailyAccountedAmount(record)) }}</span>
-                <span v-if="record.assignedTo" style="margin-left: 8px">| 负责人：{{ record.assignedTo }}</span>
+              <div class="mobile-money-row">
+                <span><em>总价</em><strong>{{ formatMoney(record.totalPrice) }}</strong></span>
+                <span><em>核算</em><strong>{{ formatMoney(record.accountedAmount) }}</strong></span>
+                <span><em>日均</em><strong>{{ formatMoney(dailyAccountedAmount(record)) }}</strong></span>
               </div>
+              <div v-if="record.assignedTo">负责人：{{ record.assignedTo }}</div>
             </template>
           </MobileListCard>
           <a-empty v-if="rentalStore.rentals.length === 0 && !rentalStore.loading" description="暂无租赁记录" />
@@ -306,6 +306,39 @@ watch(
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mobile-money-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.mobile-money-row span {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.mobile-money-row em {
+  display: block;
+  color: #667085;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.2;
+}
+
+.mobile-money-row strong {
+  display: block;
+  margin-top: 3px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 700;
+  word-break: break-word;
 }
 
 @media (max-width: 767.98px) {

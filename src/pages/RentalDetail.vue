@@ -3,7 +3,7 @@
     <a-page-header :title="`租赁详情 ${rental?.rentalNumber || ''}`" @back="$router.back()" />
 
     <a-card v-if="rental" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
-      <a-descriptions bordered :column="isMobile ? 1 : 3" :size="isMobile ? 'small' : 'default'">
+      <a-descriptions v-if="!isMobile" bordered :column="3">
         <a-descriptions-item label="状态">
           <a-tag :color="statusColor(rental.status)">{{ rental.status }}</a-tag>
         </a-descriptions-item>
@@ -33,7 +33,8 @@
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
       </a-descriptions>
 
-      <div v-if="isMobile" class="mobile-summary-grid">
+      <div v-if="isMobile" class="rental-mobile-overview">
+      <div class="mobile-summary-grid rental-summary-grid">
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">状态</div>
           <div class="mobile-summary-value">{{ rental.status }}</div>
@@ -41,6 +42,10 @@
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">租客</div>
           <div class="mobile-summary-value">{{ rental.renter?.name || rental.renterId }}</div>
+        </div>
+        <div class="mobile-summary-card">
+          <div class="mobile-summary-label">总价</div>
+          <div class="mobile-summary-value">{{ formatMoney(rental.totalPrice) }}</div>
         </div>
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">核算金额</div>
@@ -53,6 +58,19 @@
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">平台订单号</div>
           <div class="mobile-summary-value">{{ rental.platformOrderNo || '-' }}</div>
+        </div>
+      </div>
+        <div class="mobile-detail-list">
+          <div><span>负责人</span><strong>{{ rental.assignedTo || '-' }}</strong></div>
+          <div><span>预计发货</span><strong>{{ formatDate(rental.expectedShipDate) || '-' }}</strong></div>
+          <div><span>租期</span><strong>{{ formatDate(rental.startDate) }} - {{ formatDate(rental.expectedEndDate) }}</strong></div>
+          <div><span>实际结束</span><strong>{{ formatDate(rental.actualEndDate) || '-' }}</strong></div>
+          <div><span>押金</span><strong>{{ formatMoney(rental.deposit) || '-' }}</strong></div>
+          <div><span>运费合计</span><strong>{{ formatMoney(rental.totalShippingFee) }}</strong></div>
+          <div><span>其他费用</span><strong>{{ formatMoney(rental.otherFee) }}</strong></div>
+          <div><span>创建人</span><strong>{{ rental.createdBy || '-' }}</strong></div>
+          <div class="wide"><span>收货地址</span><strong>{{ rental.shippingAddress || '-' }}</strong></div>
+          <div class="wide"><span>备注</span><strong>{{ rental.notes || '-' }}</strong></div>
         </div>
       </div>
 
@@ -106,17 +124,16 @@
                 {{ formatMoney(settlementInfo.technicianAmount) }} / {{ settlementInfo.technicianPercent }}%
               </a-descriptions-item>
               <a-descriptions-item label="建单">
-                {{ formatMoney(settlementInfo.creatorAmount) }} / {{ settlementInfo.creatorPercent }}%
-                <span v-if="settlementInfo.creatorName"> / {{ settlementInfo.creatorName }}</span>
+                {{ creatorSettlementLabel }} {{ formatMoney(settlementInfo.creatorAmount) }} / {{ settlementInfo.creatorPercent }}%
               </a-descriptions-item>
-              <a-descriptions-item label="物品" :span="isMobile ? 1 : 2">
+              <a-descriptions-item label="物品所有" :span="isMobile ? 1 : 2">
                 {{ formatMoney(settlementInfo.itemOwnerAmount) }} / {{ settlementInfo.itemOwnerPercent }}%
               </a-descriptions-item>
-              <a-descriptions-item label="物品所有者" :span="isMobile ? 1 : 2">
+              <a-descriptions-item label="物品分账" :span="isMobile ? 1 : 2">
                 <template v-if="settlementInfo.ownerShares.length">
                   <a-space wrap>
-                    <a-tag v-for="share in settlementInfo.ownerShares" :key="share.ownerName">
-                      {{ share.ownerName }} {{ formatMoney(share.amount) }}
+                    <a-tag v-for="share in settlementInfo.ownerShares" :key="`${share.ownerName || 'none'}-${share.amount}`">
+                      {{ settlementShareLabel(share) }} {{ formatMoney(share.amount) }}
                     </a-tag>
                   </a-space>
                 </template>
@@ -124,7 +141,7 @@
               </a-descriptions-item>
             </a-descriptions>
 
-            <pre v-if="settlementInfo?.markdownText" class="settlement-preview">{{ settlementInfo.markdownText }}</pre>
+            <pre v-if="settlementPreviewText" class="settlement-preview">{{ settlementPreviewText }}</pre>
           </div>
         </a-spin>
       </template>
@@ -216,7 +233,7 @@
         <a-empty v-if="!rental.shipments?.length" description="暂无物流" />
       </div>
 
-      <template v-if="hasSfOutboundShipments">
+      <template v-if="hasSfShipments">
         <a-divider>顺丰路由</a-divider>
         <div class="sf-route-toolbar">
           <a-space wrap>
@@ -227,8 +244,8 @@
         <a-list
           size="small"
           :loading="sfRouteLoading"
-          :data-source="sfOutboundShipments"
-          :locale="{ emptyText: '暂无顺丰发货物流' }"
+          :data-source="sfShipments"
+          :locale="{ emptyText: '暂无顺丰物流' }"
         >
           <template #renderItem="{ item }">
             <a-list-item>
@@ -236,6 +253,9 @@
                 <template #title>
                   <a-space wrap>
                     <span>{{ item.trackingNumber }}</span>
+                    <a-tag :color="item.direction === 'Outbound' ? 'blue' : 'cyan'">
+                      {{ item.direction === 'Outbound' ? '发货' : '回货' }}
+                    </a-tag>
                     <a-tag :color="sfRouteStatusColor(sfRouteForShipment(item.id))">
                       {{ sfRouteStatusText(sfRouteForShipment(item.id)) }}
                     </a-tag>
@@ -660,14 +680,13 @@ const sfRouteByShipment = computed(() => {
   return map;
 });
 
-const sfOutboundShipments = computed(() =>
+const sfShipments = computed(() =>
   rental.value?.shipments?.filter(shipment =>
-    shipment.direction === 'Outbound'
-    && !!shipment.trackingNumber
+    !!shipment.trackingNumber
     && shipment.trackingNumber.trim().toUpperCase().startsWith('SF')) || []
 );
 
-const hasSfOutboundShipments = computed(() => sfOutboundShipments.value.length > 0);
+const hasSfShipments = computed(() => sfShipments.value.length > 0);
 
 const isRentalClosed = computed(() =>
   !!rental.value && ['Returned', 'Cancelled', 'Renewed'].includes(rental.value.status)
@@ -687,6 +706,10 @@ const hasDeliveredOutbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
 );
 
+const hasDeliveredInbound = computed(() =>
+  !!rental.value?.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt)
+);
+
 const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
 const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
@@ -702,12 +725,27 @@ const canRenew = computed(() =>
 );
 
 const canShowSettlementPanel = computed(() =>
-  !!rental.value && ['Returned', 'Overdue'].includes(rental.value.status)
+  !!rental.value
+  && ['Returned', 'Overdue'].includes(rental.value.status)
+  && hasDeliveredInbound.value
 );
 
 const canSendSettlement = computed(() =>
   !!settlementInfo.value?.canSend && authStore.hasPermission(PermissionCodes.RentalReturn)
 );
+
+const creatorSettlementLabel = computed(() =>
+  settlementInfo.value?.creatorName ? `建单（${settlementInfo.value.creatorName}）` : '建单'
+);
+
+const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) =>
+  share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
+
+const settlementPreviewText = computed(() => {
+  const text = settlementInfo.value?.markdownText?.trim();
+  if (!text) return '';
+  return text.replace(/^```(?:text)?\s*/i, '').replace(/\s*```$/, '');
+});
 
 const receiveDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记回货物流';
@@ -844,7 +882,7 @@ const load = async () => {
 
 const loadSfRoutes = async (refresh = false) => {
   if (!rental.value) return;
-  if (!hasSfOutboundShipments.value) {
+  if (!hasSfShipments.value) {
     sfRoutes.value = [];
     return;
   }
@@ -1257,6 +1295,68 @@ onMounted(async () => {
   min-width: 120px;
 }
 
+.rental-mobile-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rental-summary-grid {
+  margin-bottom: 0;
+}
+
+.mobile-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #edf0f5;
+  border-radius: 14px;
+  background: #edf0f5;
+}
+
+.mobile-detail-list > div {
+  min-width: 0;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.mobile-detail-list > div.wide {
+  grid-column: 1 / -1;
+}
+
+.mobile-detail-list span {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mobile-detail-list strong {
+  display: block;
+  margin-top: 4px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.mobile-grid-actions.rental-actions {
+  display: grid;
+  margin-bottom: 12px;
+}
+
+.mobile-grid-actions.rental-actions > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.mobile-grid-actions.rental-actions :deep(.ant-btn) {
+  width: 100%;
+  min-width: 0;
+}
+
 .sf-route-toolbar {
   margin-bottom: 8px;
 }
@@ -1295,6 +1395,11 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
+.settlement-header :deep(.ant-space),
+.settlement-header :deep(.ant-space-item:last-child) {
+  width: auto;
+}
+
 .settlement-preview {
   margin: 0;
   padding: 12px;
@@ -1311,5 +1416,17 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+@media (max-width: 767.98px) {
+  .settlement-header {
+    justify-content: stretch;
+  }
+
+  .settlement-header :deep(.ant-space),
+  .settlement-header :deep(.ant-space-item),
+  .settlement-header :deep(.ant-btn) {
+    width: 100%;
+  }
 }
 </style>

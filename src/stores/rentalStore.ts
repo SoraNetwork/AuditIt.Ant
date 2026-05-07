@@ -199,7 +199,7 @@ export interface UpdateRentalItemsPayload {
 }
 
 export interface SettlementOwnerShare {
-  ownerName: string;
+  ownerName?: string | null;
   amount: number;
 }
 
