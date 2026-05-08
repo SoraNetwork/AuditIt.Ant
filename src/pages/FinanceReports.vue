@@ -69,6 +69,9 @@
                 <template v-else-if="column.key === 'range'">
                   {{ formatDate(record.startDate) }} ~ {{ formatDate(record.expectedEndDate) }}
                 </template>
+                <template v-else-if="column.key === 'status'">
+                  {{ rentalStatusText(record.status) }}
+                </template>
                 <template v-else-if="moneyColumns.includes(String(column.key))">
                   {{ formatMoney(record[column.key]) }}
                 </template>
@@ -89,6 +92,7 @@ import { useFinanceReportStore } from '../stores/financeReportStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { formatDateTime } from '../utils/formatters';
 import { exportMultiSheetXlsx } from '../utils/xlsx';
+import { rentalStatusText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const reportStore = useFinanceReportStore();
@@ -157,7 +161,7 @@ const exportReport = () => {
 
   const details = reportStore.details.map(row => ({
     租赁单号: row.rentalNumber,
-    状态: row.status,
+    状态: rentalStatusText(row.status),
     租客: row.renterName || '',
     开始日期: formatDate(row.startDate),
     预计结束: formatDate(row.expectedEndDate),

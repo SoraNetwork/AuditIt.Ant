@@ -5,7 +5,7 @@
     <a-card v-if="rental" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <a-descriptions v-if="!isMobile" bordered :column="3">
         <a-descriptions-item label="状态">
-          <a-tag :color="rentalDisplayStatusColor">{{ rentalDisplayStatus }}</a-tag>
+          <a-tag :color="rentalDisplayStatusColor(rental)">{{ rentalDisplayStatusText(rental) }}</a-tag>
         </a-descriptions-item>
         <a-descriptions-item label="租客">{{ rental.renter?.name || rental.renterId }}</a-descriptions-item>
         <a-descriptions-item label="负责人">{{ rental.assignedTo || '-' }}</a-descriptions-item>
@@ -37,7 +37,7 @@
       <div class="mobile-summary-grid rental-summary-grid">
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">状态</div>
-          <div class="mobile-summary-value">{{ rentalDisplayStatus }}</div>
+          <div class="mobile-summary-value">{{ rentalDisplayStatusText(rental) }}</div>
         </div>
         <div class="mobile-summary-card">
           <div class="mobile-summary-label">租客</div>
@@ -100,7 +100,7 @@
               :message="settlementInfo.ineligibleReason"
             />
 
-            <div class="settlement-header">
+            <div v-if="hasDeliveredInbound" class="settlement-header">
               <a-space wrap>
                 <a-tag v-if="settlementInfo?.settlementNotifiedAt" color="green">
                   已发送 {{ formatDateTime(settlementInfo.settlementNotifiedAt) }}
@@ -117,7 +117,7 @@
               </a-space>
             </div>
 
-            <a-descriptions v-if="settlementInfo" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
+            <a-descriptions v-if="settlementInfo && hasDeliveredInbound" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
               <a-descriptions-item label="总价">{{ formatMoney(settlementInfo.totalPrice) }}</a-descriptions-item>
               <a-descriptions-item label="核算">{{ formatMoney(settlementInfo.accountedAmount) }}</a-descriptions-item>
               <a-descriptions-item label="技术">
@@ -141,7 +141,7 @@
               </a-descriptions-item>
             </a-descriptions>
 
-            <pre v-if="settlementPreviewText" class="settlement-preview">{{ settlementPreviewText }}</pre>
+            <pre v-if="settlementPreviewText && hasDeliveredInbound" class="settlement-preview">{{ settlementPreviewText }}</pre>
           </div>
         </a-spin>
       </template>
@@ -162,6 +162,9 @@
           <template v-if="column.key === 'returnedAt'">
             {{ formatDateTime(record.returnedAt) || '-' }}
           </template>
+          <template v-else-if="column.key === 'returnCondition'">
+            {{ returnConditionText(record.returnCondition) }}
+          </template>
           <template v-else-if="column.key === 'perItemPrice'">
             {{ formatMoney(record.perItemPrice) || '-' }}
           </template>
@@ -173,7 +176,7 @@
           <template #title>{{ item.itemShortIdSnapshot }} | {{ item.itemNameSnapshot }}</template>
           <template #tags>
             <a-tag v-if="item.returnCondition" :color="item.returnCondition === 'Good' ? 'green' : 'red'">
-              {{ item.returnCondition }}
+              {{ returnConditionText(item.returnCondition) }}
             </a-tag>
           </template>
           <template #meta>
@@ -191,7 +194,7 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'direction'">
             <a-tag :color="record.direction === 'Outbound' ? 'blue' : 'geekblue'">
-              {{ record.direction === 'Outbound' ? '发货' : '回货' }}
+              {{ shipmentDirectionText(record.direction) }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'shippedAt'">
@@ -217,7 +220,7 @@
           </template>
           <template #tags>
             <a-tag :color="shipment.direction === 'Outbound' ? 'blue' : 'geekblue'">
-              {{ shipment.direction === 'Outbound' ? '发货' : '回货' }}
+              {{ shipmentDirectionText(shipment.direction) }}
             </a-tag>
           </template>
           <template #meta>
@@ -254,7 +257,7 @@
                   <a-space wrap>
                     <span>{{ item.trackingNumber }}</span>
                     <a-tag :color="item.direction === 'Outbound' ? 'blue' : 'cyan'">
-                      {{ item.direction === 'Outbound' ? '发货' : '回货' }}
+                      {{ shipmentDirectionText(item.direction) }}
                     </a-tag>
                     <a-tag :color="sfRouteStatusColor(sfRouteForShipment(item.id))">
                       {{ sfRouteStatusText(sfRouteForShipment(item.id)) }}
@@ -498,6 +501,12 @@ import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { PermissionCodes } from '../utils/permissions';
+import {
+  rentalDisplayStatusColor,
+  rentalDisplayStatusText,
+  returnConditionText,
+  shipmentDirectionText,
+} from '../utils/rentalDisplay';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
@@ -710,10 +719,6 @@ const hasDeliveredInbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt)
 );
 
-const isReturnUnsigned = computed(() =>
-  rental.value?.status === 'Returned' && !hasDeliveredInbound.value
-);
-
 const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
 const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
@@ -729,9 +734,7 @@ const canRenew = computed(() =>
 );
 
 const canShowSettlementPanel = computed(() =>
-  !!rental.value
-  && ['Returned', 'Overdue'].includes(rental.value.status)
-  && hasDeliveredInbound.value
+  !!rental.value && ['Returned', 'Overdue'].includes(rental.value.status)
 );
 
 const canSendSettlement = computed(() =>
@@ -765,23 +768,6 @@ const returnDisabledReason = computed(() => {
 
 const shipModalTitle = computed(() =>
   shipForm.direction === 'Outbound' ? '登记发货' : '登记回货物流'
-);
-
-const statusColor = (status: string) => {
-  if (status === 'Pending') return 'default';
-  if (status === 'Active') return 'blue';
-  if (status === 'Overdue') return 'red';
-  if (status === 'Returned') return 'green';
-  if (status === 'Renewed') return 'cyan';
-  return 'orange';
-};
-
-const rentalDisplayStatus = computed(() =>
-  isReturnUnsigned.value ? '待回货签收' : rental.value?.status || '-'
-);
-
-const rentalDisplayStatusColor = computed(() =>
-  isReturnUnsigned.value ? 'orange' : statusColor(rental.value?.status || '')
 );
 
 const formatDate = (value?: string | null) =>
@@ -1216,7 +1202,7 @@ const exportItemsXlsx = () => {
     单价: item.perItemPrice ?? '',
     平台备注: item.listingRemarks || '',
     归还时间: formatDateTime(item.returnedAt) || '',
-    归还状态: item.returnCondition || '',
+    归还状态: returnConditionText(item.returnCondition),
   }));
 
   const filename = `租赁商品-${rental.value.rentalNumber}-${new Date().toISOString().slice(0, 10)}.xlsx`;

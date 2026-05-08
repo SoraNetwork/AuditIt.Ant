@@ -84,7 +84,7 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="statusColor(item.status)" style="margin-left: 8px">{{ item.status }}</a-tag>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
                       {{ item.renter?.name || '-' }} · 开始 {{ formatDate(item.startDate) }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
@@ -107,7 +107,7 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="statusColor(item.status)" style="margin-left: 8px">{{ item.status }}</a-tag>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
                       {{ item.renter?.name || '-' }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
@@ -132,7 +132,7 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="statusColor(item.status)" style="margin-left: 8px">{{ item.status }}</a-tag>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
                       {{ item.renter?.name || '-' }} · ¥{{ Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
@@ -177,6 +177,7 @@ import RentalCalendarPanel from '../components/RentalCalendarPanel.vue';
 import { Pie, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js';
 import { formatDateTime } from '../utils/formatters';
+import { rentalDisplayStatusColor, rentalDisplayStatusText } from '../utils/rentalDisplay';
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement);
 
@@ -237,14 +238,6 @@ const daysUntil = (dateStr: string) => {
 
 const formatDate = (value?: string | null) =>
   value ? formatDateTime(value, 'YYYY-MM-DD') : '';
-
-const statusColor = (s: string) => {
-  if (s === 'Pending') return 'default';
-  if (s === 'Active') return 'blue';
-  if (s === 'Overdue') return 'red';
-  if (s === 'Returned') return 'green';
-  return 'orange';
-};
 
 const totalItems = computed(() => itemStore.items.length);
 const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'InStock').length);

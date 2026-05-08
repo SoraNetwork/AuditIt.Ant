@@ -12,12 +12,9 @@
             placeholder="状态"
             @change="search"
           >
-            <a-select-option value="Pending">Pending</a-select-option>
-            <a-select-option value="Active">Active</a-select-option>
-            <a-select-option value="Overdue">Overdue</a-select-option>
-            <a-select-option value="Returned">Returned</a-select-option>
-            <a-select-option value="Cancelled">Cancelled</a-select-option>
-            <a-select-option value="Renewed">Renewed</a-select-option>
+            <a-select-option v-for="item in rentalStatusOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </a-select-option>
           </a-select>
           <a-input
             v-model:value="rentalNumber"
@@ -55,7 +52,7 @@
             <router-link :to="`/rentals/${record.id}`">{{ record.rentalNumber }}</router-link>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="displayStatusColor(record)">{{ displayStatus(record) }}</a-tag>
+            <a-tag :color="rentalDisplayStatusColor(record)">{{ rentalDisplayStatusText(record) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'renter'">
             {{ record.renter?.name || '-' }}
@@ -98,7 +95,7 @@
           >
             <template #title>{{ record.rentalNumber }}</template>
             <template #tags>
-              <a-tag :color="displayStatusColor(record)">{{ displayStatus(record) }}</a-tag>
+              <a-tag :color="rentalDisplayStatusColor(record)">{{ rentalDisplayStatusText(record) }}</a-tag>
             </template>
             <template #meta>
               <div>租客：{{ record.renter?.name || '-' }}</div>
@@ -133,6 +130,7 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 import { exportToXlsx } from '../utils/xlsx';
 import { useAuthStore } from '../stores/authStore';
 import { PermissionCodes } from '../utils/permissions';
+import { rentalDisplayStatusColor, rentalDisplayStatusText, rentalStatusText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
@@ -144,6 +142,7 @@ const status = ref<RentalStatus | undefined>(undefined);
 const rentalNumber = ref('');
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
+const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
 
 const columns = [
@@ -160,25 +159,6 @@ const columns = [
   { title: '日均', key: 'dailyPrice', width: 110 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
 ];
-
-const statusColor = (value: string) => {
-  if (value === 'Pending') return 'default';
-  if (value === 'Active') return 'blue';
-  if (value === 'Overdue') return 'red';
-  if (value === 'Returned') return 'green';
-  if (value === 'Renewed') return 'cyan';
-  return 'orange';
-};
-
-const isReturnUnsigned = (record: Rental) =>
-  record.status === 'Returned'
-  && !record.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt);
-
-const displayStatus = (record: Rental) =>
-  isReturnUnsigned(record) ? '待回货签收' : record.status;
-
-const displayStatusColor = (record: Rental) =>
-  isReturnUnsigned(record) ? 'orange' : statusColor(record.status);
 
 const readQueryString = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -253,7 +233,7 @@ const refreshPendingSfRoutes = async () => {
 const exportRentalsXlsx = () => {
   const rows = rentalStore.rentals.map(record => ({
     租赁单号: record.rentalNumber,
-    状态: record.status,
+    状态: rentalDisplayStatusText(record),
     租客: record.renter?.name || '',
     预计发货: formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '',
     开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',

@@ -20,8 +20,8 @@
           placeholder="状态"
           @change="search"
         >
-          <a-select-option value="Active">Active</a-select-option>
-          <a-select-option value="Left">Left</a-select-option>
+          <a-select-option value="Active">在职</a-select-option>
+          <a-select-option value="Left">离职</a-select-option>
         </a-select>
         <a-button :block="isMobile" @click="search">查询</a-button>
         <a-popconfirm title="从钉钉通讯录同步员工，并按姓名重新匹配 userid？" @confirm="syncDingTalkUsers">
@@ -38,7 +38,7 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'Active' ? 'green' : 'red'">{{ record.status }}</a-tag>
+            <a-tag :color="record.status === 'Active' ? 'green' : 'red'">{{ userStatusText(record.status) }}</a-tag>
           </template>
           <template v-if="column.key === 'dingTalkUserId'">
             {{ record.dingTalkUserId || record.lastDingTalkId || '-' }}
@@ -65,7 +65,7 @@
           <MobileListCard v-for="u in userStore.users" :key="u.id">
             <template #title>{{ u.name }}</template>
             <template #tags>
-              <a-tag :color="u.status === 'Active' ? 'green' : 'red'">{{ u.status }}</a-tag>
+              <a-tag :color="u.status === 'Active' ? 'green' : 'red'">{{ userStatusText(u.status) }}</a-tag>
             </template>
             <template #meta>
               <div v-if="u.roles.length > 0">
@@ -106,6 +106,7 @@ import { useRoleStore } from '../stores/roleStore';
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import { userStatusText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const userStore = useUserStore();

@@ -18,7 +18,7 @@
         <div class="mobile-summary-card reminder-summary-card reminder-summary-card--level">
           <div class="mobile-summary-label">最高级别</div>
           <div class="reminder-summary-level">
-            <a-tag class="reminder-summary-tag" :color="highestLevelColor">{{ highestLevel }}</a-tag>
+            <a-tag class="reminder-summary-tag" :color="highestLevelColor">{{ reminderLevelText(highestLevel) }}</a-tag>
           </div>
         </div>
       </div>
@@ -51,7 +51,8 @@
               <template #title>
                 <a-space>
                   <span><RentalReferenceText :text="item.title" /></span>
-                  <a-tag :color="levelColor(item.level)">{{ item.level }}</a-tag>
+                  <a-tag :color="levelColor(item.level)">{{ reminderLevelText(item.level) }}</a-tag>
+                  <a-tag>{{ reminderTypeText(item.type) }}</a-tag>
                   <a-tag v-if="!item.dismissedAt" color="orange">未读</a-tag>
                 </a-space>
               </template>
@@ -91,7 +92,8 @@
             >
               <template #title><RentalReferenceText :text="item.title" /></template>
               <template #tags>
-                <a-tag :color="levelColor(item.level)">{{ item.level }}</a-tag>
+                <a-tag :color="levelColor(item.level)">{{ reminderLevelText(item.level) }}</a-tag>
+                <a-tag>{{ reminderTypeText(item.type) }}</a-tag>
                 <a-tag v-if="!item.dismissedAt" color="orange">未读</a-tag>
               </template>
               <template #meta>
@@ -162,6 +164,7 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import { useReminderStore, type Reminder, type ReminderType } from '../stores/reminderStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
+import { reminderLevelText, reminderTypeText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const reminderStore = useReminderStore();

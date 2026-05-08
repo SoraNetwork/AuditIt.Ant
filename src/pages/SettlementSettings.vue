@@ -1,6 +1,6 @@
 <template>
   <div class="settlement-settings-page">
-    <a-page-header title="设置结算单" sub-title="配置回库后推送到钉钉群的结算比例" />
+    <a-page-header title="设置结算单" sub-title="配置手动推送到钉钉群的结算比例" />
 
     <div class="page-container">
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
@@ -54,13 +54,15 @@
             />
 
             <div class="preview">
-              <div>R20260429-0002&nbsp;&nbsp;Returned</div>
-              <div>1-2 / 佳能r6m2</div>
-              <div>2026-05-03&nbsp;&nbsp;2026-05-05</div>
-              <div>￥200.0&nbsp;&nbsp;￥175.0</div>
-              <div v-if="formState.technicianPercent > 0">技术{{ previewAmount(formState.technicianPercent) }}</div>
-              <div v-if="formState.creatorPercent > 0">建单{{ previewAmount(formState.creatorPercent) }}</div>
-              <div v-if="formState.itemOwnerPercent > 0">物品{{ previewAmount(formState.itemOwnerPercent) }}</div>
+              <div>结算单：R20260429-0002</div>
+              <div>状态：已归还</div>
+              <div>日期：2026-05-03 - 2026-05-05</div>
+              <div>物品：1-2 / 佳能r6m2</div>
+              <div>总价：￥200.0</div>
+              <div>核算：￥175.0</div>
+              <div v-if="formState.technicianPercent > 0">技术：{{ previewAmount(formState.technicianPercent) }}（{{ formState.technicianPercent }}%）</div>
+              <div v-if="formState.creatorPercent > 0">建单（示例建单人）：{{ previewAmount(formState.creatorPercent) }}（{{ formState.creatorPercent }}%）</div>
+              <div v-if="formState.itemOwnerPercent > 0">物品所有（示例所有者）：{{ previewAmount(formState.itemOwnerPercent) }}（{{ formState.itemOwnerPercent }}%）</div>
             </div>
 
             <a-space>

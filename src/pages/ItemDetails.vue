@@ -68,6 +68,9 @@
             <template v-if="column.key === 'url'">
               <a :href="record.url" target="_blank" rel="noreferrer">{{ record.url }}</a>
             </template>
+            <template v-if="column.key === 'status'">
+              <a-tag>{{ listingStatusText(record.status) }}</a-tag>
+            </template>
             <template v-if="column.key === 'actions'">
               <a-space>
                 <a-button type="link" @click="openListingEdit(record)">编辑</a-button>
@@ -82,7 +85,7 @@
         <div v-else class="mobile-card-list">
           <MobileListCard v-for="l in currentListings" :key="l.id">
             <template #title>{{ l.platform }} · {{ l.title || '无标题' }}</template>
-            <template #tags><a-tag>{{ l.status }}</a-tag></template>
+            <template #tags><a-tag>{{ listingStatusText(l.status) }}</a-tag></template>
             <template #meta>
               <div><a :href="l.url" target="_blank" rel="noreferrer" style="word-break: break-all">{{ l.url }}</a></div>
               <div v-if="l.remarks">备注：{{ l.remarks }}</div>
@@ -128,10 +131,10 @@
         </a-form-item>
         <a-form-item label="状态">
           <a-select v-model:value="listingForm.status">
-            <a-select-option value="Draft">Draft</a-select-option>
-            <a-select-option value="Listed">Listed</a-select-option>
-            <a-select-option value="Hidden">Hidden</a-select-option>
-            <a-select-option value="Sold">Sold</a-select-option>
+            <a-select-option value="Draft">草稿</a-select-option>
+            <a-select-option value="Listed">已上架</a-select-option>
+            <a-select-option value="Hidden">已隐藏</a-select-option>
+            <a-select-option value="Sold">已售出</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="备注">
@@ -155,6 +158,7 @@ import apiClient from '../services/api';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
+import { listingStatusText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();

@@ -15,7 +15,7 @@
           <span class="month-title">{{ visibleMonth.format('YYYY年MM月') }}</span>
         </a-space>
         <a-tag v-if="calendar?.item.status" :color="calendar.item.status === 'InStock' ? 'green' : 'blue'">
-          {{ calendar.item.status }}
+          {{ getItemStatusText(calendar.item.status) }}
         </a-tag>
       </div>
 
@@ -55,7 +55,7 @@
             <a-list-item-meta>
               <template #title>
                 <a-space wrap>
-                  <a-tag :color="item.isOpen ? 'orange' : 'default'">{{ item.rentalStatus }}</a-tag>
+                  <a-tag :color="item.isOpen ? 'orange' : 'default'">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
                   <router-link :to="`/rentals/${item.rentalId}`">{{ item.rentalNumber }}</router-link>
                 </a-space>
               </template>
@@ -78,6 +78,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { useItemAvailabilityStore, type ItemBusyPeriod } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import { getStatusText as getItemStatusText } from '../stores/itemStore';
+import { rentalStatusText } from '../utils/rentalDisplay';
 
 const route = useRoute();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
