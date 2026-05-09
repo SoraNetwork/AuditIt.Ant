@@ -31,6 +31,7 @@ export const rentalStatusColor = (status?: RentalStatus | string | null) => {
 
 export const isReturnUnsignedRental = (rental?: Pick<Rental, 'status' | 'shipments'> | null) =>
   rental?.status === 'Returned'
+  && !!rental.shipments?.some(shipment => shipment.direction === 'Inbound')
   && !rental.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt);
 
 export const rentalDisplayStatusText = (rental?: Pick<Rental, 'status' | 'shipments'> | null) =>

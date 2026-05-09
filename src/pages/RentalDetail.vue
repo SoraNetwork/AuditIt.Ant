@@ -100,7 +100,7 @@
               :message="settlementInfo.ineligibleReason"
             />
 
-            <div v-if="hasDeliveredInbound" class="settlement-header">
+            <div v-if="canShowSettlementDetails" class="settlement-header">
               <a-space wrap>
                 <a-tag v-if="settlementInfo?.settlementNotifiedAt" color="green">
                   已发送 {{ formatDateTime(settlementInfo.settlementNotifiedAt) }}
@@ -117,7 +117,7 @@
               </a-space>
             </div>
 
-            <a-descriptions v-if="settlementInfo && hasDeliveredInbound" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
+            <a-descriptions v-if="settlementInfo && canShowSettlementDetails" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
               <a-descriptions-item label="总价">{{ formatMoney(settlementInfo.totalPrice) }}</a-descriptions-item>
               <a-descriptions-item label="核算">{{ formatMoney(settlementInfo.accountedAmount) }}</a-descriptions-item>
               <a-descriptions-item label="技术">
@@ -141,7 +141,7 @@
               </a-descriptions-item>
             </a-descriptions>
 
-            <pre v-if="settlementPreviewText && hasDeliveredInbound" class="settlement-preview">{{ settlementPreviewText }}</pre>
+            <pre v-if="settlementPreviewText && canShowSettlementDetails" class="settlement-preview">{{ settlementPreviewText }}</pre>
           </div>
         </a-spin>
       </template>
@@ -715,10 +715,6 @@ const hasDeliveredOutbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
 );
 
-const hasDeliveredInbound = computed(() =>
-  !!rental.value?.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt)
-);
-
 const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
 const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
@@ -739,6 +735,10 @@ const canShowSettlementPanel = computed(() =>
 
 const canSendSettlement = computed(() =>
   !!settlementInfo.value?.canSend && authStore.hasPermission(PermissionCodes.RentalReturn)
+);
+
+const canShowSettlementDetails = computed(() =>
+  !!settlementInfo.value?.canSend
 );
 
 const creatorSettlementLabel = computed(() =>
