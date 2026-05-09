@@ -99,6 +99,12 @@
               show-icon
               :message="settlementInfo.ineligibleReason"
             />
+            <a-alert
+              v-if="isRenewedSettlement && canShowSettlementDetails"
+              type="info"
+              show-icon
+              message="该结算只覆盖当前租赁单，续租后的费用请到续租单结算。"
+            />
 
             <div v-if="canShowSettlementDetails" class="settlement-header">
               <a-space wrap>
@@ -144,6 +150,14 @@
             <pre v-if="settlementPreviewText && canShowSettlementDetails" class="settlement-preview">{{ settlementPreviewText }}</pre>
           </div>
         </a-spin>
+      </template>
+      <template v-else-if="showActiveRenewalSettlementNotice">
+        <a-divider>结算信息</a-divider>
+        <a-alert
+          type="info"
+          show-icon
+          message="续租单进行中，结束或再次续租后生成结算信息。"
+        />
       </template>
 
       <a-divider>租赁商品</a-divider>
@@ -730,7 +744,7 @@ const canRenew = computed(() =>
 );
 
 const canShowSettlementPanel = computed(() =>
-  !!rental.value && ['Returned', 'Overdue'].includes(rental.value.status)
+  !!rental.value && ['Returned', 'Overdue', 'Renewed'].includes(rental.value.status)
 );
 
 const canSendSettlement = computed(() =>
@@ -739,6 +753,14 @@ const canSendSettlement = computed(() =>
 
 const canShowSettlementDetails = computed(() =>
   !!settlementInfo.value?.canSend
+);
+
+const isRenewedSettlement = computed(() =>
+  rental.value?.status === 'Renewed'
+);
+
+const showActiveRenewalSettlementNotice = computed(() =>
+  !!rental.value?.isRenewal && ['Active', 'Overdue'].includes(rental.value.status) && !canShowSettlementPanel.value
 );
 
 const creatorSettlementLabel = computed(() =>
@@ -839,7 +861,7 @@ const confirmSendSettlement = () => {
 
   Modal.confirm({
     title: settlementInfo.value.settlementNotifiedAt ? '重新发送结算信息？' : '发送结算信息？',
-    content: `将把 ${rental.value.rentalNumber} 的结算信息发送到钉钉群。`,
+    content: `将按当前最新结算比例重新计算 ${rental.value.rentalNumber} 的结算信息，并发送到钉钉群。`,
     okText: '发送',
     cancelText: '取消',
     async onOk() {
