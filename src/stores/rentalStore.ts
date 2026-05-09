@@ -175,6 +175,7 @@ export interface ShipPayload {
   shippedAt?: string;
   shippingFee?: number | null;
   notes?: string;
+  allowOpenItemConflict?: boolean;
 }
 
 export interface DeliverPayload {

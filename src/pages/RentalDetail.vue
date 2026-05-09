@@ -323,7 +323,7 @@
     </a-card>
   </div>
 
-  <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="submitShip">
+  <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="() => submitShip()">
     <a-form layout="vertical">
       <a-form-item :label="shipForm.direction === 'Outbound' ? '发货仓库' : '回货仓库'" required>
         <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库">
@@ -534,12 +534,14 @@ interface RentalScheduleConflict {
   startDate: string;
   expectedEndDate: string;
   hasOutboundShipment: boolean;
+  conflictReason?: string | null;
 }
 
 interface RentalCreateConflictResponse {
   message: string;
   pendingShipmentConflicts: RentalScheduleConflict[];
   shippedConflicts: RentalScheduleConflict[];
+  returnPendingConflicts?: RentalScheduleConflict[];
 }
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
@@ -958,7 +960,7 @@ const sfRouteStatusText = (route?: SfShipmentRoute) => {
   return '暂无路由';
 };
 
-const submitShip = async () => {
+const submitShip = async (allowOpenItemConflict = false) => {
   if (!rental.value) return;
   if (!shipForm.originWarehouseId || !shipForm.carrier.trim()) {
     message.error('请填写仓库和物流公司');
@@ -973,12 +975,18 @@ const submitShip = async () => {
       trackingNumber: shipForm.trackingNumber.trim() || undefined,
       shippingFee: shipForm.shippingFee,
       notes: shipForm.notes.trim() || undefined,
+      allowOpenItemConflict,
     });
     shipVisible.value = false;
     message.success(shipForm.direction === 'Outbound' ? '发货登记成功' : '回货物流登记成功');
     await load();
     await loadSfRoutes(true);
   } catch (err: any) {
+    if (err?.response?.status === 409 && err?.response?.data && shipForm.direction === 'Outbound') {
+      showShipmentConflictConfirm(err.response.data as RentalCreateConflictResponse);
+      return;
+    }
+
     message.error(err?.response?.data || err?.message || '提交失败');
   }
 };
@@ -1038,14 +1046,29 @@ const conflictLines = (payload: RentalCreateConflictResponse) => {
     if (items.length === 0) return;
     lines.push('', title);
     items.forEach(conflict => {
+      const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       lines.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
       );
     });
   };
   append('未发货订单冲突：', payload.pendingShipmentConflicts);
   append('已发货订单冲突：', payload.shippedConflicts);
+  append('回货未签收冲突：', payload.returnPendingConflicts || []);
   return lines.join('\n');
+};
+
+const showShipmentConflictConfirm = (payload: RentalCreateConflictResponse) => {
+  Modal.confirm({
+    title: '发货物品仍被其他租赁单占用',
+    width: 720,
+    okText: '仍然发货',
+    cancelText: '返回检查',
+    content: conflictLines(payload),
+    async onOk() {
+      await submitShip(true);
+    },
+  });
 };
 
 const showItemConflictConfirm = (payload: RentalCreateConflictResponse) => {

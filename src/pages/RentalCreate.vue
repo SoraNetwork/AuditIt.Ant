@@ -415,12 +415,14 @@ interface RentalScheduleConflict {
   startDate: string;
   expectedEndDate: string;
   hasOutboundShipment: boolean;
+  conflictReason?: string | null;
 }
 
 interface RentalCreateConflictResponse {
   message: string;
   pendingShipmentConflicts: RentalScheduleConflict[];
   shippedConflicts: RentalScheduleConflict[];
+  returnPendingConflicts?: RentalScheduleConflict[];
 }
 
 type RenterMatchView = 'exact' | 'fuzzy' | 'manual';
@@ -741,8 +743,9 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
   if (payload.pendingShipmentConflicts.length > 0) {
     sections.push('未发货订单冲突：');
     payload.pendingShipmentConflicts.forEach(conflict => {
+      const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       sections.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
       );
     });
   }
@@ -753,8 +756,22 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
     }
     sections.push('已发货订单冲突：');
     payload.shippedConflicts.forEach(conflict => {
+      const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       sections.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
+      );
+    });
+  }
+
+  if ((payload.returnPendingConflicts || []).length > 0) {
+    if (sections.length > 0) {
+      sections.push('');
+    }
+    sections.push('回货未签收冲突：');
+    (payload.returnPendingConflicts || []).forEach(conflict => {
+      const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
+      sections.push(
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
       );
     });
   }
