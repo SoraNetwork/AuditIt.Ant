@@ -132,8 +132,21 @@
               <a-descriptions-item label="建单">
                 {{ creatorSettlementLabel }} {{ formatMoney(settlementInfo.creatorAmount) }} / {{ settlementInfo.creatorPercent }}%
               </a-descriptions-item>
+              <a-descriptions-item label="发货人">
+                {{ formatMoney(settlementInfo.shipperAmount) }} / {{ settlementInfo.shipperPercent }}%
+              </a-descriptions-item>
               <a-descriptions-item label="物品所有" :span="isMobile ? 1 : 2">
                 {{ formatMoney(settlementInfo.itemOwnerAmount) }} / {{ settlementInfo.itemOwnerPercent }}%
+              </a-descriptions-item>
+              <a-descriptions-item label="发货分账" :span="isMobile ? 1 : 2">
+                <template v-if="settlementInfo.shipperShares.length">
+                  <a-space wrap>
+                    <a-tag v-for="share in settlementInfo.shipperShares" :key="`${share.shipperName || 'none'}-${share.amount}`">
+                      {{ settlementShipperShareLabel(share) }} {{ formatMoney(share.amount) }}
+                    </a-tag>
+                  </a-space>
+                </template>
+                <span v-else>-</span>
               </a-descriptions-item>
               <a-descriptions-item label="物品分账" :span="isMobile ? 1 : 2">
                 <template v-if="settlementInfo.ownerShares.length">
@@ -771,6 +784,9 @@ const creatorSettlementLabel = computed(() =>
 
 const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) =>
   share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
+
+const settlementShipperShareLabel = (share: SettlementPreview['shipperShares'][number]) =>
+  share.shipperName ? `发货人（${share.shipperName}）` : '发货人';
 
 const settlementPreviewText = computed(() => {
   const text = settlementInfo.value?.markdownText?.trim();

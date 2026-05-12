@@ -204,6 +204,11 @@ export interface SettlementOwnerShare {
   amount: number;
 }
 
+export interface SettlementShipperShare {
+  shipperName?: string | null;
+  amount: number;
+}
+
 export interface SettlementPreview {
   rentalId: string;
   rentalNumber: string;
@@ -215,6 +220,9 @@ export interface SettlementPreview {
   creatorPercent: number;
   creatorAmount: number;
   creatorName?: string | null;
+  shipperPercent: number;
+  shipperAmount: number;
+  shipperShares: SettlementShipperShare[];
   itemOwnerPercent: number;
   itemOwnerAmount: number;
   ownerShares: SettlementOwnerShare[];

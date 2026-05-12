@@ -7,7 +7,7 @@
         <a-spin :spinning="settlementStore.loading">
           <a-form layout="vertical" :model="formState" @finish="save">
             <a-row :gutter="16">
-              <a-col :xs="24" :md="8">
+              <a-col :xs="24" :md="6">
                 <a-form-item label="技术比例">
                   <a-input-number
                     v-model:value="formState.technicianPercent"
@@ -19,7 +19,7 @@
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :md="8">
+              <a-col :xs="24" :md="6">
                 <a-form-item label="建单比例">
                   <a-input-number
                     v-model:value="formState.creatorPercent"
@@ -31,7 +31,19 @@
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :md="8">
+              <a-col :xs="24" :md="6">
+                <a-form-item label="发货人比例">
+                  <a-input-number
+                    v-model:value="formState.shipperPercent"
+                    :min="0"
+                    :max="100"
+                    :precision="1"
+                    addon-after="%"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :xs="24" :md="6">
                 <a-form-item label="物品比例">
                   <a-input-number
                     v-model:value="formState.itemOwnerPercent"
@@ -62,6 +74,7 @@
               <div>核算：￥175.0</div>
               <div v-if="formState.technicianPercent > 0">技术：{{ previewAmount(formState.technicianPercent) }}（{{ formState.technicianPercent }}%）</div>
               <div v-if="formState.creatorPercent > 0">建单（示例建单人）：{{ previewAmount(formState.creatorPercent) }}（{{ formState.creatorPercent }}%）</div>
+              <div v-if="formState.shipperPercent > 0">发货人（示例发货人）：{{ previewAmount(formState.shipperPercent) }}（{{ formState.shipperPercent }}%）</div>
               <div v-if="formState.itemOwnerPercent > 0">物品所有（示例所有者）：{{ previewAmount(formState.itemOwnerPercent) }}（{{ formState.itemOwnerPercent }}%）</div>
             </div>
 
@@ -90,12 +103,14 @@ const settlementStore = useSettlementStore();
 const formState = reactive({
   technicianPercent: 10,
   creatorPercent: 30,
-  itemOwnerPercent: 60,
+  shipperPercent: 10,
+  itemOwnerPercent: 50,
 });
 
 const totalPercent = computed(() =>
   Number(formState.technicianPercent || 0)
   + Number(formState.creatorPercent || 0)
+  + Number(formState.shipperPercent || 0)
   + Number(formState.itemOwnerPercent || 0)
 );
 
@@ -104,6 +119,7 @@ const previewAmount = (percent: number) => (175 * Number(percent || 0) / 100).to
 const applySettings = (settings: typeof formState) => {
   formState.technicianPercent = Number(settings.technicianPercent || 0);
   formState.creatorPercent = Number(settings.creatorPercent || 0);
+  formState.shipperPercent = Number(settings.shipperPercent || 0);
   formState.itemOwnerPercent = Number(settings.itemOwnerPercent || 0);
 };
 

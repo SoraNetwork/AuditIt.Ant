@@ -4,6 +4,7 @@ import apiClient from '../services/api';
 export interface SettlementSettings {
   technicianPercent: number;
   creatorPercent: number;
+  shipperPercent: number;
   itemOwnerPercent: number;
   updatedAt?: string;
   updatedBy?: string | null;
@@ -44,6 +45,7 @@ export const useSettlementStore = defineStore('settlement', {
         const response = await apiClient.put<SettlementSettings>('/finance-reports/settlement-settings', {
           technicianPercent: Number(payload.technicianPercent || 0),
           creatorPercent: Number(payload.creatorPercent || 0),
+          shipperPercent: Number(payload.shipperPercent || 0),
           itemOwnerPercent: Number(payload.itemOwnerPercent || 0),
         });
         this.settings = response.data;
