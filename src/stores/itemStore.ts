@@ -91,9 +91,9 @@ function normalizeOwnerNames(raw: any): string[] {
 }
 
 function appendOwnerNames(formData: FormData, ownerUserNames?: string[]) {
-  ownerUserNames?.forEach(name => {
+  ownerUserNames?.forEach((name, index) => {
     const normalized = name.trim();
-    if (normalized) formData.append('ownerUserNames', normalized);
+    if (normalized) formData.append(`OwnerUserNames[${index}]`, normalized);
   });
 }
 
