@@ -90,11 +90,10 @@ function normalizeOwnerNames(raw: any): string[] {
   return String(name).split(/[，,]/).map(part => part.trim()).filter(Boolean);
 }
 
-function appendOwnerNames(formData: FormData, ownerUserNames?: string[]) {
-  ownerUserNames?.forEach((name, index) => {
-    const normalized = name.trim();
-    if (normalized) formData.append(`OwnerUserNames[${index}]`, normalized);
-  });
+function appendOwnerNamesJson(formData: FormData, ownerUserNames?: string[]) {
+  if (!ownerUserNames) return;
+  const normalized = ownerUserNames.map(name => name.trim()).filter(Boolean);
+  formData.append('ownerUserNamesJson', JSON.stringify(normalized));
 }
 
 export const useItemStore = defineStore('item', {
@@ -139,7 +138,7 @@ export const useItemStore = defineStore('item', {
         const formData = new FormData();
         formData.append('itemDefinitionId', String(payload.itemDefinitionId));
         formData.append('warehouseId', String(payload.warehouseId));
-        appendOwnerNames(formData, payload.ownerUserNames);
+        appendOwnerNamesJson(formData, payload.ownerUserNames);
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber) formData.append('serialNumber', payload.serialNumber);
         if (payload.remarks) formData.append('remarks', payload.remarks);
@@ -165,7 +164,7 @@ export const useItemStore = defineStore('item', {
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber !== undefined) formData.append('serialNumber', payload.serialNumber || '');
         if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
-        appendOwnerNames(formData, payload.ownerUserNames);
+        appendOwnerNamesJson(formData, payload.ownerUserNames);
         if (payload.clearOwnerUser) formData.append('clearOwnerUser', 'true');
 
         if (payload.photo) {
