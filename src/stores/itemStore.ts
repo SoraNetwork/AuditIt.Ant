@@ -11,7 +11,7 @@ export interface Item {
   itemDefinitionName: string;
   warehouseId: number;
   warehouseName: string;
-  ownerUserId?: string | null;
+  ownerUserNames?: string[];
   ownerUserName?: string | null;
   status: ItemStatus;
   currentDestination?: string | null;
@@ -28,7 +28,7 @@ export interface Item {
 interface CreateItemPayload {
   itemDefinitionId: number;
   warehouseId: number;
-  ownerUserId?: string | null;
+  ownerUserNames?: string[];
   shortId?: string;
   serialNumber?: string;
   remarks?: string;
@@ -40,7 +40,7 @@ interface UpdateItemPayload {
   serialNumber?: string;
   remarks?: string;
   currentDestination?: string;
-  ownerUserId?: string | null;
+  ownerUserNames?: string[];
   clearOwnerUser?: boolean;
   photo?: File | null;
   deletePhoto?: boolean;
@@ -55,6 +55,7 @@ interface ItemState {
 function normalizeItem(raw: any): Item {
   const itemDefinitionName = raw.itemDefinitionName ?? raw.itemDefinition?.name ?? '';
   const warehouseName = raw.warehouseName ?? raw.warehouse?.name ?? '';
+  const ownerUserNames = normalizeOwnerNames(raw);
 
   return {
     id: String(raw.id),
@@ -64,8 +65,8 @@ function normalizeItem(raw: any): Item {
     itemDefinitionName,
     warehouseId: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0),
     warehouseName,
-    ownerUserId: raw.ownerUserId ?? null,
-    ownerUserName: raw.ownerUserName ?? raw.ownerUser?.name ?? null,
+    ownerUserNames,
+    ownerUserName: raw.ownerUserName ?? (ownerUserNames.join(',') || null),
     status: raw.status,
     currentDestination: raw.currentDestination ?? null,
     remarks: raw.remarks ?? null,
@@ -77,6 +78,23 @@ function normalizeItem(raw: any): Item {
     warehouse: { id: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0), name: warehouseName },
     name: itemDefinitionName,
   };
+}
+
+function normalizeOwnerNames(raw: any): string[] {
+  if (Array.isArray(raw.ownerUserNames)) {
+    return raw.ownerUserNames.map((name: unknown) => String(name).trim()).filter(Boolean);
+  }
+
+  const name = raw.ownerUserName ?? raw.ownerUser?.name;
+  if (!name) return [];
+  return String(name).split(/[，,]/).map(part => part.trim()).filter(Boolean);
+}
+
+function appendOwnerNames(formData: FormData, ownerUserNames?: string[]) {
+  ownerUserNames?.forEach(name => {
+    const normalized = name.trim();
+    if (normalized) formData.append('ownerUserNames', normalized);
+  });
 }
 
 export const useItemStore = defineStore('item', {
@@ -121,7 +139,7 @@ export const useItemStore = defineStore('item', {
         const formData = new FormData();
         formData.append('itemDefinitionId', String(payload.itemDefinitionId));
         formData.append('warehouseId', String(payload.warehouseId));
-        if (payload.ownerUserId) formData.append('ownerUserId', payload.ownerUserId);
+        appendOwnerNames(formData, payload.ownerUserNames);
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber) formData.append('serialNumber', payload.serialNumber);
         if (payload.remarks) formData.append('remarks', payload.remarks);
@@ -147,7 +165,7 @@ export const useItemStore = defineStore('item', {
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber !== undefined) formData.append('serialNumber', payload.serialNumber || '');
         if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
-        if (payload.ownerUserId) formData.append('ownerUserId', payload.ownerUserId);
+        appendOwnerNames(formData, payload.ownerUserNames);
         if (payload.clearOwnerUser) formData.append('clearOwnerUser', 'true');
 
         if (payload.photo) {

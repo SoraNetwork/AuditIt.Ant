@@ -76,7 +76,10 @@
                 <template v-if="column.key === 'shortId'">
                   <router-link :to="{ name: 'item-details', params: { id: record.id } }">{{ record.shortId }}</router-link>
                 </template>
-                <template v-if="column.key === 'status'">
+                <template v-else-if="column.key === 'ownerUserName'">
+                  {{ formatOwnerSummary(record) }}
+                </template>
+                <template v-else-if="column.key === 'status'">
                   <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
                 </template>
                 <template v-else-if="column.key === 'currentDestination'">
@@ -98,7 +101,7 @@
                 </template>
                 <template #meta>
                   <div>仓库：{{ item.warehouseName }}</div>
-                  <div>所有者：{{ item.ownerUserName || '-' }}</div>
+                  <div>所有者：{{ formatOwnerSummary(item) }}</div>
                   <div v-if="item.currentDestination">
                     当前去向：<RentalReferenceText :text="item.currentDestination" />
                   </div>
@@ -184,6 +187,14 @@ const filteredData = computed(() => {
     item.name.toLowerCase().includes(searchTermLower)
   );
 });
+
+const formatOwnerSummary = (item: { ownerUserNames?: string[]; ownerUserName?: string | null }) => {
+  const names = item.ownerUserNames?.length
+    ? item.ownerUserNames
+    : (item.ownerUserName || '').split(/[，,]/).map(name => name.trim()).filter(Boolean);
+  if (names.length === 0) return '-';
+  return names.length === 1 ? names[0] : `${names[0]}等`;
+};
 
 const columns = [
   { title: '所有者', dataIndex: 'ownerUserName', key: 'ownerUserName' },

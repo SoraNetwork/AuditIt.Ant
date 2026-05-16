@@ -32,7 +32,8 @@
               </a-form-item>
               <a-form-item label="物品所有者">
                 <a-select
-                  v-model:value="quickFormState.ownerUserId"
+                  v-model:value="quickFormState.ownerUserNames"
+                  mode="multiple"
                   show-search
                   allow-clear
                   option-filter-prop="label"
@@ -140,7 +141,8 @@
                   </a-form-item>
                   <a-form-item label="物品所有者">
                     <a-select
-                      v-model:value="batchFormState.ownerUserId"
+                      v-model:value="batchFormState.ownerUserNames"
+                      mode="multiple"
                       show-search
                       allow-clear
                       option-filter-prop="label"
@@ -330,7 +332,8 @@ GHI789"
                   </a-form-item>
                   <a-form-item label="物品所有者">
                     <a-select
-                      v-model:value="manualFormState.ownerUserId"
+                      v-model:value="manualFormState.ownerUserNames"
+                      mode="multiple"
                       show-search
                       allow-clear
                       option-filter-prop="label"
@@ -589,10 +592,10 @@ const userStore = useUserStore();
 const authStore = useAuthStore();
 
 const userOptions = computed(() =>
-  userStore.users.map(user => ({ label: user.name, value: user.id }))
+  userStore.users.map(user => ({ label: user.name, value: user.name }))
 );
 
-const defaultOwnerUserId = () => authStore.user?.id || null;
+const defaultOwnerUserNames = () => authStore.user?.name ? [authStore.user.name] : [];
 
 // Common State
 const activeTab = ref('quick');
@@ -604,7 +607,7 @@ interface QuickFormState {
   shortId: string;
   itemDefinitionId: number | null;
   warehouseId: number | null;
-  ownerUserId: string | null;
+  ownerUserNames: string[];
   remarks: string;
   photo?: File;
 }
@@ -612,7 +615,7 @@ interface QuickFormState {
 interface ManualFormState {
   itemDefinitionId: number | null;
   warehouseId: number | null;
-  ownerUserId: string | null;
+  ownerUserNames: string[];
   quantity: number;
   remarks: string;
   photo?: File;
@@ -621,7 +624,7 @@ interface ManualFormState {
 interface BatchFormState {
   itemDefinitionId: number | null;
   warehouseId: number | null;
-  ownerUserId: string | null;
+  ownerUserNames: string[];
   defaultRemarks: string;
 }
 
@@ -638,7 +641,7 @@ const quickFormState = reactive<QuickFormState>({
   shortId: '',
   itemDefinitionId: null,
   warehouseId: null,
-  ownerUserId: defaultOwnerUserId(),
+  ownerUserNames: defaultOwnerUserNames(),
   remarks: '',
 });
 const quickFileList = ref<UploadProps['fileList']>([]);
@@ -654,7 +657,7 @@ const handleQuickFileChange = (info: any) => {
 
 const resetQuickForm = () => {
   quickFormRef.value?.resetFields();
-  quickFormState.ownerUserId = defaultOwnerUserId();
+  quickFormState.ownerUserNames = defaultOwnerUserNames();
   quickFormState.remarks = '';
   quickFormState.  photo = undefined;
   quickFileList.value = [];
@@ -668,7 +671,7 @@ const quickInbound = async () => {
       shortId: quickFormState.shortId,
       itemDefinitionId: quickFormState.  itemDefinitionId!  ,
       warehouseId: quickFormState.warehouseId!  ,
-      ownerUserId: quickFormState.ownerUserId,
+      ownerUserNames: quickFormState.ownerUserNames,
       remarks: quickFormState.remarks,
       photo: quickFormState.photo,
     });
@@ -686,7 +689,7 @@ const quickInbound = async () => {
 const batchFormState = reactive<BatchFormState>({
   itemDefinitionId: null,
   warehouseId: null,
-  ownerUserId: defaultOwnerUserId(),
+  ownerUserNames: defaultOwnerUserNames(),
   defaultRemarks: '',
 });
 
@@ -895,7 +898,7 @@ const executeBatchImport = async () => {
     const payload = {
       itemDefinitionId: batchFormState.itemDefinitionId,
       warehouseId: batchFormState.warehouseId,
-      ownerUserId: batchFormState.ownerUserId,
+      ownerUserNames: batchFormState.ownerUserNames,
       items: batchItems.value.  map(item => ({
         shortId: item.shortId,
         remarks: item.remarks || undefined
@@ -971,7 +974,7 @@ const manualFormRef = ref<FormInstance>();
 const manualFormState = reactive<ManualFormState>({
   itemDefinitionId: null,
   warehouseId: null,
-  ownerUserId: defaultOwnerUserId(),
+  ownerUserNames: defaultOwnerUserNames(),
   quantity: 1,
   remarks: '',
 });
@@ -989,7 +992,7 @@ const handleManualFileChange = (info: any) => {
 
 const resetManualForm = () => {
   manualFormRef.value?.resetFields();
-  manualFormState.ownerUserId = defaultOwnerUserId();
+  manualFormState.ownerUserNames = defaultOwnerUserNames();
   manualFormState.remarks = '';
   manualFormState.photo = undefined;
   manualFileList.value = [];
@@ -1006,13 +1009,13 @@ const addToExportList = async () => {
         tempId: Date.now() + i,
         itemDefinitionId: manualFormState.itemDefinitionId,
         warehouseId: manualFormState.warehouseId,
-        ownerUserId: manualFormState.ownerUserId,
+        ownerUserNames: [...manualFormState.ownerUserNames],
         remarks: manualFormState.remarks,
         photo: i === 0 ? manualFormState.photo : undefined,
         photoPreview: i === 0 && manualFormState.photo ? URL.createObjectURL(manualFormState.photo) : null,
         definitionName: definition?.name,
         warehouseName: warehouse?.name,
-        ownerUserName: userStore.users.find(user => user.id === manualFormState.ownerUserId)?.name || '',
+        ownerUserName: manualFormState.ownerUserNames.join(','),
       });
     }
     resetManualForm();
@@ -1037,7 +1040,7 @@ const saveAndExport = async () => {
       const savedItem = await itemStore.createItem({
         itemDefinitionId: item.itemDefinitionId,
         warehouseId: item.warehouseId,
-        ownerUserId: item.ownerUserId,
+        ownerUserNames: item.ownerUserNames,
         remarks: item.remarks,
         photo: item.photo,
       });

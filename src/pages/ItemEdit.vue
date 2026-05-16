@@ -12,7 +12,8 @@
           </a-form-item>
           <a-form-item label="物品所有者">
             <a-select
-              v-model:value="formState.ownerUserId"
+              v-model:value="formState.ownerUserNames"
+              mode="multiple"
               show-search
               allow-clear
               option-filter-prop="label"
@@ -86,13 +87,13 @@ const formState = reactive({
   shortId: '',
   remarks: '',
   currentDestination: '',
-  ownerUserId: null as string | null,
+  ownerUserNames: [] as string[],
   photo: undefined as File | undefined,
 });
 const fileList = ref<UploadProps['fileList']>([]);
 const isPhotoDeleted = ref(false);
 const isCompressing = ref(false);
-const userOptions = computed(() => userStore.users.map(user => ({ label: user.name, value: user.id })));
+const userOptions = computed(() => userStore.users.map(user => ({ label: user.name, value: user.name })));
 
 const currentPhotoUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
@@ -121,7 +122,7 @@ onMounted(async () => {
     formState.shortId = foundItem.shortId || '';
     formState.remarks = foundItem.remarks || '';
     formState.currentDestination = foundItem.currentDestination || '';
-    formState.ownerUserId = foundItem.ownerUserId || null;
+    formState.ownerUserNames = [...(foundItem.ownerUserNames || [])];
   } else {
     message.error('未找到物品');
     router.back();
@@ -173,8 +174,8 @@ const handleSave = async () => {
       shortId: formState.shortId,
       remarks: formState.remarks,
       currentDestination: formState.currentDestination,
-      ownerUserId: formState.ownerUserId,
-      clearOwnerUser: !formState.ownerUserId,
+      ownerUserNames: formState.ownerUserNames,
+      clearOwnerUser: formState.ownerUserNames.length === 0,
       photo: formState.photo,
       deletePhoto: isPhotoDeleted.value,
     });
