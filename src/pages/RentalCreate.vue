@@ -238,7 +238,7 @@
             <div class="section-subtitle">支持除“处置”外的所有状态</div>
           </div>
           <div class="item-summary">
-            <a-tag>可选 {{ selectableItems.length }}</a-tag>
+            <a-tag>可选 {{ filteredSelectableItems.length }}</a-tag>
             <a-tag color="processing">已选 {{ selectedItemIds.length }}</a-tag>
           </div>
         </div>
@@ -247,9 +247,21 @@
           <a-input-search
             v-model:value="itemKeyword"
             allow-clear
-            placeholder="搜索商品 ID / 名称 / 仓库 / 去向"
+            placeholder="搜索商品 ID / 名称 / 分类 / 仓库 / 去向"
             class="item-search"
           />
+          <a-select
+            v-model:value="itemCategoryFilter"
+            allow-clear
+            show-search
+            option-filter-prop="label"
+            placeholder="筛选分类"
+            class="item-category-filter"
+          >
+            <a-select-option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id" :label="cat.name">
+              {{ cat.name }}
+            </a-select-option>
+          </a-select>
           <a-button @click="loadSelectableItems">
             <template #icon><ReloadOutlined /></template>
             刷新商品
@@ -297,6 +309,7 @@
                 <a-tag :color="statusColor(item.status)">{{ statusText(item.status) }}</a-tag>
               </template>
               <template #meta>
+                <div>分类：{{ item.categoryName || '-' }}</div>
                 <div>仓库：{{ item.warehouse?.name || '-' }}</div>
                 <div>当前去向：<RentalReferenceText :text="item.currentDestination || '-'" /></div>
                 <div v-if="item.remarks">备注：{{ item.remarks }}</div>
@@ -391,8 +404,10 @@ import {
 } from '@ant-design/icons-vue';
 import { useRentalStore, type CreateRentalPayload } from '../stores/rentalStore';
 import { useRenterStore, type Renter } from '../stores/renterStore';
-import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
+import { useItemStore, getStatusText, type Item, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
+import { useCategoryStore } from '../stores/categoryStore';
+import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { formatDateTime } from '../utils/formatters';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
@@ -432,6 +447,8 @@ const rentalStore = useRentalStore();
 const renterStore = useRenterStore();
 const itemStore = useItemStore();
 const userStore = useUserStore();
+const categoryStore = useCategoryStore();
+const itemDefStore = useItemDefinitionStore();
 const router = useRouter();
 
 const renterPhone = ref('');
@@ -444,6 +461,7 @@ const selectedItemIds = ref<string[]>([]);
 const submitting = ref(false);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
+const itemCategoryFilter = ref<number | undefined>();
 
 const quickCreateVisible = ref(false);
 const quickCreating = ref(false);
@@ -509,19 +527,63 @@ const renterCandidateTitle = computed(() => {
   return '租客列表手动匹配';
 });
 
+const itemDefMap = computed(() =>
+  itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
+    map[def.id] = def;
+    return map;
+  }, {})
+);
+
+const categoryMap = computed(() =>
+  categoryStore.categories.reduce((map: Record<number, string>, category) => {
+    map[category.id] = category.name;
+    return map;
+  }, {})
+);
+
+const resolveItemCategoryId = (item: Item) =>
+  item.categoryId
+  ?? item.itemDefinition?.categoryId
+  ?? itemDefMap.value[item.itemDefinitionId]?.categoryId
+  ?? null;
+
+const resolveItemCategoryName = (item: Item) => {
+  const categoryId = resolveItemCategoryId(item);
+  return item.categoryName
+    || item.itemDefinition?.category?.name
+    || itemDefMap.value[item.itemDefinitionId]?.category?.name
+    || (categoryId ? categoryMap.value[categoryId] : '')
+    || '';
+};
+
 const selectableItems = computed(() =>
-  itemStore.items.filter(item => item.status !== 'Disposed')
+  itemStore.items
+    .filter(item => item.status !== 'Disposed')
+    .map(item => ({
+      ...item,
+      categoryId: resolveItemCategoryId(item),
+      categoryName: resolveItemCategoryName(item),
+    }))
 );
 
 const filteredSelectableItems = computed(() => {
   const keyword = itemKeyword.value.trim().toLowerCase();
-  if (!keyword) return selectableItems.value;
+  const categoryId = itemCategoryFilter.value;
 
   return selectableItems.value.filter(item => {
+    if (categoryId && item.categoryId !== categoryId) {
+      return false;
+    }
+
+    if (!keyword) {
+      return true;
+    }
+
     const fields = [
       item.shortId,
       item.itemDefinition?.name,
       item.itemDefinitionName,
+      item.categoryName,
       item.warehouse?.name,
       item.warehouseName,
       item.currentDestination,
@@ -551,6 +613,7 @@ const renterValidateStatus = computed<'' | 'success' | 'warning'>(() => {
 const itemColumns = [
   { title: '商品 ID', dataIndex: 'shortId', key: 'shortId', width: 140 },
   { title: '名称', dataIndex: 'itemDefinitionName', key: 'itemDefinitionName' },
+  { title: '分类', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
   { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 140 },
   { title: '当前去向', dataIndex: 'currentDestination', key: 'currentDestination', width: 220 },
@@ -852,6 +915,8 @@ watch(
 onMounted(async () => {
   await Promise.all([
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
+    categoryStore.fetchCategories(),
+    itemDefStore.fetchItemDefinitions(),
     loadSelectableItems(),
   ]);
 });
@@ -1099,6 +1164,10 @@ onMounted(async () => {
   max-width: 420px;
 }
 
+.item-category-filter {
+  width: 180px;
+}
+
 .items-table {
   overflow: hidden;
   border: 1px solid #f0f2f5;
@@ -1135,6 +1204,10 @@ onMounted(async () => {
 
   .item-search {
     max-width: none;
+  }
+
+  .item-category-filter {
+    width: 100%;
   }
 }
 

@@ -9,6 +9,8 @@ export interface Item {
   serialNumber?: string | null;
   itemDefinitionId: number;
   itemDefinitionName: string;
+  categoryId?: number | null;
+  categoryName?: string;
   warehouseId: number;
   warehouseName: string;
   ownerUserNames?: string[];
@@ -20,7 +22,7 @@ export interface Item {
   entryDate: string;
   lastUpdated: string;
 
-  itemDefinition?: { id: number; name: string };
+  itemDefinition?: { id: number; name: string; categoryId?: number | null; category?: { id: number; name: string } };
   warehouse?: { id: number; name: string };
   name?: string;
 }
@@ -54,6 +56,8 @@ interface ItemState {
 
 function normalizeItem(raw: any): Item {
   const itemDefinitionName = raw.itemDefinitionName ?? raw.itemDefinition?.name ?? '';
+  const categoryId = raw.categoryId ?? raw.itemDefinition?.categoryId ?? raw.itemDefinition?.category?.id ?? null;
+  const categoryName = raw.categoryName ?? raw.itemDefinition?.category?.name ?? '';
   const warehouseName = raw.warehouseName ?? raw.warehouse?.name ?? '';
   const ownerUserNames = normalizeOwnerNames(raw);
 
@@ -63,6 +67,8 @@ function normalizeItem(raw: any): Item {
     serialNumber: raw.serialNumber ?? null,
     itemDefinitionId: Number(raw.itemDefinitionId ?? raw.itemDefinition?.id ?? 0),
     itemDefinitionName,
+    categoryId: categoryId === null || categoryId === undefined ? null : Number(categoryId),
+    categoryName,
     warehouseId: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0),
     warehouseName,
     ownerUserNames,
@@ -74,7 +80,14 @@ function normalizeItem(raw: any): Item {
     entryDate: raw.entryDate ?? raw.lastUpdated ?? new Date().toISOString(),
     lastUpdated: raw.lastUpdated ?? new Date().toISOString(),
 
-    itemDefinition: { id: Number(raw.itemDefinitionId ?? raw.itemDefinition?.id ?? 0), name: itemDefinitionName },
+    itemDefinition: {
+      id: Number(raw.itemDefinitionId ?? raw.itemDefinition?.id ?? 0),
+      name: itemDefinitionName,
+      categoryId: categoryId === null || categoryId === undefined ? null : Number(categoryId),
+      category: categoryId === null || categoryId === undefined
+        ? undefined
+        : { id: Number(categoryId), name: categoryName },
+    },
     warehouse: { id: Number(raw.warehouseId ?? raw.warehouse?.id ?? 0), name: warehouseName },
     name: itemDefinitionName,
   };
@@ -106,6 +119,7 @@ export const useItemStore = defineStore('item', {
   actions: {
     async fetchItems(filters: {
       warehouseId?: number;
+      categoryId?: number;
       status?: ItemStatus;
       id?: string;
       shortId?: string;
@@ -117,6 +131,7 @@ export const useItemStore = defineStore('item', {
       try {
         const params = new URLSearchParams();
         if (filters.warehouseId) params.append('warehouseId', String(filters.warehouseId));
+        if (filters.categoryId) params.append('categoryId', String(filters.categoryId));
         if (filters.status) params.append('status', filters.status);
         if (filters.id) params.append('id', filters.id);
         if (filters.shortId) params.append('shortId', filters.shortId);

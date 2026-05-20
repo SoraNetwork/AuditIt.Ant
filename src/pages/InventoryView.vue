@@ -12,6 +12,11 @@
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
+          <a-form-item label="物品分类">
+            <a-select v-model:value="filters.categoryId" placeholder="所有分类" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear>
+              <a-select-option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id">{{ cat.name }}</a-select-option>
+            </a-select>
+          </a-form-item>
           <a-form-item label="物品状态">
             <a-select v-model:value="filters.status" placeholder="所有状态" :style="isMobile ? { width: '100%' } : { width: '150px' }" @change="applyFilters" allow-clear>
               <a-select-option value="InStock">在库</a-select-option>
@@ -101,6 +106,7 @@
                 </template>
                 <template #meta>
                   <div>仓库：{{ item.warehouseName }}</div>
+                  <div>分类：{{ item.categoryName || '-' }}</div>
                   <div>所有者：{{ formatOwnerSummary(item) }}</div>
                   <div v-if="item.currentDestination">
                     当前去向：<RentalReferenceText :text="item.currentDestination" />
@@ -128,6 +134,7 @@ import dayjs from 'dayjs';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
+import { useCategoryStore } from '../stores/categoryStore';
 import { STATUS_MAP } from '../utils/constants';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
@@ -144,9 +151,11 @@ const router = useRouter();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
+const categoryStore = useCategoryStore();
 
-const filters = reactive<{ warehouseId?: number; status?: ItemStatus; searchTerm?: string }>({
+const filters = reactive<{ warehouseId?: number; categoryId?: number; status?: ItemStatus; searchTerm?: string }>({
   warehouseId: undefined,
+  categoryId: undefined,
   status: undefined,
   searchTerm: '',
 });
@@ -169,12 +178,30 @@ const warehouseMap = computed(() =>
   }, {})
 );
 
+const categoryMap = computed(() =>
+  categoryStore.categories.reduce((map: Record<number, string>, category) => {
+    map[category.id] = category.name;
+    return map;
+  }, {})
+);
+
 const tableData = computed(() =>
-  itemStore.items.map(item => ({
-    ...item,
-    name: itemDefMap.value[item.itemDefinitionId]?.name || '未知物品',
-    warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
-  }))
+  itemStore.items.map(item => {
+    const definition = itemDefMap.value[item.itemDefinitionId];
+    const categoryId = item.categoryId ?? definition?.categoryId ?? null;
+    const categoryName = item.categoryName
+      || definition?.category?.name
+      || (categoryId ? categoryMap.value[categoryId] : '')
+      || '';
+
+    return {
+      ...item,
+      name: definition?.name || item.itemDefinitionName || '未知物品',
+      categoryId,
+      categoryName,
+      warehouseName: warehouseMap.value[item.warehouseId]?.name || item.warehouseName || '未知仓库',
+    };
+  })
 );
 
 const filteredData = computed(() => {
@@ -184,7 +211,8 @@ const filteredData = computed(() => {
   const searchTermLower = filters.searchTerm.toLowerCase();
   return tableData.value.filter(item => 
     item.shortId.toLowerCase().includes(searchTermLower) ||
-    item.name.toLowerCase().includes(searchTermLower)
+    item.name.toLowerCase().includes(searchTermLower) ||
+    item.categoryName.toLowerCase().includes(searchTermLower)
   );
 });
 
@@ -200,6 +228,7 @@ const columns = [
   { title: '所有者', dataIndex: 'ownerUserName', key: 'ownerUserName' },
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
   { title: '物品名称', dataIndex: 'name', key: 'name' },
+  { title: '物品分类', dataIndex: 'categoryName', key: 'categoryName' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: '状态', dataIndex: 'status', key: 'status' },
   { title: '当前去向', dataIndex: 'currentDestination', key: 'currentDestination' },
@@ -217,14 +246,18 @@ onMounted(() => {
   itemStore.fetchItems();
   warehouseStore.fetchWarehouses();
   itemDefStore.fetchItemDefinitions();
+  categoryStore.fetchCategories();
 });
 
 const applyFilters = () => {
   // This function now only fetches from the API based on warehouse and status.
   // The text search is applied client-side on the results.
-  const queryFilters: { warehouseId?: number; status?: ItemStatus } = {};
+  const queryFilters: { warehouseId?: number; categoryId?: number; status?: ItemStatus } = {};
   if (filters.warehouseId) {
     queryFilters.warehouseId = Number(filters.warehouseId);
+  }
+  if (filters.categoryId) {
+    queryFilters.categoryId = Number(filters.categoryId);
   }
   if (filters.status) {
     queryFilters.status = filters.status;
@@ -239,6 +272,7 @@ const exportXlsx = () => {
   const rows = filteredData.value.map(item => ({
     可视化ID: item.shortId,
     物品名称: item.name,
+    物品分类: item.categoryName || '',
     所在仓库: item.warehouseName,
     状态: statusDisplay(item.status).text,
     当前去向: item.currentDestination || '',
