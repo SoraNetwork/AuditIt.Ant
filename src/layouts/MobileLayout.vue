@@ -117,7 +117,7 @@ onUnmounted(() => {
   height: 36px;
   color: #333;
   text-decoration: none;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .icon-btn :deep(.anticon) {

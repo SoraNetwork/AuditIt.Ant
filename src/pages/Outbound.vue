@@ -91,7 +91,7 @@
               :loading="itemStore.loading"
               @click="showOutboundModal('outbound')"
             >
-              鍊熷嚭{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+              借出{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
             </a-button>
             <a-button
               type="primary"
@@ -100,7 +100,7 @@
               :loading="itemStore.loading"
               @click="showOutboundModal('dispose')"
             >
-              澶勭疆{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+              处置{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
             </a-button>
           </div>
           <div class="mobile-selection-spacer" />

@@ -30,11 +30,11 @@ function onClick(ev: MouseEvent) {
 <style scoped>
 .mobile-list-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 13px 14px;
   margin-bottom: 0;
   border: 1px solid #e8edf3;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
@@ -110,6 +110,6 @@ function onClick(ev: MouseEvent) {
 .card-footer :deep(.ant-btn) {
   flex: 1 1 120px;
   min-height: 34px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 </style>

@@ -41,6 +41,10 @@ body.is-mobile .ant-page-header {
   padding: 2px 0 16px;
 }
 
+body.is-mobile .ant-page-header:not(:has(.ant-page-header-back)) {
+  display: none;
+}
+
 body.is-mobile .ant-page-header-heading {
   align-items: flex-start;
   row-gap: 8px;
@@ -82,7 +86,7 @@ body.is-mobile .ant-cascader-picker {
 }
 
 body.is-mobile .ant-btn {
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 500;
 }
 
@@ -106,7 +110,7 @@ body.is-mobile .ant-modal {
 }
 
 body.is-mobile .ant-modal .ant-modal-content {
-  border-radius: 18px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -129,9 +133,9 @@ body.is-mobile .ant-table {
 }
 
 body.is-mobile .ant-card {
-  border-radius: 16px;
+  border-radius: 8px;
   border-color: #edf2f7;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
   overflow: hidden;
 }
 
@@ -164,7 +168,7 @@ body.is-mobile .ant-tabs-tab-btn {
 
 body.is-mobile .ant-list-bordered,
 body.is-mobile .ant-descriptions-bordered {
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -199,8 +203,8 @@ body.is-mobile .ant-timeline-item-content {
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
-  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
   display: flex;
   gap: 8px;
   z-index: 99;
@@ -245,9 +249,9 @@ body.is-mobile .menu-link-with-badge .reminder-badge {
   gap: 12px;
   margin-bottom: 12px;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
-  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
 }
 
 .mobile-selection-toolbar .meta {
@@ -292,7 +296,7 @@ body.is-mobile .menu-link-with-badge .reminder-badge {
 .mobile-summary-card {
   min-height: 84px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #e5e7eb;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);

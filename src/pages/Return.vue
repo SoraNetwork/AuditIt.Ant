@@ -71,7 +71,7 @@
               :loading="itemStore.loading"
               @click="handleReturn"
             >
-              褰掕繕{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+              归还{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
             </a-button>
           </div>
           <div class="mobile-selection-spacer" />
