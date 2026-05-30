@@ -2,7 +2,7 @@
   <div>
     <a-page-header :title="`租赁详情 ${rental?.rentalNumber || ''}`" @back="$router.back()" />
 
-    <a-card v-if="rental" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+    <a-card v-if="rental" class="rental-detail-card" :loading="loading" :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <a-descriptions v-if="!isMobile" bordered :column="3">
         <a-descriptions-item label="状态">
           <a-tag :color="rentalDisplayStatusColor(rental)">{{ rentalDisplayStatusText(rental) }}</a-tag>
@@ -33,50 +33,103 @@
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
       </a-descriptions>
 
-      <div v-if="isMobile" class="rental-mobile-overview">
-      <div class="mobile-summary-grid rental-summary-grid">
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">状态</div>
-          <div class="mobile-summary-value">{{ rentalDisplayStatusText(rental) }}</div>
+      <div v-if="isMobile" class="rental-mobile-shell">
+        <section class="rental-mobile-hero">
+          <div class="rental-mobile-hero-top">
+            <span class="rental-mobile-number">{{ rental.rentalNumber }}</span>
+            <a-tag class="rental-mobile-status" :color="rentalDisplayStatusColor(rental)">
+              {{ rentalDisplayStatusText(rental) }}
+            </a-tag>
+          </div>
+          <div class="rental-mobile-renter">{{ rental.renter?.name || rental.renterId }}</div>
+          <div class="rental-mobile-period">
+            {{ formatDate(rental.startDate) || '-' }} 至 {{ formatDate(rental.expectedEndDate) || '-' }}
+          </div>
+          <div class="rental-mobile-hero-meta">
+            <span>负责人：{{ rental.assignedTo || '-' }}</span>
+            <span>预计发货：{{ formatDate(rental.expectedShipDate) || '-' }}</span>
+          </div>
+        </section>
+
+        <div class="rental-mobile-money-grid">
+          <div class="rental-mobile-money-card primary">
+            <span>总价</span>
+            <strong>{{ formatMoney(rental.totalPrice) || '-' }}</strong>
+          </div>
+          <div class="rental-mobile-money-card">
+            <span>核算金额</span>
+            <strong>{{ formatMoney(rental.accountedAmount) || '-' }}</strong>
+          </div>
+          <div class="rental-mobile-money-card">
+            <span>日均核算</span>
+            <strong>{{ formatMoney(dailyAccountedAmount) || '-' }}</strong>
+          </div>
         </div>
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">租客</div>
-          <div class="mobile-summary-value">{{ rental.renter?.name || rental.renterId }}</div>
-        </div>
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">总价</div>
-          <div class="mobile-summary-value">{{ formatMoney(rental.totalPrice) }}</div>
-        </div>
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">核算金额</div>
-          <div class="mobile-summary-value">{{ formatMoney(rental.accountedAmount) }}</div>
-        </div>
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">日均核算</div>
-          <div class="mobile-summary-value">{{ formatMoney(dailyAccountedAmount) }}</div>
-        </div>
-        <div class="mobile-summary-card">
-          <div class="mobile-summary-label">平台订单号</div>
-          <div class="mobile-summary-value">{{ rental.platformOrderNo || '-' }}</div>
-        </div>
-      </div>
-        <div class="mobile-detail-list">
-          <div><span>负责人</span><strong>{{ rental.assignedTo || '-' }}</strong></div>
-          <div><span>预计发货</span><strong>{{ formatDate(rental.expectedShipDate) || '-' }}</strong></div>
-          <div><span>租期</span><strong>{{ formatDate(rental.startDate) }} - {{ formatDate(rental.expectedEndDate) }}</strong></div>
-          <div><span>实际结束</span><strong>{{ formatDate(rental.actualEndDate) || '-' }}</strong></div>
-          <div><span>押金</span><strong>{{ formatMoney(rental.deposit) || '-' }}</strong></div>
-          <div><span>运费合计</span><strong>{{ formatMoney(rental.totalShippingFee) }}</strong></div>
-          <div><span>其他费用</span><strong>{{ formatMoney(rental.otherFee) }}</strong></div>
-          <div><span>创建人</span><strong>{{ rental.createdBy || '-' }}</strong></div>
-          <div class="wide"><span>收货地址</span><strong>{{ rental.shippingAddress || '-' }}</strong></div>
-          <div class="wide"><span>备注</span><strong>{{ rental.notes || '-' }}</strong></div>
-        </div>
+
+        <section class="rental-mobile-info-section">
+          <div class="rental-mobile-section-title">租期与发货</div>
+          <div class="rental-mobile-key-values">
+            <div><span>开始日期</span><strong>{{ formatDate(rental.startDate) || '-' }}</strong></div>
+            <div><span>预计结束</span><strong>{{ formatDate(rental.expectedEndDate) || '-' }}</strong></div>
+            <div><span>预计发货</span><strong>{{ formatDate(rental.expectedShipDate) || '-' }}</strong></div>
+            <div><span>实际结束</span><strong>{{ formatDate(rental.actualEndDate) || '-' }}</strong></div>
+            <div v-if="rental.renewedFromRentalId">
+              <span>续租自</span>
+              <strong>
+                <router-link :to="`/rentals/${rental.renewedFromRentalId}`">{{ rental.renewedFromRentalNumber }}</router-link>
+              </strong>
+            </div>
+            <div v-if="rental.renewedToRentalId">
+              <span>续租到</span>
+              <strong>
+                <router-link :to="`/rentals/${rental.renewedToRentalId}`">{{ rental.renewedToRentalNumber }}</router-link>
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="rental-mobile-info-section">
+          <div class="rental-mobile-section-title">金额与订单</div>
+          <div class="rental-mobile-key-values">
+            <div><span>押金</span><strong>{{ formatMoney(rental.deposit) || '-' }}</strong></div>
+            <div><span>运费合计</span><strong>{{ formatMoney(rental.totalShippingFee) || '-' }}</strong></div>
+            <div><span>其他费用</span><strong>{{ formatMoney(rental.otherFee) || '-' }}</strong></div>
+            <div><span>平台订单号</span><strong>{{ rental.platformOrderNo || '-' }}</strong></div>
+          </div>
+        </section>
+
+        <section class="rental-mobile-info-section">
+          <div class="rental-mobile-section-title">收货与备注</div>
+          <div class="rental-mobile-key-values">
+            <div class="full"><span>收货地址</span><strong>{{ rental.shippingAddress || '-' }}</strong></div>
+            <div class="full"><span>备注</span><strong>{{ rental.notes || '-' }}</strong></div>
+            <div><span>创建人</span><strong>{{ rental.createdBy || '-' }}</strong></div>
+            <div><span>创建时间</span><strong>{{ formatDateTime(rental.createdAt) || '-' }}</strong></div>
+            <div><span>更新时间</span><strong>{{ formatDateTime(rental.updatedAt) || '-' }}</strong></div>
+          </div>
+        </section>
       </div>
 
       <a-divider />
 
-      <div :class="isMobile ? 'mobile-grid-actions rental-actions' : 'rental-actions'">
+      <div v-if="isMobile" class="rental-mobile-actions">
+        <div class="rental-primary-actions">
+          <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
+          <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
+            <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
+          </a-tooltip>
+          <a-tooltip :title="returnDisabledReason" :open="canReturn ? false : undefined">
+            <a-button :disabled="!canReturn" @click="returnVisible = true">登记归还</a-button>
+          </a-tooltip>
+        </div>
+        <div class="rental-secondary-actions">
+          <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
+          <a-button v-if="canRenew" type="primary" ghost @click="openRenew">续租</a-button>
+          <a-button v-if="canCancel" danger @click="cancelVisible = true">取消租赁</a-button>
+        </div>
+      </div>
+
+      <div v-else class="rental-actions">
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
         <a-button v-if="canRenew" type="primary" ghost @click="openRenew">续租</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
@@ -175,7 +228,16 @@
 
       <a-divider>租赁商品</a-divider>
 
-      <a-space style="margin-bottom: 12px" wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+      <div v-if="isMobile" class="rental-mobile-toolbar">
+        <a-button v-if="canEdit" block type="primary" ghost @click="openItemPicker">修改租赁物品</a-button>
+        <a-button block @click="exportItemsXlsx">导出 xlsx</a-button>
+        <a-upload class="rental-mobile-upload" :before-upload="importItemsXlsx" :show-upload-list="false" accept=".xlsx,.xls">
+          <a-button block :loading="importing">导入 xlsx</a-button>
+        </a-upload>
+        <a-button block type="link" @click="downloadItemsTemplate">下载模板</a-button>
+      </div>
+
+      <a-space v-else style="margin-bottom: 12px" wrap>
         <a-button v-if="canEdit" :block="isMobile" type="primary" ghost @click="openItemPicker">修改租赁物品</a-button>
         <a-button :block="isMobile" @click="exportItemsXlsx">导出 xlsx</a-button>
         <a-upload :before-upload="importItemsXlsx" :show-upload-list="false" accept=".xlsx,.xls">
@@ -1354,64 +1416,193 @@ onMounted(async () => {
   min-width: 120px;
 }
 
-.rental-mobile-overview {
+.rental-mobile-shell {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.rental-summary-grid {
-  margin-bottom: 0;
+.rental-mobile-hero {
+  padding: 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 72%);
 }
 
-.mobile-detail-list {
+.rental-mobile-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rental-mobile-number {
+  min-width: 0;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.rental-mobile-status {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+  font-weight: 600;
+}
+
+.rental-mobile-renter {
+  margin-top: 10px;
+  color: #111827;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rental-mobile-period,
+.rental-mobile-hero-meta {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.rental-mobile-period {
+  margin-top: 6px;
+}
+
+.rental-mobile-hero-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid #edf0f5;
-  border-radius: 14px;
-  background: #edf0f5;
+  gap: 6px 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(37, 99, 235, 0.14);
 }
 
-.mobile-detail-list > div {
+.rental-mobile-hero-meta span {
   min-width: 0;
-  padding: 10px 12px;
-  background: #fff;
+  overflow-wrap: anywhere;
 }
 
-.mobile-detail-list > div.wide {
+.rental-mobile-money-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rental-mobile-money-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.rental-mobile-money-card.primary {
   grid-column: 1 / -1;
+  border-color: #bfdbfe;
+  background: #eff6ff;
 }
 
-.mobile-detail-list span {
+.rental-mobile-money-card span,
+.rental-mobile-key-values span {
   display: block;
   color: #667085;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.mobile-detail-list strong {
+.rental-mobile-money-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #111827;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rental-mobile-info-section {
+  padding: 12px;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rental-mobile-section-title {
+  margin-bottom: 10px;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.rental-mobile-key-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.rental-mobile-key-values > div {
+  min-width: 0;
+}
+
+.rental-mobile-key-values > div.full {
+  grid-column: 1 / -1;
+}
+
+.rental-mobile-key-values strong {
   display: block;
   margin-top: 4px;
-  color: #1f2937;
+  color: #111827;
   font-size: 13px;
   line-height: 1.45;
   font-weight: 600;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
-.mobile-grid-actions.rental-actions {
-  display: grid;
+.rental-mobile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
-.mobile-grid-actions.rental-actions > * {
+.rental-primary-actions,
+.rental-secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rental-primary-actions > *,
+.rental-secondary-actions > * {
   width: 100%;
   min-width: 0;
 }
 
-.mobile-grid-actions.rental-actions :deep(.ant-btn) {
+.rental-primary-actions > *:last-child:nth-child(odd),
+.rental-secondary-actions > *:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.rental-primary-actions :deep(.ant-btn),
+.rental-secondary-actions :deep(.ant-btn) {
+  width: 100%;
+  min-width: 0;
+}
+
+.rental-mobile-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rental-mobile-toolbar > *,
+.rental-mobile-upload :deep(.ant-upload),
+.rental-mobile-upload :deep(.ant-btn) {
   width: 100%;
   min-width: 0;
 }
@@ -1469,6 +1660,8 @@ onMounted(async () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   line-height: 1.8;
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .sf-route-nodes {
@@ -1478,6 +1671,14 @@ onMounted(async () => {
 }
 
 @media (max-width: 767.98px) {
+  .rental-detail-card :deep(.ant-card-body) {
+    padding-bottom: 14px !important;
+  }
+
+  .rental-detail-card :deep(.ant-divider) {
+    margin: 16px 0;
+  }
+
   .settlement-header {
     justify-content: stretch;
   }
@@ -1485,6 +1686,12 @@ onMounted(async () => {
   .settlement-header :deep(.ant-space),
   .settlement-header :deep(.ant-space-item),
   .settlement-header :deep(.ant-btn) {
+    width: 100%;
+  }
+
+  .sf-route-toolbar :deep(.ant-space),
+  .sf-route-toolbar :deep(.ant-space-item),
+  .sf-route-toolbar :deep(.ant-btn) {
     width: 100%;
   }
 }
