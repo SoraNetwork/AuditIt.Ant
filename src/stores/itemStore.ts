@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
 export type ItemStatus = 'InStock' | 'LoanedOut' | 'Disposed' | 'SuspectedMissing';
@@ -19,6 +19,7 @@ export interface Item {
   currentDestination?: string | null;
   remarks?: string | null;
   photoUrl?: string | null;
+  itemValue?: number | null;
   entryDate: string;
   lastUpdated: string;
 
@@ -35,6 +36,7 @@ interface CreateItemPayload {
   serialNumber?: string;
   remarks?: string;
   photo?: File | null;
+  itemValue?: number | null;
 }
 
 interface UpdateItemPayload {
@@ -46,6 +48,7 @@ interface UpdateItemPayload {
   clearOwnerUser?: boolean;
   photo?: File | null;
   deletePhoto?: boolean;
+  itemValue?: number | null;
 }
 
 interface ItemState {
@@ -77,6 +80,7 @@ function normalizeItem(raw: any): Item {
     currentDestination: raw.currentDestination ?? null,
     remarks: raw.remarks ?? null,
     photoUrl: raw.photoUrl ?? null,
+    itemValue: raw.itemValue !== undefined ? raw.itemValue : null,
     entryDate: raw.entryDate ?? raw.lastUpdated ?? new Date().toISOString(),
     lastUpdated: raw.lastUpdated ?? new Date().toISOString(),
 
@@ -159,6 +163,7 @@ export const useItemStore = defineStore('item', {
         if (payload.serialNumber) formData.append('serialNumber', payload.serialNumber);
         if (payload.remarks) formData.append('remarks', payload.remarks);
         if (payload.photo) formData.append('photo', payload.photo);
+        if (payload.itemValue !== undefined && payload.itemValue !== null) formData.append('itemValue', String(payload.itemValue));
 
         await apiClient.post('/items/create', formData);
         await this.fetchItems({ shortId: payload.shortId });
@@ -182,6 +187,11 @@ export const useItemStore = defineStore('item', {
         if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
         appendOwnerNames(formData, payload.ownerUserNames);
         if (payload.clearOwnerUser) formData.append('clearOwnerUser', 'true');
+        if (payload.itemValue !== undefined && payload.itemValue !== null) {
+          formData.append('itemValue', String(payload.itemValue));
+        } else if (payload.itemValue === null) {
+          formData.append('itemValue', '');
+        }
 
         if (payload.photo) {
           formData.append('photo', payload.photo);

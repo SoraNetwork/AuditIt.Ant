@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <a-page-header :title="`物品详情: ${item?.shortId || ''}`" @back="router.back()">
       <template #extra>
@@ -24,6 +24,7 @@
             <a-descriptions-item label="物品所有者">{{ item?.ownerUserName || '-' }}</a-descriptions-item>
             <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
             <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="物品价值">{{ formatMoney(item?.itemValue) }}</a-descriptions-item>
             <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
             <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
             <a-descriptions-item label="当前去向">
@@ -42,6 +43,7 @@
               <a-descriptions-item label="物品所有者">{{ item?.ownerUserName || '-' }}</a-descriptions-item>
               <a-descriptions-item label="ShortId">{{ item?.shortId }}</a-descriptions-item>
               <a-descriptions-item label="SN">{{ item?.serialNumber || '-' }}</a-descriptions-item>
+              <a-descriptions-item label="物品价值">{{ formatMoney(item?.itemValue) }}</a-descriptions-item>
               <a-descriptions-item label="入库时间">{{ formatDateTime(item?.entryDate) }}</a-descriptions-item>
               <a-descriptions-item label="最后更新">{{ formatDateTime(item?.lastUpdated) }}</a-descriptions-item>
               <a-descriptions-item label="当前去向" :span="2">
@@ -168,6 +170,11 @@ const auditLogStore = useAuditLogStore();
 const listingStore = useItemListingStore();
 
 const item = ref<Item | null>(null);
+
+const formatMoney = (value?: number | null) => {
+  if (value === null || value === undefined) return '-';
+  return `￥${Number(value).toFixed(1)}`;
+};
 
 const listingVisible = ref(false);
 const listingEditingId = ref<number | null>(null);

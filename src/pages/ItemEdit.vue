@@ -22,6 +22,9 @@
               :loading="userStore.loading"
             />
           </a-form-item>
+          <a-form-item label="物品价值" name="itemValue">
+            <a-input-number v-model:value="formState.itemValue" :min="0" style="width: 100%" placeholder="请输入物品价值" />
+          </a-form-item>
           <a-form-item label="备注">
             <a-textarea v-model:value="formState.remarks" :rows="4" />
           </a-form-item>
@@ -89,6 +92,7 @@ const formState = reactive({
   currentDestination: '',
   ownerUserNames: [] as string[],
   photo: undefined as File | undefined,
+  itemValue: null as number | null,
 });
 const fileList = ref<UploadProps['fileList']>([]);
 const isPhotoDeleted = ref(false);
@@ -123,6 +127,7 @@ onMounted(async () => {
     formState.remarks = foundItem.remarks || '';
     formState.currentDestination = foundItem.currentDestination || '';
     formState.ownerUserNames = [...(foundItem.ownerUserNames || [])];
+    formState.itemValue = foundItem.itemValue !== undefined && foundItem.itemValue !== null ? foundItem.itemValue : null;
   } else {
     message.error('未找到物品');
     router.back();
@@ -178,6 +183,7 @@ const handleSave = async () => {
       clearOwnerUser: formState.ownerUserNames.length === 0,
       photo: formState.photo,
       deletePhoto: isPhotoDeleted.value,
+      itemValue: formState.itemValue,
     });
     message.success('物品信息已更新');
     router.back();

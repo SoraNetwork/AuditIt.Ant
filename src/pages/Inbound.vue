@@ -42,6 +42,9 @@
                   :loading="userStore.loading"
                 />
               </a-form-item>
+              <a-form-item label="物品价值" name="itemValue">
+                <a-input-number v-model:value="quickFormState.itemValue" :min="0" style="width: 100%" placeholder="请输入物品价值" />
+              </a-form-item>
               <a-form-item label="备注">
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <a-textarea 
@@ -342,6 +345,9 @@ GHI789"
                       :loading="userStore.loading"
                     />
                   </a-form-item>
+                  <a-form-item label="物品价值" name="itemValue">
+                    <a-input-number v-model:value="manualFormState.itemValue" :min="0" style="width: 100%" placeholder="请输入物品价值" />
+                  </a-form-item>
                    <a-form-item label="数量" name="quantity" :rules="[{ required: true, message: '请输入数量', type: 'number', min: 1 }]">
                     <a-input-number v-model:value="manualFormState.quantity" :min="1" style="width: 100%" />
                   </a-form-item>
@@ -610,6 +616,7 @@ interface QuickFormState {
   ownerUserNames: string[];
   remarks: string;
   photo?: File;
+  itemValue?: number | null;
 }
 
 interface ManualFormState {
@@ -619,6 +626,7 @@ interface ManualFormState {
   quantity: number;
   remarks: string;
   photo?: File;
+  itemValue?: number | null;
 }
 
 interface BatchFormState {
@@ -643,6 +651,7 @@ const quickFormState = reactive<QuickFormState>({
   warehouseId: null,
   ownerUserNames: defaultOwnerUserNames(),
   remarks: '',
+  itemValue: null,
 });
 const quickFileList = ref<UploadProps['fileList']>([]);
 
@@ -660,6 +669,7 @@ const resetQuickForm = () => {
   quickFormState.ownerUserNames = defaultOwnerUserNames();
   quickFormState.remarks = '';
   quickFormState.  photo = undefined;
+  quickFormState.itemValue = null;
   quickFileList.value = [];
 };
 
@@ -674,6 +684,7 @@ const quickInbound = async () => {
       ownerUserNames: quickFormState.ownerUserNames,
       remarks: quickFormState.remarks,
       photo: quickFormState.photo,
+      itemValue: quickFormState.itemValue,
     });
     message.success(`物品 ${quickFormState.shortId} 已成功入库!  `);
     resetQuickForm();
@@ -977,6 +988,7 @@ const manualFormState = reactive<ManualFormState>({
   ownerUserNames: defaultOwnerUserNames(),
   quantity: 1,
   remarks: '',
+  itemValue: null,
 });
 const manualFileList = ref<UploadProps['fileList']>([]);
 const exportList = ref<any[]>([]);
@@ -995,6 +1007,7 @@ const resetManualForm = () => {
   manualFormState.ownerUserNames = defaultOwnerUserNames();
   manualFormState.remarks = '';
   manualFormState.photo = undefined;
+  manualFormState.itemValue = null;
   manualFileList.value = [];
 };
 
@@ -1016,6 +1029,7 @@ const addToExportList = async () => {
         definitionName: definition?.name,
         warehouseName: warehouse?.name,
         ownerUserName: manualFormState.ownerUserNames.join(','),
+        itemValue: manualFormState.itemValue,
       });
     }
     resetManualForm();
@@ -1043,6 +1057,7 @@ const saveAndExport = async () => {
         ownerUserNames: item.ownerUserNames,
         remarks: item.remarks,
         photo: item.photo,
+        itemValue: item.itemValue,
       });
       savedItems.push(savedItem);
     }

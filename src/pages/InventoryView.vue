@@ -87,6 +87,9 @@
                 <template v-else-if="column.key === 'status'">
                   <a-tag :color="statusDisplay(record.status).color">{{ statusDisplay(record.status).text }}</a-tag>
                 </template>
+                <template v-else-if="column.key === 'itemValue'">
+                  {{ formatMoney(record.itemValue) }}
+                </template>
                 <template v-else-if="column.key === 'currentDestination'">
                   <RentalReferenceText :text="record.currentDestination || '-'" />
                 </template>
@@ -108,6 +111,7 @@
                   <div>仓库：{{ item.warehouseName }}</div>
                   <div>分类：{{ item.categoryName || '-' }}</div>
                   <div>所有者：{{ formatOwnerSummary(item) }}</div>
+                  <div v-if="item.itemValue !== null && item.itemValue !== undefined">价值：{{ formatMoney(item.itemValue) }}</div>
                   <div v-if="item.currentDestination">
                     当前去向：<RentalReferenceText :text="item.currentDestination" />
                   </div>
@@ -224,6 +228,11 @@ const formatOwnerSummary = (item: { ownerUserNames?: string[]; ownerUserName?: s
   return names.length === 1 ? names[0] : `${names[0]}等`;
 };
 
+const formatMoney = (value?: number | null) => {
+  if (value === null || value === undefined) return '-';
+  return `￥${Number(value).toFixed(1)}`;
+};
+
 const columns = [
   { title: '所有者', dataIndex: 'ownerUserName', key: 'ownerUserName' },
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
@@ -231,6 +240,7 @@ const columns = [
   { title: '物品分类', dataIndex: 'categoryName', key: 'categoryName' },
   { title: '所在仓库', dataIndex: 'warehouseName', key: 'warehouse' },
   { title: '状态', dataIndex: 'status', key: 'status' },
+  { title: '物品价值', dataIndex: 'itemValue', key: 'itemValue' },
   { title: '当前去向', dataIndex: 'currentDestination', key: 'currentDestination' },
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
   { 
