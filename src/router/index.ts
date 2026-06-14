@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
 import { PermissionCodes } from '../utils/permissions';
@@ -50,6 +50,7 @@ const routes = [
       { path: 'rentals/new', name: 'rental-new', component: () => import('../pages/RentalCreate.vue'), meta: { title: '新建租赁', permissions: [PermissionCodes.RentalCreate] } },
       { path: 'rentals/:id', name: 'rental-detail', component: () => import('../pages/RentalDetail.vue'), meta: { title: '租赁详情', permissions: [PermissionCodes.RentalView] } },
       { path: 'calendar', name: 'rental-calendar', component: () => import('../pages/RentalCalendarDetail.vue'), meta: { title: '提醒日历', permissions: [PermissionCodes.RentalView] } },
+      { path: 'item-definition-calendar', name: 'item-definition-calendar', component: () => import('../pages/ItemDefinitionOccupancyCalendar.vue'), meta: { title: '定义占用日历', permissions: [PermissionCodes.RentalView] } },
       { path: 'finance-reports', name: 'finance-reports', component: () => import('../pages/FinanceReports.vue'), meta: { title: '财务报表', permissions: [PermissionCodes.FinanceReportView] } },
       { path: 'finance-reports/settlement-settings', name: 'settlement-settings', component: () => import('../pages/SettlementSettings.vue'), meta: { title: '设置结算单', permissions: [PermissionCodes.FinanceReportView] } },
 

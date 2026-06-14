@@ -54,5 +54,45 @@ export const useItemAvailabilityStore = defineStore('itemAvailability', {
         this.loading = false;
       }
     },
+    async fetchDefinitionOccupancy(definitionId: number, from: string, to: string): Promise<ItemDefinitionOccupancyCalendar> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const params = new URLSearchParams({ from, to });
+        const response = await apiClient.get<ItemDefinitionOccupancyCalendar>(`/itemDefinitions/${definitionId}/occupancy?${params.toString()}`);
+        return response.data;
+      } catch (err: any) {
+        this.error = '获取物品定义占用日历失败: ' + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
   },
 });
+
+export interface ItemDefinitionDailyOccupancy {
+  rentalId: string;
+  rentalNumber: string;
+  rentalStatus: RentalStatus;
+  renterName?: string | null;
+  quantity: number;
+  isUncertain: boolean;
+}
+
+export interface ItemDefinitionDailyStock {
+  date: string;
+  totalStock: number;
+  occupiedCount: number;
+  remainingStock: number;
+  details: ItemDefinitionDailyOccupancy[];
+}
+
+export interface ItemDefinitionOccupancyCalendar {
+  itemDefinitionId: number;
+  name: string;
+  totalStock: number;
+  from: string;
+  to: string;
+  dailyStocks: ItemDefinitionDailyStock[];
+}

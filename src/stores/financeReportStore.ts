@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
-import type { RentalStatus } from './rentalStore';
+import type { RentalStatus, SettlementPreview } from './rentalStore';
 
 export interface FinanceReportStatusSummary {
   status: RentalStatus;
@@ -86,6 +86,14 @@ export const useFinanceReportStore = defineStore('financeReport', {
       } finally {
         this.loading = false;
       }
+    },
+
+    async fetchSettlements(from?: string, to?: string): Promise<SettlementPreview[]> {
+      const params = new URLSearchParams();
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      const response = await apiClient.get<SettlementPreview[]>(`/finance-reports/settlements?${params.toString()}`);
+      return response.data;
     },
   },
 });

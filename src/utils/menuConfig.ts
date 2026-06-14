@@ -78,6 +78,7 @@ export const menuTree: MenuNode[] = [
       { key: 'renters', title: '租客管理', icon: TeamOutlined, to: '/renters', permission: P.RenterView },
       { key: 'rentals', title: '租赁列表', icon: FileDoneOutlined, to: '/rentals', permission: P.RentalView },
       { key: 'rental-calendar', title: '提醒日历', icon: CalendarOutlined, to: '/calendar', permission: P.RentalView },
+      { key: 'item-definition-calendar', title: '定义占用日历', icon: CalendarOutlined, to: '/item-definition-calendar', permission: P.RentalView },
       { key: 'finance-reports', title: '财务报表', icon: FundOutlined, to: '/finance-reports', permission: P.FinanceReportView },
       { key: 'settlement-settings', title: '设置结算单', icon: FundOutlined, to: '/finance-reports/settlement-settings', permission: P.FinanceReportView },
       { key: 'rental-new', title: '新建租赁', icon: PlusOutlined, to: '/rentals/new', permission: P.RentalCreate },

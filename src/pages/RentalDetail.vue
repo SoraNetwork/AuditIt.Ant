@@ -31,6 +31,7 @@
         <a-descriptions-item label="创建时间">{{ formatDateTime(rental.createdAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="更新时间">{{ formatDateTime(rental.updatedAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="发货人">{{ rental.senderName || '-' }}</a-descriptions-item>
       </a-descriptions>
 
       <div v-if="isMobile" class="rental-mobile-shell">
@@ -104,6 +105,7 @@
             <div class="full"><span>收货地址</span><strong>{{ rental.shippingAddress || '-' }}</strong></div>
             <div class="full"><span>备注</span><strong>{{ rental.notes || '-' }}</strong></div>
             <div><span>创建人</span><strong>{{ rental.createdBy || '-' }}</strong></div>
+            <div><span>发货人</span><strong>{{ rental.senderName || '-' }}</strong></div>
             <div><span>创建时间</span><strong>{{ formatDateTime(rental.createdAt) || '-' }}</strong></div>
             <div><span>更新时间</span><strong>{{ formatDateTime(rental.updatedAt) || '-' }}</strong></div>
           </div>
@@ -257,12 +259,16 @@
           <template v-else-if="column.key === 'perItemPrice'">
             {{ formatMoney(record.perItemPrice) || '-' }}
           </template>
+          <template v-else-if="column.key === 'itemShortIdSnapshot'">
+            <span v-if="record.itemId">{{ record.itemShortIdSnapshot }}</span>
+            <a-tag v-else color="orange">待发货不确定物品</a-tag>
+          </template>
         </template>
       </a-table>
 
       <div v-else class="mobile-card-list">
         <MobileListCard v-for="item in rental.items" :key="item.id">
-          <template #title>{{ item.itemShortIdSnapshot }} | {{ item.itemNameSnapshot }}</template>
+          <template #title>{{ item.itemId ? item.itemShortIdSnapshot : '待发货不确定物品' }} | {{ item.itemNameSnapshot }}</template>
           <template #tags>
             <a-tag v-if="item.returnCondition" :color="item.returnCondition === 'Good' ? 'green' : 'red'">
               {{ returnConditionText(item.returnCondition) }}
@@ -407,6 +413,36 @@
           </a-select-option>
         </a-select>
       </a-form-item>
+      <template v-if="shipForm.direction === 'Outbound' && uncertainRentalItems.length > 0">
+        <a-divider>确定发货商品（一物一码）</a-divider>
+        <div v-if="!shipForm.originWarehouseId" style="color: #ff4d4f; margin-bottom: 12px;">
+          请先选择发货仓库以加载可选在库库存物品
+        </div>
+        <a-form-item
+          v-for="ri in uncertainRentalItems"
+          :key="ri.id"
+          :label="`发货物品: ${ri.itemNameSnapshot || '未命名'} (项 ID: ${ri.id})`"
+          required
+        >
+          <a-select
+            v-model:value="selectedShipItems[ri.id]"
+            placeholder="请选择具体物品"
+            :loading="itemStore.loading"
+            :disabled="!shipForm.originWarehouseId"
+            show-search
+            option-filter-prop="label"
+          >
+            <a-select-option
+              v-for="item in availableItemsForDefinition(ri.itemDefinitionId)"
+              :key="item.id"
+              :value="item.id"
+              :label="item.shortId"
+            >
+              {{ item.shortId }} - {{ item.remarks || '无备注' }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+      </template>
       <a-form-item label="物流公司" required>
         <a-auto-complete
           v-model:value="shipForm.carrier"
@@ -568,6 +604,26 @@
           allow-clear
         />
       </a-form-item>
+      <a-form-item label="建单人">
+        <a-select
+          v-model:value="editForm.createdBy"
+          placeholder="选择建单人"
+          :options="userOptions"
+          :loading="userStore.loading"
+          allow-clear
+          show-search
+        />
+      </a-form-item>
+      <a-form-item label="发货人">
+        <a-select
+          v-model:value="editForm.senderName"
+          placeholder="选择发货人"
+          :options="userOptions"
+          :loading="userStore.loading"
+          allow-clear
+          show-search
+        />
+      </a-form-item>
       <a-form-item label="备注">
         <a-textarea v-model:value="editForm.notes" :rows="3" :maxlength="500" />
       </a-form-item>
@@ -631,6 +687,20 @@ const itemStore = useItemStore();
 
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
+const selectedShipItems = ref<Record<number, string>>({});
+const uncertainRentalItems = computed(() => {
+  if (shipForm.direction !== 'Outbound') return [];
+  return rental.value?.items.filter(item => !item.itemId) || [];
+});
+const availableItemsForDefinition = (definitionId?: number | null) => {
+  const warehouseId = shipForm.originWarehouseId;
+  if (!warehouseId || !definitionId) return [];
+  return itemStore.items.filter(item => 
+    item.itemDefinitionId === definitionId &&
+    item.status === 'InStock' &&
+    item.warehouseId === warehouseId
+  );
+};
 const shipVisible = ref(false);
 const returnVisible = ref(false);
 const cancelVisible = ref(false);
@@ -661,8 +731,8 @@ const renterOptions = computed(() =>
 
 const currentActiveRentalItemIds = computed(() =>
   rental.value?.items
-    .filter(item => !item.returnedAt)
-    .map(item => item.itemId) || []
+    .filter(item => !item.returnedAt && !!item.itemId)
+    .map(item => item.itemId as string) || []
 );
 
 const itemPickerOptions = computed(() => {
@@ -687,6 +757,8 @@ const editForm = reactive({
   platformOrderNo: '',
   assignedUsers: [] as string[],
   notes: '',
+  createdBy: '' as string | null,
+  senderName: '' as string | null,
 });
 
 const editAccountedAmount = computed(() =>
@@ -896,9 +968,11 @@ const resetShipForm = (direction: ShipmentDirection) => {
   shipForm.notes = '';
 };
 
-const openOutbound = () => {
+const openOutbound = async () => {
   resetShipForm('Outbound');
+  selectedShipItems.value = {};
   shipVisible.value = true;
+  await itemStore.fetchItems();
 };
 
 const openInbound = () => {
@@ -1045,6 +1119,21 @@ const submitShip = async (allowOpenItemConflict = false) => {
     return;
   }
 
+  // Validate item mappings for outbound
+  if (shipForm.direction === 'Outbound' && uncertainRentalItems.value.length > 0) {
+    for (const ri of uncertainRentalItems.value) {
+      if (!selectedShipItems.value[ri.id]) {
+        message.error(`请为“${ri.itemNameSnapshot}”选择发货的具体物品`);
+        return;
+      }
+    }
+  }
+
+  const itemSelections = Object.entries(selectedShipItems.value).map(([rentalItemId, itemId]) => ({
+    rentalItemId: Number(rentalItemId),
+    itemId,
+  }));
+
   try {
     await rentalStore.ship(rental.value.id, {
       direction: shipForm.direction,
@@ -1054,6 +1143,7 @@ const submitShip = async (allowOpenItemConflict = false) => {
       shippingFee: shipForm.shippingFee,
       notes: shipForm.notes.trim() || undefined,
       allowOpenItemConflict,
+      itemSelections,
     });
     shipVisible.value = false;
     message.success(shipForm.direction === 'Outbound' ? '发货登记成功' : '回货物流登记成功');
@@ -1270,6 +1360,8 @@ const openEdit = () => {
     .map(value => value.trim())
     .filter(Boolean);
   editForm.notes = rental.value.notes || '';
+  editForm.createdBy = rental.value.createdBy || '';
+  editForm.senderName = rental.value.senderName || '';
   editVisible.value = true;
 };
 
@@ -1304,6 +1396,8 @@ const submitEdit = async () => {
       platformOrderNo: editForm.platformOrderNo.trim(),
       notes: editForm.notes.trim(),
       assignedTo: editForm.assignedUsers.join(','),
+      createdBy: editForm.createdBy || undefined,
+      senderName: editForm.senderName || undefined,
     });
     editVisible.value = false;
     message.success('已保存');

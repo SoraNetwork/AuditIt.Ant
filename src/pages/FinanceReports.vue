@@ -136,53 +136,123 @@ const loadReports = async () => {
   }
 };
 
-const exportReport = () => {
-  const summary = reportStore.summary;
-  const summaryRows = summary
-    ? [
-        {
-          租赁单数: summary.rentalCount,
-          进行中单数: summary.activeRentalCount,
-          已结束单数: summary.closedRentalCount,
-          订单总额: summary.totalOrderAmount,
-          押金合计: summary.totalDeposit,
-          运费合计: summary.totalShippingFee,
-          其他费用: summary.totalOtherFee,
-          核算金额: summary.accountedAmount,
-        },
-        ...summary.categories.map(row => ({
-          分类: row.category,
-          单数: row.count,
-          订单总额: row.totalOrderAmount,
-          核算金额: row.accountedAmount,
-        })),
-      ]
-    : [];
+const exportReport = async () => {
+  const hide = message.loading('正在准备导出数据...', 0);
+  try {
+    const summary = reportStore.summary;
+    const summaryRows = summary
+      ? [
+          {
+            租赁单数: summary.rentalCount,
+            进行中单数: summary.activeRentalCount,
+            已结束单数: summary.closedRentalCount,
+            订单总额: summary.totalOrderAmount,
+            押金合计: summary.totalDeposit,
+            运费合计: summary.totalShippingFee,
+            其他费用: summary.totalOtherFee,
+            核算金额: summary.accountedAmount,
+          },
+          ...summary.categories.map(row => ({
+            分类: row.category,
+            单数: row.count,
+            订单总额: row.totalOrderAmount,
+            核算金额: row.accountedAmount,
+          })),
+        ]
+      : [];
 
-  const details = reportStore.details.map(row => ({
-    租赁单号: row.rentalNumber,
-    状态: rentalStatusText(row.status),
-    租客: row.renterName || '',
-    开始日期: formatDate(row.startDate),
-    预计结束: formatDate(row.expectedEndDate),
-    创建时间: formatDate(row.createdAt),
-    总价: row.totalPrice,
-    押金: row.deposit,
-    运费: row.totalShippingFee,
-    其他费用: row.otherFee,
-    核算金额: row.accountedAmount,
-    物品数: row.itemCount,
-    负责人: row.assignedTo || '',
-    平台订单号: row.platformOrderNo || '',
-  }));
+    const details = reportStore.details.map(row => ({
+      租赁单号: row.rentalNumber,
+      状态: rentalStatusText(row.status),
+      租客: row.renterName || '',
+      开始日期: formatDate(row.startDate),
+      预计结束: formatDate(row.expectedEndDate),
+      创建时间: formatDate(row.createdAt),
+      总价: row.totalPrice,
+      押金: row.deposit,
+      运费: row.totalShippingFee,
+      其他费用: row.otherFee,
+      核算金额: row.accountedAmount,
+      物品数: row.itemCount,
+      负责人: row.assignedTo || '',
+      平台订单号: row.platformOrderNo || '',
+    }));
 
-  exportMultiSheetXlsx(
-    [
-      { name: '简要', rows: summaryRows },
-      { name: '详细', rows: details },
-    ],
-    `财务报表-${dayjs().format('YYYY-MM-DD')}.xlsx`
-  );
+    // Fetch settlements for the third sheet
+    const settlements = await reportStore.fetchSettlements(range.value?.[0]?.toISOString(), range.value?.[1]?.toISOString());
+
+    // Aggregate statistics by person/category
+    const personShares: Record<string, { creator: number; shipper: number; owner: number; tech: number; total: number }> = {};
+    const getOrCreate = (name: string) => {
+      if (!personShares[name]) {
+        personShares[name] = { creator: 0, shipper: 0, owner: 0, tech: 0, total: 0 };
+      }
+      return personShares[name];
+    };
+
+    settlements.forEach(p => {
+      if (p.creatorName) {
+        const s = getOrCreate(p.creatorName);
+        s.creator += p.creatorAmount;
+        s.total += p.creatorAmount;
+      }
+      p.shipperShares?.forEach(sh => {
+        const name = sh.shipperName || '未指定发货人';
+        const s = getOrCreate(name);
+        s.shipper += sh.amount;
+        s.total += sh.amount;
+      });
+      p.ownerShares?.forEach(ow => {
+        const name = ow.ownerName || '未指定所有人';
+        const s = getOrCreate(name);
+        s.owner += ow.amount;
+        s.total += ow.amount;
+      });
+      if (p.technicianAmount > 0) {
+        const s = getOrCreate('平台(技术)');
+        s.tech += p.technicianAmount;
+        s.total += p.technicianAmount;
+      }
+    });
+
+    // Aggregated rows
+    const aggregatedRows = Object.entries(personShares).map(([name, s]) => ({
+      参与人: name,
+      建单分账: Number(s.creator.toFixed(1)),
+      发货分账: Number(s.shipper.toFixed(1)),
+      物品所有分账: Number(s.owner.toFixed(1)),
+      平台技术分账: Number(s.tech.toFixed(1)),
+      合计分账: Number(s.total.toFixed(1)),
+    }));
+
+    // Detailed settlement rows
+    const settlementDetailRows = settlements.map(row => ({
+      租赁单号: row.rentalNumber,
+      状态: rentalStatusText(row.status),
+      总价: row.totalPrice,
+      核算金额: row.accountedAmount,
+      建单人: row.creatorName || '',
+      建单分账金额: row.creatorAmount,
+      发货人分账明细: (row.shipperShares || []).map(s => `${s.shipperName || '未指定'}: ${s.amount.toFixed(1)}`).join('; '),
+      物品所有分账明细: (row.ownerShares || []).map(s => `${s.ownerName || '未指定'}: ${s.amount.toFixed(1)}`).join('; '),
+      平台技术分账金额: row.technicianAmount,
+    }));
+
+    await exportMultiSheetXlsx(
+      [
+        { name: '简要', rows: summaryRows },
+        { name: '详细', rows: details },
+        { name: '分账汇总', rows: aggregatedRows as any },
+        { name: '分账明细', rows: settlementDetailRows as any },
+      ],
+      `财务报表-${dayjs().format('YYYY-MM-DD')}.xlsx`
+    );
+    message.success('导出成功');
+  } catch (err: any) {
+    message.error(err?.message || '导出失败');
+  } finally {
+    hide();
+  }
 };
 
 onMounted(loadReports);

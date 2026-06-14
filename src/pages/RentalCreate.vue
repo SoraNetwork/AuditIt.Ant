@@ -233,13 +233,24 @@
           <div>
             <div class="section-title">
               <ShoppingOutlined />
-              <span>选择商品</span>
+              <span>选择商品 / 物品定义</span>
             </div>
-            <div class="section-subtitle">支持除“处置”外的所有状态</div>
+            <div class="section-subtitle" style="margin-top: 8px;">
+              <a-radio-group v-model:value="selectionMode" size="small">
+                <a-radio-button value="item">具体物品</a-radio-button>
+                <a-radio-button value="definition">物品定义</a-radio-button>
+              </a-radio-group>
+            </div>
           </div>
           <div class="item-summary">
-            <a-tag>可选 {{ filteredSelectableItems.length }}</a-tag>
-            <a-tag color="processing">已选 {{ selectedItemIds.length }}</a-tag>
+            <template v-if="selectionMode === 'item'">
+              <a-tag>可选 {{ filteredSelectableItems.length }}</a-tag>
+              <a-tag color="processing">已选 {{ selectedItemIds.length }}</a-tag>
+            </template>
+            <template v-else>
+              <a-tag>已选种类 {{ Object.values(definitionQuantities).filter(q => q > 0).length }}</a-tag>
+              <a-tag color="processing">已选总数 {{ totalSelectedDefinitionQuantity }}</a-tag>
+            </template>
           </div>
         </div>
 
@@ -247,7 +258,7 @@
           <a-input-search
             v-model:value="itemKeyword"
             allow-clear
-            placeholder="搜索商品 ID / 名称 / 分类 / 仓库 / 去向"
+            :placeholder="selectionMode === 'item' ? '搜索商品 ID / 名称 / 分类 / 仓库 / 去向' : '搜索定义 ID / 名称 / 分类 / 描述'"
             class="item-search"
           />
           <a-select
@@ -262,62 +273,122 @@
               {{ cat.name }}
             </a-select-option>
           </a-select>
-          <a-button @click="loadSelectableItems">
+          <a-button v-if="selectionMode === 'item'" @click="loadSelectableItems">
             <template #icon><ReloadOutlined /></template>
             刷新商品
           </a-button>
         </div>
 
-        <a-table
-          v-if="!isMobile"
-          row-key="id"
-          :loading="itemStore.loading"
-          :data-source="filteredSelectableItems"
-          :columns="itemColumns"
-          :row-selection="{ selectedRowKeys: selectedItemIds, onChange: onItemSelectChange }"
-          :pagination="{ pageSize: 20, showSizeChanger: true }"
-          class="items-table"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+        <!-- 具体物品表格 -->
+        <template v-if="selectionMode === 'item'">
+          <a-table
+            v-if="!isMobile"
+            row-key="id"
+            :loading="itemStore.loading"
+            :data-source="filteredSelectableItems"
+            :columns="itemColumns"
+            :row-selection="{ selectedRowKeys: selectedItemIds, onChange: onItemSelectChange }"
+            :pagination="{ pageSize: 20, showSizeChanger: true }"
+            class="items-table"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+              </template>
+              <template v-else-if="column.key === 'currentDestination'">
+                <RentalReferenceText :text="record.currentDestination || '-'" />
+              </template>
             </template>
-            <template v-else-if="column.key === 'currentDestination'">
-              <RentalReferenceText :text="record.currentDestination || '-'" />
-            </template>
-          </template>
-        </a-table>
+          </a-table>
 
-        <div v-else class="mobile-card-list">
-          <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 4 }">
-            <MobileListCard
-              v-for="item in filteredSelectableItems"
-              :key="item.id"
-              clickable
-              :active="selectedItemIds.includes(item.id)"
-              @click="toggleItemSelect(item.id)"
-            >
-              <template #title>
-                <a-checkbox
-                  :checked="selectedItemIds.includes(item.id)"
-                  style="margin-right: 8px"
-                  @click.stop="toggleItemSelect(item.id)"
+          <div v-else class="mobile-card-list">
+            <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 4 }">
+              <MobileListCard
+                v-for="item in filteredSelectableItems"
+                :key="item.id"
+                clickable
+                :active="selectedItemIds.includes(item.id)"
+                @click="toggleItemSelect(item.id)"
+              >
+                <template #title>
+                  <a-checkbox
+                    :checked="selectedItemIds.includes(item.id)"
+                    style="margin-right: 8px"
+                    @click.stop="toggleItemSelect(item.id)"
+                  />
+                  {{ item.shortId }} | {{ item.itemDefinition?.name || '未知商品' }}
+                </template>
+                <template #tags>
+                  <a-tag :color="statusColor(item.status)">{{ statusText(item.status) }}</a-tag>
+                </template>
+                <template #meta>
+                  <div>分类：{{ item.categoryName || '-' }}</div>
+                  <div>仓库：{{ item.warehouse?.name || '-' }}</div>
+                  <div>当前去向：<RentalReferenceText :text="item.currentDestination || '-'" /></div>
+                  <div v-if="item.remarks">备注：{{ item.remarks }}</div>
+                </template>
+              </MobileListCard>
+              <a-empty v-if="filteredSelectableItems.length === 0 && !itemStore.loading" description="暂无可选商品" />
+            </a-skeleton>
+          </div>
+        </template>
+
+        <!-- 物品定义选择表格 -->
+        <template v-else>
+          <a-table
+            v-if="!isMobile"
+            row-key="id"
+            :loading="itemDefStore.loading"
+            :data-source="filteredItemDefinitions"
+            :columns="definitionColumns"
+            :pagination="{ pageSize: 20, showSizeChanger: true }"
+            class="items-table"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'category'">
+                {{ categoryMap[record.categoryId] || '-' }}
+              </template>
+              <template v-else-if="column.key === 'quantity'">
+                <a-input-number
+                  v-model:value="definitionQuantities[record.id]"
+                  :min="0"
+                  :precision="0"
+                  style="width: 120px"
+                  placeholder="数量"
                 />
-                {{ item.shortId }} | {{ item.itemDefinition?.name || '未知商品' }}
               </template>
-              <template #tags>
-                <a-tag :color="statusColor(item.status)">{{ statusText(item.status) }}</a-tag>
-              </template>
-              <template #meta>
-                <div>分类：{{ item.categoryName || '-' }}</div>
-                <div>仓库：{{ item.warehouse?.name || '-' }}</div>
-                <div>当前去向：<RentalReferenceText :text="item.currentDestination || '-'" /></div>
-                <div v-if="item.remarks">备注：{{ item.remarks }}</div>
-              </template>
-            </MobileListCard>
-            <a-empty v-if="filteredSelectableItems.length === 0 && !itemStore.loading" description="暂无可选商品" />
-          </a-skeleton>
-        </div>
+            </template>
+          </a-table>
+
+          <div v-else class="mobile-card-list">
+            <a-skeleton :loading="itemDefStore.loading" active :paragraph="{ rows: 4 }">
+              <MobileListCard
+                v-for="def in filteredItemDefinitions"
+                :key="def.id"
+              >
+                <template #title>
+                  {{ def.name }}
+                </template>
+                <template #meta>
+                  <div>定义 ID：{{ def.id }}</div>
+                  <div>分类：{{ categoryMap[def.categoryId] || '-' }}</div>
+                  <div>单位：{{ def.unit || '-' }}</div>
+                  <div style="margin-top: 8px">
+                    租赁数量：
+                    <a-input-number
+                      v-model:value="definitionQuantities[def.id]"
+                      :min="0"
+                      :precision="0"
+                      style="width: 100px"
+                      placeholder="数量"
+                    />
+                  </div>
+                </template>
+              </MobileListCard>
+              <a-empty v-if="filteredItemDefinitions.length === 0 && !itemDefStore.loading" description="暂无物品定义" />
+            </a-skeleton>
+          </div>
+        </template>
       </section>
 
       <div v-if="!isMobile" class="desktop-action-bar">
@@ -457,7 +528,9 @@ const phoneSearched = ref(false);
 const matchedRenter = ref<Renter | null>(null);
 const renterMatchView = ref<RenterMatchView>('exact');
 
+const selectionMode = ref<'item' | 'definition'>('item');
 const selectedItemIds = ref<string[]>([]);
+const definitionQuantities = reactive<Record<number, number>>({});
 const submitting = ref(false);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
@@ -594,6 +667,33 @@ const filteredSelectableItems = computed(() => {
   });
 });
 
+const filteredItemDefinitions = computed(() => {
+  const keyword = itemKeyword.value.trim().toLowerCase();
+  const categoryId = itemCategoryFilter.value;
+
+  return itemDefStore.itemDefinitions.filter(def => {
+    if (categoryId && def.categoryId !== categoryId) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    const categoryName = categoryMap.value[def.categoryId] || '';
+    const fields = [
+      String(def.id),
+      def.name,
+      def.unit,
+      def.description,
+      categoryName,
+    ];
+    return fields.some(field => (field || '').toLowerCase().includes(keyword));
+  });
+});
+
+const totalSelectedDefinitionQuantity = computed(() => {
+  return Object.values(definitionQuantities).reduce((sum, q) => sum + (q || 0), 0);
+});
+
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
 );
@@ -618,6 +718,14 @@ const itemColumns = [
   { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 140 },
   { title: '当前去向', dataIndex: 'currentDestination', key: 'currentDestination', width: 220 },
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
+];
+
+const definitionColumns = [
+  { title: '定义 ID', dataIndex: 'id', key: 'id', width: 100 },
+  { title: '名称', dataIndex: 'name', key: 'name' },
+  { title: '分类', key: 'category', width: 180 },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 100 },
+  { title: '租赁数量', key: 'quantity', width: 160 },
 ];
 
 const getPlatformRemark = (record: Renter) => buildPlatformRemark(record);
@@ -772,27 +880,44 @@ const formatMoney = (value?: number | null) => {
   return `￥${Number(value).toFixed(1)}`;
 };
 
-const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload => ({
-  renter: {
-    renterId: matchedRenter.value?.id,
-    name: matchedRenter.value?.name,
-    phone: matchedRenter.value?.phone || undefined,
-    idCardNo: matchedRenter.value?.idCardNo || undefined,
-    defaultAddress: matchedRenter.value?.defaultAddress || undefined,
-  },
-  itemIds: selectedItemIds.value,
-  startDate: toRentalDatePayload(form.startDate),
-  expectedShipDate: toRentalDatePayload(form.expectedShipDate),
-  expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
-  totalPrice: Number(form.totalPrice || 0),
-  deposit: form.deposit,
-  otherFee: Number(form.otherFee || 0),
-  shippingAddress: form.shippingAddress.trim() || undefined,
-  platformOrderNo: form.platformOrderNo.trim() || undefined,
-  notes: form.notes.trim() || undefined,
-  assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
-  allowScheduleConflict,
-});
+const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload => {
+  const itemIds = selectionMode.value === 'item' ? selectedItemIds.value : [];
+  const itemDefinitionIds: number[] = [];
+  if (selectionMode.value === 'definition') {
+    Object.entries(definitionQuantities).forEach(([idStr, qty]) => {
+      const qtyNum = Number(qty);
+      const id = Number(idStr);
+      if (qtyNum > 0) {
+        for (let i = 0; i < qtyNum; i++) {
+          itemDefinitionIds.push(id);
+        }
+      }
+    });
+  }
+
+  return {
+    renter: {
+      renterId: matchedRenter.value?.id,
+      name: matchedRenter.value?.name,
+      phone: matchedRenter.value?.phone || undefined,
+      idCardNo: matchedRenter.value?.idCardNo || undefined,
+      defaultAddress: matchedRenter.value?.defaultAddress || undefined,
+    },
+    itemIds,
+    itemDefinitionIds,
+    startDate: toRentalDatePayload(form.startDate),
+    expectedShipDate: toRentalDatePayload(form.expectedShipDate),
+    expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
+    totalPrice: Number(form.totalPrice || 0),
+    deposit: form.deposit,
+    otherFee: Number(form.otherFee || 0),
+    shippingAddress: form.shippingAddress.trim() || undefined,
+    platformOrderNo: form.platformOrderNo.trim() || undefined,
+    notes: form.notes.trim() || undefined,
+    assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
+    allowScheduleConflict,
+  };
+};
 
 const createRentalWithPayload = async (payload: CreateRentalPayload) => {
   const rental = await rentalStore.createRental(payload);
@@ -878,8 +1003,13 @@ const submit = async () => {
     return;
   }
 
-  if (selectedItemIds.value.length === 0) {
+  if (selectionMode.value === 'item' && selectedItemIds.value.length === 0) {
     message.error('至少选择一件商品');
+    return;
+  }
+
+  if (selectionMode.value === 'definition' && totalSelectedDefinitionQuantity.value === 0) {
+    message.error('至少选择一个物品定义且数量大于0');
     return;
   }
 

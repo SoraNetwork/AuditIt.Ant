@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
 export type RentalStatus = 'Pending' | 'Active' | 'Overdue' | 'Returned' | 'Cancelled' | 'Renewed';
@@ -7,7 +7,8 @@ export type ReturnCondition = 'Good' | 'MinorDamage' | 'MajorDamage' | 'Lost';
 
 export interface RentalItem {
   id: number;
-  itemId: string;
+  itemId?: string | null;
+  itemDefinitionId?: number | null;
   itemShortIdSnapshot?: string | null;
   itemNameSnapshot?: string | null;
   perItemPrice?: number | null;
@@ -104,6 +105,7 @@ export interface Rental {
   assignedTo?: string | null;
   createdAt: string;
   createdBy?: string | null;
+  senderName?: string | null;
   updatedAt: string;
   updatedBy?: string | null;
   settlementNotifiedAt?: string | null;
@@ -125,6 +127,7 @@ export interface CreateRentalPayload {
     notes?: string;
   };
   itemIds: string[];
+  itemDefinitionIds?: number[];
   startDate?: string;
   expectedShipDate?: string;
   expectedEndDate: string;
@@ -150,6 +153,8 @@ export interface UpdateRentalPayload {
   platformOrderNo?: string;
   notes?: string;
   assignedTo?: string;
+  createdBy?: string;
+  senderName?: string;
 }
 
 export interface RenewRentalPayload {
@@ -176,6 +181,7 @@ export interface ShipPayload {
   shippingFee?: number | null;
   notes?: string;
   allowOpenItemConflict?: boolean;
+  itemSelections?: { rentalItemId: number; itemId: string }[];
 }
 
 export interface DeliverPayload {

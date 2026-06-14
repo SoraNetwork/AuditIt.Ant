@@ -133,13 +133,21 @@ const isTabletUa = computed(() => deviceKind.value === 'tablet');
 const isTouchLikeDevice = computed(
   () => isMobileUa.value || isTabletUa.value || coarsePointer.value || maxTouchPoints.value > 0
 );
-const shouldUseMobileLayout = computed(
-  () => isMobileUa.value || isTabletUa.value || isMobileViewport.value || isTabletViewport.value
-);
+const shouldUseMobileLayout = computed(() => {
+  if (deviceKind.value === 'desktop') {
+    return isMobileViewport.value;
+  }
+  return isMobileUa.value || isTabletUa.value || isMobileViewport.value || isTabletViewport.value;
+});
 
 // Transitional alias for existing callers. Prefer shouldUseMobileLayout in new code.
 const isMobile = computed(() => shouldUseMobileLayout.value);
-const isTablet = computed(() => isTabletViewport.value);
+const isTablet = computed(() => {
+  if (deviceKind.value === 'desktop') {
+    return false;
+  }
+  return isTabletViewport.value;
+});
 const isDesktop = computed(() => !shouldUseMobileLayout.value);
 
 export function useBreakpoint() {
