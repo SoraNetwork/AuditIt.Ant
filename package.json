@@ -32,14 +32,14 @@
     "@types/qrcode": "^1.5.5",
     "@types/uuid": "^10.0.0",
     "@types/xlsx": "^0.0.35",
-    "@vitejs/plugin-basic-ssl": "^2.1.0",
-    "@vitejs/plugin-vue": "^6.0.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-vue": "^6.0.7",
     "@vue/tsconfig": "^0.7.0",
     "concurrently": "^9.2.0",
     "cross-env": "^10.0.0",
     "json-server": "^1.0.0-beta.3",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
+    "vite": "^8.0.16",
     "vite-plugin-mkcert": "^1.17.8",
     "vue-tsc": "^2.2.12"
   }
