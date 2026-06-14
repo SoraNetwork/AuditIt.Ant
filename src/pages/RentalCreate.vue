@@ -254,11 +254,12 @@
           </div>
         </div>
 
-        <div class="item-toolbar">
+        <!-- 具体物品模式下的工具栏 -->
+        <div v-if="selectionMode === 'item'" class="item-toolbar">
           <a-input-search
             v-model:value="itemKeyword"
             allow-clear
-            :placeholder="selectionMode === 'item' ? '搜索商品 ID / 名称 / 分类 / 仓库 / 去向' : '搜索定义 ID / 名称 / 分类 / 描述'"
+            placeholder="搜索商品 ID / 名称 / 分类 / 仓库 / 去向"
             class="item-search"
           />
           <a-select
@@ -273,7 +274,7 @@
               {{ cat.name }}
             </a-select-option>
           </a-select>
-          <a-button v-if="selectionMode === 'item'" @click="loadSelectableItems">
+          <a-button @click="loadSelectableItems">
             <template #icon><ReloadOutlined /></template>
             刷新商品
           </a-button>
@@ -333,60 +334,107 @@
           </div>
         </template>
 
-        <!-- 物品定义选择表格 -->
+        <!-- 物品定义选择（购物车模式） -->
         <template v-else>
-          <a-table
-            v-if="!isMobile"
-            row-key="id"
-            :loading="itemDefStore.loading"
-            :data-source="filteredItemDefinitions"
-            :columns="definitionColumns"
-            :pagination="{ pageSize: 20, showSizeChanger: true }"
-            class="items-table"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'category'">
-                {{ categoryMap[record.categoryId] || '-' }}
-              </template>
-              <template v-else-if="column.key === 'quantity'">
-                <a-input-number
-                  v-model:value="definitionQuantities[record.id]"
-                  :min="0"
-                  :precision="0"
-                  style="width: 120px"
-                  placeholder="数量"
-                />
-              </template>
-            </template>
-          </a-table>
+          <!-- 搜索定义框 -->
+          <div class="search-definition-box" style="margin-bottom: 24px; max-width: 600px;">
+            <div style="font-weight: 500; margin-bottom: 8px; color: #4b5563;">搜索并添加物品定义到订单：</div>
+            <a-select
+              show-search
+              placeholder="输入物品定义名称或 ID 搜索并选择..."
+              option-filter-prop="label"
+              :options="definitionSearchOptions"
+              :loading="itemDefStore.loading"
+              style="width: 100%"
+              @select="handleSelectDefinition"
+              :value="null"
+            >
+              <template #suffixIcon><SearchOutlined /></template>
+            </a-select>
+          </div>
 
-          <div v-else class="mobile-card-list">
-            <a-skeleton :loading="itemDefStore.loading" active :paragraph="{ rows: 4 }">
-              <MobileListCard
-                v-for="def in filteredItemDefinitions"
-                :key="def.id"
-              >
-                <template #title>
-                  {{ def.name }}
+          <!-- 已选物品定义（购物车） -->
+          <div class="selected-definitions-cart">
+            <div style="font-weight: 600; margin-bottom: 12px; font-size: 15px; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+              <ShoppingCartOutlined />
+              <span>已添加的物品定义（清单）</span>
+            </div>
+
+            <a-table
+              v-if="!isMobile"
+              row-key="id"
+              :data-source="selectedDefinitionCartItems"
+              :columns="cartColumns"
+              :pagination="false"
+              class="cart-table"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'category'">
+                  {{ categoryMap[record.categoryId] || '-' }}
                 </template>
-                <template #meta>
-                  <div>定义 ID：{{ def.id }}</div>
-                  <div>分类：{{ categoryMap[def.categoryId] || '-' }}</div>
-                  <div>单位：{{ def.unit || '-' }}</div>
-                  <div style="margin-top: 8px">
-                    租赁数量：
+                <template v-else-if="column.key === 'quantity'">
+                  <div class="quantity-input-group" style="display: flex; align-items: center; gap: 6px;">
+                    <a-button size="small" @click="changeCartQty(record.id, -1)">-</a-button>
                     <a-input-number
-                      v-model:value="definitionQuantities[def.id]"
-                      :min="0"
+                      v-model:value="definitionQuantities[record.id]"
+                      :min="1"
                       :precision="0"
-                      style="width: 100px"
-                      placeholder="数量"
+                      style="width: 80px; text-align: center;"
+                      size="small"
                     />
+                    <a-button size="small" @click="changeCartQty(record.id, 1)">+</a-button>
                   </div>
                 </template>
-              </MobileListCard>
-              <a-empty v-if="filteredItemDefinitions.length === 0 && !itemDefStore.loading" description="暂无物品定义" />
-            </a-skeleton>
+                <template v-else-if="column.key === 'action'">
+                  <a-button type="link" danger size="small" @click="removeFromCart(record.id)">
+                    <template #icon><DeleteOutlined /></template>
+                    移除
+                  </a-button>
+                </template>
+              </template>
+            </a-table>
+
+            <!-- 手机端购物车视图 -->
+            <div v-else class="mobile-cart-list">
+              <template v-if="selectedDefinitionCartItems.length > 0">
+                <div
+                  v-for="def in selectedDefinitionCartItems"
+                  :key="def.id"
+                  class="mobile-cart-card"
+                  style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                      <div style="font-weight: 600; color: #1e293b;">{{ def.name }}</div>
+                      <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                        分类：{{ categoryMap[def.categoryId] || '-' }} | 单位：{{ def.unit || '-' }}
+                      </div>
+                    </div>
+                    <a-button type="link" danger size="small" style="padding: 0;" @click="removeFromCart(def.id)">
+                      移除
+                    </a-button>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: #475569;">租赁数量：</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <a-button size="small" @click="changeCartQty(def.id, -1)">-</a-button>
+                      <a-input-number
+                        v-model:value="definitionQuantities[def.id]"
+                        :min="1"
+                        :precision="0"
+                        style="width: 70px;"
+                        size="small"
+                      />
+                      <a-button size="small" @click="changeCartQty(def.id, 1)">+</a-button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <a-empty
+                v-else
+                description="清单为空，请在上方搜索并添加物品定义"
+              />
+            </div>
           </div>
         </template>
       </section>
@@ -466,10 +514,12 @@ import { message, Modal } from 'ant-design-vue';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
+  DeleteOutlined,
   DollarOutlined,
   ReloadOutlined,
   SearchOutlined,
   ShoppingOutlined,
+  ShoppingCartOutlined,
   TeamOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
@@ -667,32 +717,47 @@ const filteredSelectableItems = computed(() => {
   });
 });
 
-const filteredItemDefinitions = computed(() => {
-  const keyword = itemKeyword.value.trim().toLowerCase();
-  const categoryId = itemCategoryFilter.value;
-
-  return itemDefStore.itemDefinitions.filter(def => {
-    if (categoryId && def.categoryId !== categoryId) {
-      return false;
-    }
-    if (!keyword) {
-      return true;
-    }
-    const categoryName = categoryMap.value[def.categoryId] || '';
-    const fields = [
-      String(def.id),
-      def.name,
-      def.unit,
-      def.description,
-      categoryName,
-    ];
-    return fields.some(field => (field || '').toLowerCase().includes(keyword));
-  });
-});
 
 const totalSelectedDefinitionQuantity = computed(() => {
   return Object.values(definitionQuantities).reduce((sum, q) => sum + (q || 0), 0);
 });
+
+const definitionSearchOptions = computed(() => {
+  return itemDefStore.itemDefinitions.map(def => ({
+    value: def.id,
+    label: `${def.name} / ${categoryMap.value[def.categoryId] || '无分类'} (ID: ${def.id})`
+  }));
+});
+
+const selectedDefinitionCartItems = computed(() => {
+  return itemDefStore.itemDefinitions.filter(def => {
+    const qty = definitionQuantities[def.id];
+    return qty !== undefined && qty > 0;
+  });
+});
+
+const handleSelectDefinition = (defId: any) => {
+  const id = Number(defId);
+  if (definitionQuantities[id]) {
+    definitionQuantities[id] += 1;
+  } else {
+    definitionQuantities[id] = 1;
+  }
+};
+
+const changeCartQty = (defId: number, delta: number) => {
+  const current = definitionQuantities[defId] || 0;
+  const next = current + delta;
+  if (next <= 0) {
+    definitionQuantities[defId] = 0;
+  } else {
+    definitionQuantities[defId] = next;
+  }
+};
+
+const removeFromCart = (defId: number) => {
+  definitionQuantities[defId] = 0;
+};
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -720,12 +785,13 @@ const itemColumns = [
   { title: '备注', dataIndex: 'remarks', key: 'remarks' },
 ];
 
-const definitionColumns = [
+const cartColumns = [
   { title: '定义 ID', dataIndex: 'id', key: 'id', width: 100 },
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '分类', key: 'category', width: 180 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 100 },
-  { title: '租赁数量', key: 'quantity', width: 160 },
+  { title: '租赁数量', key: 'quantity', width: 200 },
+  { title: '操作', key: 'action', width: 120 },
 ];
 
 const getPlatformRemark = (record: Renter) => buildPlatformRemark(record);
