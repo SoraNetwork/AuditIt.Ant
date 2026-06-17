@@ -72,6 +72,9 @@
                 <template v-else-if="column.key === 'status'">
                   {{ rentalStatusText(record.status) }}
                 </template>
+                <template v-else-if="column.key === 'renterName'">
+                  <RenterLink :renter-id="record.renterId" :name="record.renterName" />
+                </template>
                 <template v-else-if="moneyColumns.includes(String(column.key))">
                   {{ formatMoney(record[column.key]) }}
                 </template>
@@ -93,6 +96,7 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import { formatDateTime } from '../utils/formatters';
 import { exportMultiSheetXlsx } from '../utils/xlsx';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import RenterLink from '../components/RenterLink.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const reportStore = useFinanceReportStore();

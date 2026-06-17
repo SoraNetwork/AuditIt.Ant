@@ -99,7 +99,7 @@
                 </template>
                 <template #description>
                   <div class="occupancy-desc">
-                    <span v-if="item.renterName" class="renter-name">租客: {{ item.renterName }}</span>
+                    <span v-if="item.renterName" class="renter-name">租客: <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
                     <span class="occupy-qty">占用数量: <strong style="color: #1f2937;">{{ item.quantity }}</strong> 件</span>
                   </div>
                 </template>
@@ -120,6 +120,7 @@ import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useItemAvailabilityStore, type ItemDefinitionDailyStock } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import RenterLink from '../components/RenterLink.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const itemDefStore = useItemDefinitionStore();

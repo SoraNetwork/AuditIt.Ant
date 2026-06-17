@@ -63,7 +63,9 @@
               <div class="matched-renter-top">
                 <a-avatar class="matched-avatar">{{ matchedRenter.name.slice(0, 1) }}</a-avatar>
                 <div class="matched-renter-main">
-                  <div class="matched-name">{{ matchedRenter.name }}</div>
+                  <div class="matched-name">
+                    <RenterLink :renter-id="matchedRenter.id" :name="matchedRenter.name" />
+                  </div>
                   <div class="matched-phone">{{ matchedRenter.phone || '未填写手机号' }}</div>
                 </div>
                 <a-tag color="success">已匹配</a-tag>
@@ -102,7 +104,7 @@
               <a-list-item :key="item.id" class="renter-candidate-item">
                 <div class="candidate-main">
                   <div class="candidate-name-line">
-                    <span class="candidate-name">{{ item.name }}</span>
+                    <span class="candidate-name"><RenterLink :renter-id="item.id" :name="item.name" /></span>
                     <a-tag>{{ getRenterMatchLabel(item) }}</a-tag>
                   </div>
                   <div class="candidate-meta">
@@ -525,6 +527,7 @@ import {
 } from '@ant-design/icons-vue';
 import { useRentalStore, type CreateRentalPayload } from '../stores/rentalStore';
 import { useRenterStore, type Renter } from '../stores/renterStore';
+import RenterLink from '../components/RenterLink.vue';
 import { useItemStore, getStatusText, type Item, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
 import { useCategoryStore } from '../stores/categoryStore';

@@ -24,7 +24,10 @@
         :data-source="renterStore.renters"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'platformRemark'">
+          <template v-if="column.key === 'name'">
+            <RenterLink :renter-id="record.id" :name="record.name" />
+          </template>
+          <template v-else-if="column.key === 'platformRemark'">
             <div class="platform-remark">{{ getPlatformRemark(record) || '-' }}</div>
           </template>
           <template v-else-if="column.key === 'actions'">
@@ -41,7 +44,7 @@
       <div v-else class="mobile-card-list">
         <a-skeleton :loading="renterStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard v-for="renter in renterStore.renters" :key="renter.id">
-            <template #title>{{ renter.name }}</template>
+            <template #title><RenterLink :renter-id="renter.id" :name="renter.name" /></template>
             <template #meta>
               <div v-if="renter.phone">电话：{{ renter.phone }}</div>
               <div v-if="renter.idCardNo">身份证号：{{ renter.idCardNo }}</div>
@@ -111,6 +114,7 @@ import { message } from 'ant-design-vue';
 import { useRenterStore, type Renter } from '../stores/renterStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RenterLink from '../components/RenterLink.vue';
 import {
   PLATFORM_TEMPLATES,
   appendPlatformTemplate,

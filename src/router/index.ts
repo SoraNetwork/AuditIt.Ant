@@ -46,6 +46,7 @@ const routes = [
       { path: 'return', name: 'return', component: () => import('../pages/Return.vue'), meta: { title: '归还', permissions: [PermissionCodes.ItemUpdate] } },
 
       { path: 'renters', name: 'renters', component: () => import('../pages/RentersList.vue'), meta: { title: '租客管理', permissions: [PermissionCodes.RenterView] } },
+      { path: 'renters/:id', name: 'renter-detail', component: () => import('../pages/RenterDetail.vue'), meta: { title: '租客详情', permissions: [PermissionCodes.RenterView] } },
       { path: 'rentals', name: 'rentals', component: () => import('../pages/RentalsList.vue'), meta: { title: '租赁列表', permissions: [PermissionCodes.RentalView] } },
       { path: 'rentals/new', name: 'rental-new', component: () => import('../pages/RentalCreate.vue'), meta: { title: '新建租赁', permissions: [PermissionCodes.RentalCreate] } },
       { path: 'rentals/:id', name: 'rental-detail', component: () => import('../pages/RentalDetail.vue'), meta: { title: '租赁详情', permissions: [PermissionCodes.RentalView] } },

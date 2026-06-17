@@ -7,7 +7,8 @@
     "dev": "concurrently \"vite\"",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "test:mobile-ui": "node scripts/verify-rental-detail-mobile-ui.mjs"
+    "test:mobile-ui": "node scripts/verify-rental-detail-mobile-ui.mjs",
+    "test:renter-links": "node scripts/verify-renter-links.mjs"
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",

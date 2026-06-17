@@ -7,7 +7,9 @@
         <a-descriptions-item label="状态">
           <a-tag :color="rentalDisplayStatusColor(rental)">{{ rentalDisplayStatusText(rental) }}</a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="租客">{{ rental.renter?.name || rental.renterId }}</a-descriptions-item>
+        <a-descriptions-item label="租客">
+          <RenterLink :renter-id="rental.renterId" :name="rental.renter?.name" />
+        </a-descriptions-item>
         <a-descriptions-item label="负责人">{{ rental.assignedTo || '-' }}</a-descriptions-item>
         <a-descriptions-item label="预计发货">{{ formatDate(rental.expectedShipDate) }}</a-descriptions-item>
         <a-descriptions-item label="开始日期">{{ formatDate(rental.startDate) }}</a-descriptions-item>
@@ -42,7 +44,9 @@
               {{ rentalDisplayStatusText(rental) }}
             </a-tag>
           </div>
-          <div class="rental-mobile-renter">{{ rental.renter?.name || rental.renterId }}</div>
+          <div class="rental-mobile-renter">
+            <RenterLink :renter-id="rental.renterId" :name="rental.renter?.name" />
+          </div>
           <div class="rental-mobile-period">
             {{ formatDate(rental.startDate) || '-' }} 至 {{ formatDate(rental.expectedEndDate) || '-' }}
           </div>
@@ -632,7 +636,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -654,6 +658,7 @@ import {
 } from '../utils/rentalDisplay';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
+import RenterLink from '../components/RenterLink.vue';
 
 interface RentalScheduleConflict {
   rentalId: string;
@@ -687,6 +692,10 @@ const itemStore = useItemStore();
 
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
+const routeRentalId = computed(() => {
+  const raw = route.params.id;
+  return Array.isArray(raw) ? raw[0] : String(raw || '');
+});
 const selectedShipItems = ref<Record<number, string>>({});
 const uncertainRentalItems = computed(() => {
   if (shipForm.direction !== 'Outbound') return [];
@@ -1039,8 +1048,8 @@ const sendSettlement = async () => {
   }
 };
 
-const load = async () => {
-  const id = String(route.params.id);
+const load = async (id = routeRentalId.value) => {
+  if (!id) return;
   loading.value = true;
   try {
     rental.value = await rentalStore.getRental(id);
@@ -1493,9 +1502,16 @@ onMounted(async () => {
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
     renterStore.fetchRenters('', 300),
   ]);
-  await load();
-  await loadSfRoutes(false);
 });
+
+watch(
+  () => route.params.id,
+  async () => {
+    await load();
+    await loadSfRoutes(false);
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

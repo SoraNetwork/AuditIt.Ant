@@ -87,7 +87,7 @@
                       <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
-                      {{ item.renter?.name || '-' }} · 开始 {{ formatDate(item.startDate) }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 开始 {{ formatDate(item.startDate) }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
@@ -110,7 +110,7 @@
                       <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
-                      {{ item.renter?.name || '-' }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 预计结束 {{ formatDate(item.expectedEndDate) }}
                       <span v-if="daysUntil(item.expectedEndDate) < 0" style="color: #cf1322; margin-left: 8px">
                         逾期 {{ -daysUntil(item.expectedEndDate) }} 天
                       </span>
@@ -135,7 +135,7 @@
                       <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
-                      {{ item.renter?.name || '-' }} · ¥{{ Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · ¥{{ Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -174,6 +174,7 @@ import { useWarehouseStore } from '../stores/warehouseStore';
 import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import RentalCalendarPanel from '../components/RentalCalendarPanel.vue';
+import RenterLink from '../components/RenterLink.vue';
 import { Pie, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js';
 import { formatDateTime } from '../utils/formatters';

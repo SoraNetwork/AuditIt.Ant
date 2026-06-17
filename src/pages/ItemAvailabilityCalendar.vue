@@ -61,7 +61,7 @@
               </template>
               <template #description>
                 {{ formatDate(item.startAt) }} ~ {{ formatDate(item.endAt) }}
-                <span v-if="item.renterName"> | {{ item.renterName }}</span>
+                <span v-if="item.renterName"> | <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
               </template>
             </a-list-item-meta>
           </a-list-item>
@@ -80,6 +80,7 @@ import { useItemAvailabilityStore, type ItemBusyPeriod } from '../stores/itemAva
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { getStatusText as getItemStatusText } from '../stores/itemStore';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import RenterLink from '../components/RenterLink.vue';
 
 const route = useRoute();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();

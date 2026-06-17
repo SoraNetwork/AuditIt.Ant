@@ -74,7 +74,7 @@
               </template>
               <template #description>
                 <span>{{ formatEventRange(item) }}</span>
-                <span v-if="item.renterName"> | {{ item.renterName }}</span>
+                <span v-if="item.renterName"> | <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
                 <span v-if="item.description"> | {{ item.description }}</span>
               </template>
             </a-list-item-meta>
@@ -95,6 +95,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCalendarStore, type RentalCalendarEvent } from '../stores/calendarStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
+import RenterLink from './RenterLink.vue';
 
 const props = defineProps<{
   compact?: boolean;

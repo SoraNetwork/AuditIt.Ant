@@ -55,7 +55,7 @@
             <a-tag :color="rentalDisplayStatusColor(record)">{{ rentalDisplayStatusText(record) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'renter'">
-            {{ record.renter?.name || '-' }}
+            <RenterLink :renter-id="record.renterId" :name="record.renter?.name" />
           </template>
           <template v-else-if="column.key === 'items'">
             <div class="item-info-list">
@@ -98,7 +98,7 @@
               <a-tag :color="rentalDisplayStatusColor(record)">{{ rentalDisplayStatusText(record) }}</a-tag>
             </template>
             <template #meta>
-              <div>租客：{{ record.renter?.name || '-' }}</div>
+              <div>租客：<RenterLink :renter-id="record.renterId" :name="record.renter?.name" /></div>
               <div>预计发货：{{ formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>开始：{{ formatDateTime(record.startDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
@@ -127,6 +127,7 @@ import { useRentalStore, type Rental, type RentalStatus } from '../stores/rental
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
+import RenterLink from '../components/RenterLink.vue';
 import { exportToXlsx } from '../utils/xlsx';
 import { useAuthStore } from '../stores/authStore';
 import { PermissionCodes } from '../utils/permissions';

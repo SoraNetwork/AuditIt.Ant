@@ -7,6 +7,7 @@ export interface ItemBusyPeriod {
   rentalId: string;
   rentalNumber: string;
   rentalStatus: RentalStatus;
+  renterId: string;
   renterName?: string | null;
   startAt: string;
   endAt: string;
@@ -75,6 +76,7 @@ export interface ItemDefinitionDailyOccupancy {
   rentalId: string;
   rentalNumber: string;
   rentalStatus: RentalStatus;
+  renterId: string;
   renterName?: string | null;
   quantity: number;
   isUncertain: boolean;

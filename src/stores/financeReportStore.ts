@@ -35,6 +35,7 @@ export interface FinanceReportDetail {
   rentalId: string;
   rentalNumber: string;
   status: RentalStatus;
+  renterId: string;
   renterName?: string | null;
   assignedTo?: string | null;
   startDate: string;

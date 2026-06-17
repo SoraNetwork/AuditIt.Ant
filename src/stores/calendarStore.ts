@@ -18,6 +18,7 @@ export interface RentalCalendarEvent {
   level: ReminderLevel;
   rentalId?: string | null;
   rentalNumber?: string | null;
+  renterId?: string | null;
   renterName?: string | null;
   rentalStatus?: RentalStatus | null;
   reminderId?: number | null;

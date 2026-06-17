@@ -47,6 +47,11 @@ export const useRenterStore = defineStore('renter', {
       }
     },
 
+    async getRenter(id: string): Promise<Renter> {
+      const response = await apiClient.get<Renter>(`/renters/${id}`);
+      return response.data;
+    },
+
     async createRenter(payload: CreateRenterPayload): Promise<Renter> {
       const response = await apiClient.post<Renter>('/renters', payload);
       this.renters.unshift(response.data);
