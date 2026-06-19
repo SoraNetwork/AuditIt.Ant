@@ -540,7 +540,20 @@
     @ok="submitItemPicker(false)"
   >
     <a-form layout="vertical">
-      <a-form-item label="租赁物品" required>
+      <a-form-item v-if="canUseDefinitionItemPicker" label="修改模式">
+        <a-radio-group v-model:value="itemPickerMode" button-style="solid">
+          <a-radio-button value="item">具体物品</a-radio-button>
+          <a-radio-button value="definition">物品定义</a-radio-button>
+        </a-radio-group>
+      </a-form-item>
+      <a-alert
+        v-else
+        type="info"
+        show-icon
+        message="租赁已发货或续租进行中，修改时只能选择具体物品。"
+        style="margin-bottom: 12px"
+      />
+      <a-form-item v-if="effectiveItemPickerMode === 'item'" label="租赁物品" required>
         <a-select
           v-model:value="selectedRentalItemIds"
           mode="multiple"
@@ -551,7 +564,7 @@
           placeholder="选择当前租赁中需要保留/新增的物品"
         />
       </a-form-item>
-      <a-form-item label="物品定义占位">
+      <a-form-item v-if="effectiveItemPickerMode === 'definition'" label="物品定义占位" required>
         <a-select
           v-model:value="definitionToAdd"
           show-search
@@ -748,6 +761,7 @@ const saving = ref(false);
 const importing = ref(false);
 const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
+const itemPickerMode = ref<'item' | 'definition'>('item');
 const selectedRentalItemIds = ref<string[]>([]);
 const selectedRentalDefinitionQuantities = reactive<Record<number, number>>({});
 const definitionToAdd = ref<number | undefined>(undefined);
@@ -826,10 +840,6 @@ const selectedRentalDefinitionIds = computed(() =>
   selectedRentalDefinitionEntries.value.flatMap(entry =>
     Array.from({ length: entry.quantity }, () => entry.id)
   )
-);
-
-const selectedRentalItemTotal = computed(() =>
-  selectedRentalItemIds.value.length + selectedRentalDefinitionIds.value.length
 );
 
 const editForm = reactive({
@@ -959,6 +969,18 @@ const isRenewal = computed(() => !!rental.value?.isRenewal);
 
 const hasRentalStarted = computed(() =>
   isRenewal.value || hasOutboundShipment.value || rental.value?.status === 'Active' || rental.value?.status === 'Overdue'
+);
+
+const canUseDefinitionItemPicker = computed(() => !hasRentalStarted.value);
+
+const effectiveItemPickerMode = computed<'item' | 'definition'>(() =>
+  canUseDefinitionItemPicker.value ? itemPickerMode.value : 'item'
+);
+
+const selectedRentalItemTotal = computed(() =>
+  effectiveItemPickerMode.value === 'definition'
+    ? selectedRentalDefinitionIds.value.length
+    : selectedRentalItemIds.value.length
 );
 
 const hasDeliveredOutbound = computed(() =>
@@ -1329,6 +1351,11 @@ const openItemPicker = async () => {
   selectedRentalItemIds.value = [...currentActiveRentalItemIds.value];
   resetSelectedRentalDefinitions(currentActiveRentalDefinitionQuantities.value);
   definitionToAdd.value = undefined;
+  itemPickerMode.value = !hasRentalStarted.value
+    && currentActiveRentalItemIds.value.length === 0
+    && selectedRentalDefinitionIds.value.length > 0
+      ? 'definition'
+      : 'item';
   itemPickerVisible.value = true;
   await Promise.all([
     itemStore.fetchItems(),
@@ -1453,9 +1480,10 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
 
   itemPickerSaving.value = true;
   try {
+    const useDefinitionMode = effectiveItemPickerMode.value === 'definition';
     rental.value = await rentalStore.updateRentalItems(rental.value.id, {
-      itemIds: selectedRentalItemIds.value,
-      itemDefinitionIds: selectedRentalDefinitionIds.value,
+      itemIds: useDefinitionMode ? [] : selectedRentalItemIds.value,
+      itemDefinitionIds: useDefinitionMode ? selectedRentalDefinitionIds.value : [],
       allowScheduleConflict,
     });
     itemPickerVisible.value = false;
