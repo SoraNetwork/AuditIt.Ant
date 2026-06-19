@@ -551,10 +551,38 @@
           placeholder="选择当前租赁中需要保留/新增的物品"
         />
       </a-form-item>
+      <a-form-item label="物品定义占位">
+        <a-select
+          v-model:value="definitionToAdd"
+          show-search
+          option-filter-prop="label"
+          :options="itemDefinitionPickerOptions"
+          :loading="itemDefinitionStore.loading"
+          placeholder="选择待发货时再确定库存的物品定义"
+          allow-clear
+          @select="addRentalDefinition"
+        />
+        <div v-if="selectedRentalDefinitionEntries.length" class="definition-picker-list">
+          <div
+            v-for="entry in selectedRentalDefinitionEntries"
+            :key="entry.id"
+            class="definition-picker-row"
+          >
+            <span class="definition-picker-name">{{ entry.label }}</span>
+            <a-input-number
+              :value="entry.quantity"
+              :min="0"
+              :precision="0"
+              @change="handleRentalDefinitionQuantityChange(entry.id, $event)"
+            />
+            <a-button type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
+          </div>
+        </div>
+      </a-form-item>
       <a-alert
         type="info"
         show-icon
-        :message="`当前选中 ${selectedRentalItemIds.length} 件。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
+        :message="`当前选中 ${selectedRentalItemTotal} 件。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
       />
     </a-form>
   </a-modal>
@@ -646,6 +674,7 @@ import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
 import { useAuthStore } from '../stores/authStore';
 import { useItemStore, type Item } from '../stores/itemStore';
+import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { formatDateTime } from '../utils/formatters';
 import { exportToXlsx, parseXlsxFile } from '../utils/xlsx';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -689,6 +718,7 @@ const userStore = useUserStore();
 const renterStore = useRenterStore();
 const authStore = useAuthStore();
 const itemStore = useItemStore();
+const itemDefinitionStore = useItemDefinitionStore();
 
 const rental = ref<Rental | null>(null);
 const loading = ref(false);
@@ -719,6 +749,8 @@ const importing = ref(false);
 const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
 const selectedRentalItemIds = ref<string[]>([]);
+const selectedRentalDefinitionQuantities = reactive<Record<number, number>>({});
+const definitionToAdd = ref<number | undefined>(undefined);
 const sfRoutes = ref<SfShipmentRoute[]>([]);
 const sfRouteLoading = ref(false);
 const renewVisible = ref(false);
@@ -744,6 +776,17 @@ const currentActiveRentalItemIds = computed(() =>
     .map(item => item.itemId as string) || []
 );
 
+const currentActiveRentalDefinitionQuantities = computed(() => {
+  const counts: Record<number, number> = {};
+  rental.value?.items
+    .filter(item => !item.returnedAt && !item.itemId && !!item.itemDefinitionId)
+    .forEach(item => {
+      const definitionId = item.itemDefinitionId as number;
+      counts[definitionId] = (counts[definitionId] || 0) + 1;
+    });
+  return counts;
+});
+
 const itemPickerOptions = computed(() => {
   const current = new Set(currentActiveRentalItemIds.value);
   return itemStore.items
@@ -753,6 +796,41 @@ const itemPickerOptions = computed(() => {
       label: `${item.shortId} / ${item.itemDefinitionName || item.name || '-'} / ${item.warehouseName || '-'}`,
     }));
 });
+
+const itemDefinitionPickerOptions = computed(() =>
+  itemDefinitionStore.itemDefinitions.map(definition => ({
+    value: definition.id,
+    label: `${definition.name} / ${definition.category?.name || '-'}`,
+  }))
+);
+
+const selectedRentalDefinitionEntries = computed(() =>
+  Object.entries(selectedRentalDefinitionQuantities)
+    .map(([id, quantity]) => ({
+      id: Number(id),
+      quantity: Number(quantity || 0),
+    }))
+    .filter(entry => entry.id > 0 && entry.quantity > 0)
+    .map(entry => {
+      const definition = itemDefinitionStore.itemDefinitions.find(item => item.id === entry.id);
+      return {
+        ...entry,
+        label: definition
+          ? `${definition.name} / ${definition.category?.name || '-'}`
+          : `#${entry.id}`,
+      };
+    })
+);
+
+const selectedRentalDefinitionIds = computed(() =>
+  selectedRentalDefinitionEntries.value.flatMap(entry =>
+    Array.from({ length: entry.quantity }, () => entry.id)
+  )
+);
+
+const selectedRentalItemTotal = computed(() =>
+  selectedRentalItemIds.value.length + selectedRentalDefinitionIds.value.length
+);
 
 const editForm = reactive({
   renterId: undefined as string | undefined,
@@ -1210,11 +1288,52 @@ const submitCancel = async () => {
   }
 };
 
+const resetSelectedRentalDefinitions = (counts: Record<number, number>) => {
+  Object.keys(selectedRentalDefinitionQuantities).forEach(id => {
+    delete selectedRentalDefinitionQuantities[Number(id)];
+  });
+  Object.entries(counts).forEach(([id, quantity]) => {
+    const definitionId = Number(id);
+    if (definitionId > 0 && quantity > 0) {
+      selectedRentalDefinitionQuantities[definitionId] = quantity;
+    }
+  });
+};
+
+const setRentalDefinitionQuantity = (definitionId: number, quantity: number) => {
+  const next = Math.max(0, Math.floor(Number(quantity || 0)));
+  if (next <= 0) {
+    delete selectedRentalDefinitionQuantities[definitionId];
+    return;
+  }
+  selectedRentalDefinitionQuantities[definitionId] = next;
+};
+
+const handleRentalDefinitionQuantityChange = (
+  definitionId: number,
+  value: number | string | null
+) => {
+  setRentalDefinitionQuantity(definitionId, Number(value || 0));
+};
+
+const addRentalDefinition = (definitionId: number) => {
+  setRentalDefinitionQuantity(
+    definitionId,
+    (selectedRentalDefinitionQuantities[definitionId] || 0) + 1
+  );
+  definitionToAdd.value = undefined;
+};
+
 const openItemPicker = async () => {
   if (!rental.value) return;
   selectedRentalItemIds.value = [...currentActiveRentalItemIds.value];
+  resetSelectedRentalDefinitions(currentActiveRentalDefinitionQuantities.value);
+  definitionToAdd.value = undefined;
   itemPickerVisible.value = true;
-  await itemStore.fetchItems();
+  await Promise.all([
+    itemStore.fetchItems(),
+    itemDefinitionStore.fetchItemDefinitions(),
+  ]);
 };
 
 const conflictLines = (payload: RentalCreateConflictResponse) => {
@@ -1327,7 +1446,7 @@ const submitRenew = async (allowScheduleConflict: boolean) => {
 
 const submitItemPicker = async (allowScheduleConflict: boolean) => {
   if (!rental.value) return;
-  if (selectedRentalItemIds.value.length === 0) {
+  if (selectedRentalItemTotal.value === 0) {
     message.error('至少保留一件租赁物品');
     return;
   }
@@ -1336,6 +1455,7 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
   try {
     rental.value = await rentalStore.updateRentalItems(rental.value.id, {
       itemIds: selectedRentalItemIds.value,
+      itemDefinitionIds: selectedRentalDefinitionIds.value,
       allowScheduleConflict,
     });
     itemPickerVisible.value = false;
@@ -1524,6 +1644,27 @@ watch(
 
 .rental-actions :deep(.ant-btn) {
   min-width: 120px;
+}
+
+.definition-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.definition-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.definition-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rental-mobile-shell {

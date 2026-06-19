@@ -202,6 +202,7 @@ export interface BulkUpdateRentalItemPayload {
 
 export interface UpdateRentalItemsPayload {
   itemIds: string[];
+  itemDefinitionIds?: number[];
   allowScheduleConflict?: boolean;
 }
 
