@@ -12,6 +12,7 @@ export interface ItemBusyPeriod {
   startAt: string;
   endAt: string;
   isOpen: boolean;
+  occupancyStatus?: 'Scheduled' | 'Returning';
 }
 
 export interface ItemFreePeriod {
@@ -80,6 +81,7 @@ export interface ItemDefinitionDailyOccupancy {
   renterName?: string | null;
   quantity: number;
   isUncertain: boolean;
+  occupancyStatus?: 'Scheduled' | 'Returning';
 }
 
 export interface ItemDefinitionDailyStock {

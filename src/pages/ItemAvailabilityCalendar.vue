@@ -39,9 +39,10 @@
                 v-for="busy in busyForDate(day).slice(0, 2)"
                 :key="`${day.format('YYYY-MM-DD')}-${busy.rentalId}`"
                 class="busy-pill"
+                :class="{ returning: busy.occupancyStatus === 'Returning' }"
                 @click.stop="$router.push(`/rentals/${busy.rentalId}`)"
               >
-                {{ busy.rentalNumber }}
+                {{ busy.occupancyStatus === 'Returning' ? '回货中' : busy.rentalNumber }}
               </span>
             </template>
           </button>
@@ -54,10 +55,11 @@
           <a-list-item class="busy-list-item" @click="$router.push(`/rentals/${item.rentalId}`)">
             <a-list-item-meta>
               <template #title>
-                <a-space wrap>
-                  <a-tag :color="item.isOpen ? 'orange' : 'default'">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
-                  <router-link :to="`/rentals/${item.rentalId}`">{{ item.rentalNumber }}</router-link>
-                </a-space>
+                  <a-space wrap>
+                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">回货中</a-tag>
+                    <a-tag :color="item.isOpen ? 'orange' : 'default'">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
+                    <router-link :to="`/rentals/${item.rentalId}`">{{ item.rentalNumber }}</router-link>
+                  </a-space>
               </template>
               <template #description>
                 {{ formatDate(item.startAt) }} ~ {{ formatDate(item.endAt) }}
@@ -214,6 +216,11 @@ onMounted(loadCalendar);
 .busy-pill {
   color: #ad6800;
   background: #fff1d6;
+}
+
+.busy-pill.returning {
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .busy-list-item {

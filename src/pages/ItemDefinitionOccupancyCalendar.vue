@@ -45,7 +45,7 @@
               :class="{
                 muted: day.month() !== visibleMonth.month(),
                 active: day.isSame(selectedDate, 'day'),
-                alert: remainingStockForDate(day) === 0 && totalStock > 0,
+                alert: isStockShort(day),
                 warning: remainingStockForDate(day) > 0 && remainingStockForDate(day) <= totalStock * 0.3
               }"
               @click="selectedDate = day"
@@ -64,6 +64,7 @@
                   <div class="occupy-count" v-if="occupiedCountForDate(day) > 0">
                     已占: {{ occupiedCountForDate(day) }}
                   </div>
+                  <div class="stock-shortage" v-if="isStockShort(day)">库存不足</div>
                 </template>
                 <template v-else-if="selectedDefinitionId">
                   <span class="no-data">-</span>
@@ -91,6 +92,7 @@
                     <a-tag :color="item.isUncertain ? 'orange' : 'blue'">
                       {{ item.isUncertain ? '待发货不确定商品' : '具体库存分配' }}
                     </a-tag>
+                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">回货中</a-tag>
                     <a-tag color="cyan">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
                     <router-link :to="`/rentals/${item.rentalId}`" class="rental-link">
                       {{ item.rentalNumber }}
@@ -205,6 +207,8 @@ const remainingStockForDate = (day: Dayjs): number => {
   const stock = getStockForDate(day);
   return stock ? stock.remainingStock : totalStock.value;
 };
+
+const isStockShort = (day: Dayjs): boolean => remainingStockForDate(day) < 1;
 
 const occupiedCountForDate = (day: Dayjs): number => {
   const stock = getStockForDate(day);
@@ -411,6 +415,20 @@ onMounted(async () => {
 .day-cell.alert .occupy-count {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.stock-shortage {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .no-data {
