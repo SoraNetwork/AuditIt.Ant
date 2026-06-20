@@ -52,7 +52,10 @@
             >
               <div class="day-header">
                 <span class="day-number">{{ day.date() }}</span>
-                <span v-if="day.isSame(dayjs(), 'day')" class="today-tag">今</span>
+                <span class="day-markers">
+                  <span v-if="isStockShort(day)" class="stock-shortage" title="库存不足">缺</span>
+                  <span v-if="day.isSame(dayjs(), 'day')" class="today-tag">今</span>
+                </span>
               </div>
               
               <div class="day-content">
@@ -64,7 +67,6 @@
                   <div class="occupy-count" v-if="occupiedCountForDate(day) > 0">
                     已占: {{ occupiedCountForDate(day) }}
                   </div>
-                  <div class="stock-shortage" v-if="isStockShort(day)">库存不足</div>
                 </template>
                 <template v-else-if="selectedDefinitionId">
                   <span class="no-data">-</span>
@@ -348,6 +350,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 4px;
 }
 
 .day-number {
@@ -367,6 +370,13 @@ onMounted(async () => {
   padding: 1px 4px;
   border-radius: 4px;
   font-weight: bold;
+}
+
+.day-markers {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
 }
 
 .day-content {
@@ -418,17 +428,17 @@ onMounted(async () => {
 }
 
 .stock-shortage {
-  max-width: 100%;
-  overflow: hidden;
-  padding: 1px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
   background: #dc2626;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
-  line-height: 16px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  line-height: 1;
 }
 
 .no-data {
