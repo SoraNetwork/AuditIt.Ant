@@ -208,6 +208,8 @@ export interface UpdateRentalItemsPayload {
 
 export interface SettlementOwnerShare {
   ownerName?: string | null;
+  itemShortId?: string | null;
+  itemName?: string | null;
   amount: number;
 }
 

@@ -210,7 +210,7 @@
               <a-descriptions-item label="物品分账" :span="isMobile ? 1 : 2">
                 <template v-if="settlementInfo.ownerShares.length">
                   <a-space wrap>
-                    <a-tag v-for="share in settlementInfo.ownerShares" :key="`${share.ownerName || 'none'}-${share.amount}`">
+                    <a-tag v-for="(share, index) in settlementInfo.ownerShares" :key="`${index}-${share.ownerName || 'none'}-${share.itemShortId || share.itemName || 'item'}-${share.amount}`">
                       {{ settlementShareLabel(share) }} {{ formatMoney(share.amount) }}
                     </a-tag>
                   </a-space>
@@ -1025,8 +1025,14 @@ const creatorSettlementLabel = computed(() =>
   settlementInfo.value?.creatorName ? `建单（${settlementInfo.value.creatorName}）` : '建单'
 );
 
-const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) =>
-  share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
+const settlementShareItemLabel = (share: SettlementPreview['ownerShares'][number]) =>
+  [share.itemShortId, share.itemName].filter(Boolean).join(' / ');
+
+const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) => {
+  const ownerLabel = share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
+  const itemLabel = settlementShareItemLabel(share);
+  return itemLabel ? `${ownerLabel} / ${itemLabel}` : ownerLabel;
+};
 
 const settlementShipperShareLabel = (share: SettlementPreview['shipperShares'][number]) =>
   share.shipperName ? `发货人（${share.shipperName}）` : '发货人';

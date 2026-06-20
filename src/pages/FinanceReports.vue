@@ -131,6 +131,11 @@ const detailColumns = [
 const formatDate = (value?: string | null) => formatDateTime(value, 'YYYY-MM-DD') || '';
 const formatMoney = (value?: number | null) =>
   value === null || value === undefined ? '￥0.0' : `￥${Number(value).toFixed(1)}`;
+const ownerShareExportLabel = (share: { ownerName?: string | null; itemShortId?: string | null; itemName?: string | null }) => {
+  const ownerName = share.ownerName || '未指定所有人';
+  const itemLabel = [share.itemShortId, share.itemName].filter(Boolean).join(' / ');
+  return itemLabel ? `${ownerName} / ${itemLabel}` : ownerName;
+};
 
 const loadReports = async () => {
   try {
@@ -238,7 +243,7 @@ const exportReport = async () => {
       建单人: row.creatorName || '',
       建单分账金额: row.creatorAmount,
       发货人分账明细: (row.shipperShares || []).map(s => `${s.shipperName || '未指定'}: ${s.amount.toFixed(1)}`).join('; '),
-      物品所有分账明细: (row.ownerShares || []).map(s => `${s.ownerName || '未指定'}: ${s.amount.toFixed(1)}`).join('; '),
+      物品所有分账明细: (row.ownerShares || []).map(s => `${ownerShareExportLabel(s)}: ${s.amount.toFixed(1)}`).join('; '),
       平台技术分账金额: row.technicianAmount,
     }));
 
