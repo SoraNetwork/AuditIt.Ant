@@ -62,18 +62,19 @@
               :key="day.format('YYYY-MM-DD')"
               type="button"
               class="day-cell"
-              :class="{
-                muted: day.month() !== visibleMonth.month(),
-                active: day.isSame(selectedDate, 'day'),
-                alert: isStockShort(day),
-                warning: remainingStockForDate(day) > 0 && remainingStockForDate(day) <= totalStock * 0.3
-              }"
+                :class="{
+                  muted: day.month() !== visibleMonth.month(),
+                  active: day.isSame(selectedDate, 'day'),
+                  alert: isStockShort(day),
+                  warning: isStockWarning(day)
+                }"
               @click="selectedDate = day"
             >
               <div class="day-header">
                 <span class="day-number">{{ day.date() }}</span>
                 <span class="day-markers">
                   <span v-if="isStockShort(day)" class="stock-shortage" title="库存不足">缺</span>
+                  <span v-else-if="isStockWarning(day)" class="stock-warning" title="仅剩一件">紧</span>
                   <span v-if="day.isSame(dayjs(), 'day')" class="today-tag">今</span>
                 </span>
               </div>
@@ -271,6 +272,12 @@ const remainingStockForDate = (day: Dayjs): number => {
 };
 
 const isStockShort = (day: Dayjs): boolean => remainingStockForDate(day) < 1;
+
+const isStockWarning = (day: Dayjs): boolean => {
+  const remainingStock = remainingStockForDate(day);
+  return remainingStock > 0
+    && ((totalStock.value > 1 && remainingStock === 1) || remainingStock <= totalStock.value * 0.3);
+};
 
 const occupiedCountForDate = (day: Dayjs): number => {
   const stock = getStockForDate(day);
@@ -520,6 +527,20 @@ onMounted(async () => {
   height: 16px;
   border-radius: 4px;
   background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stock-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: #f59e0b;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
