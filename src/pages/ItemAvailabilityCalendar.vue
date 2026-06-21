@@ -39,10 +39,10 @@
                 v-for="busy in busyForDate(day).slice(0, 2)"
                 :key="`${day.format('YYYY-MM-DD')}-${busy.rentalId}`"
                 class="busy-pill"
-                :class="{ returning: busy.occupancyStatus === 'Returning' }"
-                @click.stop="$router.push(`/rentals/${busy.rentalId}`)"
+                :class="{ returning: busy.occupancyStatus === 'Returning', manual: busy.isManualLoan }"
+                @click.stop="!busy.isManualLoan && $router.push(`/rentals/${busy.rentalId}`)"
               >
-                {{ busy.occupancyStatus === 'Returning' ? '回货中' : busy.rentalNumber }}
+                {{ busy.isManualLoan ? '普通借出' : busy.occupancyStatus === 'Returning' ? '未回货' : busy.rentalNumber }}
               </span>
             </template>
           </button>
@@ -52,14 +52,22 @@
       <a-divider>{{ selectedDate.format('YYYY-MM-DD') }}</a-divider>
       <a-list size="small" :data-source="selectedBusy" :locale="{ emptyText: '当天设备空闲' }">
         <template #renderItem="{ item }">
-          <a-list-item class="busy-list-item" @click="$router.push(`/rentals/${item.rentalId}`)">
+          <a-list-item
+            class="busy-list-item"
+            :class="{ 'is-link': !item.isManualLoan }"
+            @click="!item.isManualLoan && $router.push(`/rentals/${item.rentalId}`)"
+          >
             <a-list-item-meta>
               <template #title>
-                  <a-space wrap>
-                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">回货中</a-tag>
-                    <a-tag :color="item.isOpen ? 'orange' : 'default'">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
-                    <router-link :to="`/rentals/${item.rentalId}`">{{ item.rentalNumber }}</router-link>
-                  </a-space>
+                <a-space wrap>
+                    <a-tag v-if="item.isManualLoan" color="orange">普通借出</a-tag>
+                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">未回货</a-tag>
+                    <a-tag v-if="!item.isManualLoan" :color="item.isOpen ? 'orange' : 'default'">
+                      {{ rentalStatusText(item.rentalStatus) }}
+                    </a-tag>
+                    <router-link v-if="!item.isManualLoan" :to="`/rentals/${item.rentalId}`">{{ item.rentalNumber }}</router-link>
+                    <span v-else>{{ item.rentalNumber }}</span>
+                </a-space>
               </template>
               <template #description>
                 {{ formatDate(item.startAt) }} ~ {{ formatDate(item.endAt) }}
@@ -223,7 +231,16 @@ onMounted(loadCalendar);
   background: #fee2e2;
 }
 
+.busy-pill.manual {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
 .busy-list-item {
+  cursor: default;
+}
+
+.busy-list-item.is-link {
   cursor: pointer;
 }
 

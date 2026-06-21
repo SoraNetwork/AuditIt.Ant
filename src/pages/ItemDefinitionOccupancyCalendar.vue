@@ -7,24 +7,42 @@
 
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }" class="calendar-card">
       <div class="calendar-header-toolbar">
-        <a-space wrap class="filter-controls">
-          <span class="toolbar-label">物品定义：</span>
-          <a-select
-            v-model:value="selectedDefinitionId"
-            show-search
-            option-filter-prop="label"
-            :options="definitionOptions"
-            :loading="itemDefStore.loading"
-            placeholder="请选择物品定义"
-            class="definition-select"
-            @change="onDefinitionChange"
-          />
+        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="filter-controls">
+          <div class="filter-field">
+            <span class="toolbar-label">物品分类：</span>
+            <a-select
+              v-model:value="selectedCategoryId"
+              allow-clear
+              show-search
+              option-filter-prop="label"
+              :options="categoryOptions"
+              :loading="categoryStore.loading"
+              placeholder="先筛选分类"
+              class="category-select"
+              @change="onCategoryChange"
+            />
+          </div>
+          <div class="filter-field">
+            <span class="toolbar-label">物品定义：</span>
+            <a-select
+              v-model:value="selectedDefinitionId"
+              show-search
+              option-filter-prop="label"
+              :options="definitionOptions"
+              :loading="itemDefStore.loading"
+              placeholder="请选择物品定义"
+              class="definition-select"
+              @change="onDefinitionChange"
+            />
+          </div>
         </a-space>
 
-        <a-space wrap class="navigation-controls" v-if="selectedDefinitionId">
-          <a-button @click="moveMonth(-1)">上月</a-button>
-          <a-button @click="goToday">今天</a-button>
-          <a-button @click="moveMonth(1)">下月</a-button>
+        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="navigation-controls" v-if="selectedDefinitionId">
+          <div class="nav-buttons">
+            <a-button @click="moveMonth(-1)">上月</a-button>
+            <a-button @click="goToday">今天</a-button>
+            <a-button @click="moveMonth(1)">下月</a-button>
+          </div>
           <span class="month-title">{{ visibleMonth.format('YYYY年MM月') }}</span>
         </a-space>
       </div>
@@ -87,18 +105,24 @@
           class="occupancy-list"
         >
           <template #renderItem="{ item }">
-            <a-list-item class="occupancy-list-item" @click="$router.push(`/rentals/${item.rentalId}`)">
+            <a-list-item
+              class="occupancy-list-item"
+              :class="{ 'is-link': !item.isManualLoan }"
+              @click="!item.isManualLoan && $router.push(`/rentals/${item.rentalId}`)"
+            >
               <a-list-item-meta>
                 <template #title>
                   <a-space wrap>
-                    <a-tag :color="item.isUncertain ? 'orange' : 'blue'">
+                    <a-tag v-if="item.isManualLoan" color="orange">普通借出</a-tag>
+                    <a-tag v-else :color="item.isUncertain ? 'orange' : 'blue'">
                       {{ item.isUncertain ? '待发货不确定商品' : '具体库存分配' }}
                     </a-tag>
-                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">回货中</a-tag>
-                    <a-tag color="cyan">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
-                    <router-link :to="`/rentals/${item.rentalId}`" class="rental-link">
+                    <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">未回货</a-tag>
+                    <a-tag v-if="!item.isManualLoan" color="cyan">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
+                    <router-link v-if="!item.isManualLoan" :to="`/rentals/${item.rentalId}`" class="rental-link">
                       {{ item.rentalNumber }}
                     </router-link>
+                    <span v-else class="manual-loan-reference">{{ item.rentalNumber }}</span>
                   </a-space>
                 </template>
                 <template #description>
@@ -120,6 +144,7 @@
 import { computed, onMounted, ref } from 'vue';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
+import { useCategoryStore } from '../stores/categoryStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useItemAvailabilityStore, type ItemDefinitionDailyStock } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -127,9 +152,11 @@ import { rentalStatusText } from '../utils/rentalDisplay';
 import RenterLink from '../components/RenterLink.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
+const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
 const availabilityStore = useItemAvailabilityStore();
 
+const selectedCategoryId = ref<number | undefined>();
 const selectedDefinitionId = ref<number | undefined>();
 const visibleMonth = ref(dayjs().startOf('month'));
 const selectedDate = ref(dayjs());
@@ -139,8 +166,23 @@ const totalStock = ref(0);
 
 const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
 
+const categoryOptions = computed(() =>
+  categoryStore.categories.map(category => ({
+    value: category.id,
+    label: category.name,
+  }))
+);
+
+const filteredDefinitions = computed(() => {
+  if (!selectedCategoryId.value) {
+    return itemDefStore.itemDefinitions;
+  }
+
+  return itemDefStore.itemDefinitions.filter(def => def.categoryId === selectedCategoryId.value);
+});
+
 const definitionOptions = computed(() =>
-  itemDefStore.itemDefinitions.map(def => ({
+  filteredDefinitions.value.map(def => ({
     value: def.id,
     label: `${def.name} (ID: ${def.id})`,
   }))
@@ -181,8 +223,24 @@ const loadOccupancy = async () => {
 };
 
 const onDefinitionChange = async () => {
-  selectedDate.value = visibleMonth.value.startOf('month');
+  const today = dayjs();
+  visibleMonth.value = today.startOf('month');
+  selectedDate.value = today;
   await loadOccupancy();
+};
+
+const onCategoryChange = () => {
+  const selectedDefinitionStillVisible =
+    selectedDefinitionId.value
+    && filteredDefinitions.value.some(def => def.id === selectedDefinitionId.value);
+
+  if (selectedDefinitionStillVisible) {
+    return;
+  }
+
+  selectedDefinitionId.value = undefined;
+  calendarData.value = {};
+  totalStock.value = 0;
 };
 
 const moveMonth = async (step: number) => {
@@ -223,7 +281,10 @@ const selectedDailyOccupancies = computed(() => {
 });
 
 onMounted(async () => {
-  await itemDefStore.fetchItemDefinitions();
+  await Promise.all([
+    categoryStore.fetchCategories(),
+    itemDefStore.fetchItemDefinitions(),
+  ]);
 });
 </script>
 
@@ -252,15 +313,37 @@ onMounted(async () => {
 .filter-controls {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
+}
+
+.filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toolbar-label {
   font-weight: 500;
   color: #475467;
+  white-space: nowrap;
+}
+
+.category-select {
+  width: 200px;
 }
 
 .definition-select {
-  width: 260px;
+  width: 280px;
+}
+
+.navigation-controls {
+  display: flex;
+  align-items: center;
+}
+
+.nav-buttons {
+  display: inline-flex;
+  gap: 8px;
 }
 
 .month-title {
@@ -462,16 +545,25 @@ onMounted(async () => {
 .occupancy-list-item {
   padding: 12px 16px;
   transition: background 0.15s ease;
+  cursor: default;
+}
+
+.occupancy-list-item.is-link {
   cursor: pointer;
 }
 
-.occupancy-list-item:hover {
+.occupancy-list-item.is-link:hover {
   background: #f8fafc;
 }
 
 .rental-link {
   font-weight: 600;
   color: #3b82f6;
+}
+
+.manual-loan-reference {
+  font-weight: 600;
+  color: #475467;
 }
 
 .occupancy-desc {
@@ -494,8 +586,37 @@ onMounted(async () => {
     align-items: stretch;
   }
 
+  .filter-controls,
+  .navigation-controls {
+    width: 100%;
+  }
+
+  .filter-field {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .category-select,
   .definition-select {
     width: 100%;
+  }
+
+  .nav-buttons {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .nav-buttons :deep(.ant-btn) {
+    width: 100%;
+  }
+
+  .month-title {
+    margin-left: 0;
+    text-align: center;
   }
 
   .day-cell {

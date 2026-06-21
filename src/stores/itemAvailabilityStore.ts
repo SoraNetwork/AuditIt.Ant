@@ -12,6 +12,7 @@ export interface ItemBusyPeriod {
   startAt: string;
   endAt: string;
   isOpen: boolean;
+  isManualLoan?: boolean;
   occupancyStatus?: 'Scheduled' | 'Returning';
 }
 
@@ -81,6 +82,7 @@ export interface ItemDefinitionDailyOccupancy {
   renterName?: string | null;
   quantity: number;
   isUncertain: boolean;
+  isManualLoan?: boolean;
   occupancyStatus?: 'Scheduled' | 'Returning';
 }
 
