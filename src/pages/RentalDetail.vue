@@ -536,12 +536,16 @@
     title="修改租赁物品"
     ok-text="保存"
     cancel-text="取消"
+    :width="isMobile ? 'calc(100vw - 16px)' : 620"
+    :style="{ top: isMobile ? '8px' : undefined }"
+    :body-style="{ padding: isMobile ? '16px 12px' : undefined }"
+    wrap-class-name="rental-item-picker-modal"
     :confirm-loading="itemPickerSaving"
     @ok="submitItemPicker(false)"
   >
-    <a-form layout="vertical">
+    <a-form layout="vertical" class="item-picker-form">
       <a-form-item v-if="canUseDefinitionItemPicker" label="修改模式">
-        <a-radio-group v-model:value="itemPickerMode" button-style="solid">
+        <a-radio-group v-model:value="itemPickerMode" button-style="solid" class="item-picker-mode">
           <a-radio-button value="item">具体物品</a-radio-button>
           <a-radio-button value="definition">物品定义</a-radio-button>
         </a-radio-group>
@@ -562,6 +566,9 @@
           :options="itemPickerOptions"
           :loading="itemStore.loading"
           placeholder="选择当前租赁中需要保留/新增的物品"
+          :size="isMobile ? 'large' : 'middle'"
+          :max-tag-count="isMobile ? 'responsive' : undefined"
+          class="item-picker-select"
         />
       </a-form-item>
       <a-form-item v-if="effectiveItemPickerMode === 'definition'" label="物品定义占位" required>
@@ -573,6 +580,8 @@
           :loading="itemDefinitionStore.loading"
           placeholder="选择待发货时再确定库存的物品定义"
           allow-clear
+          :size="isMobile ? 'large' : 'middle'"
+          class="item-picker-select"
           @select="addRentalDefinition"
         />
         <div v-if="selectedRentalDefinitionEntries.length" class="definition-picker-list">
@@ -586,9 +595,10 @@
               :value="entry.quantity"
               :min="0"
               :precision="0"
+              :size="isMobile ? 'large' : 'middle'"
               @change="handleRentalDefinitionQuantityChange(entry.id, $event)"
             />
-            <a-button type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
           </div>
         </div>
       </a-form-item>
@@ -1956,6 +1966,64 @@ watch(
 }
 
 @media (max-width: 767.98px) {
+  :global(.rental-item-picker-modal .ant-modal) {
+    max-width: calc(100vw - 16px);
+    margin: 0 auto;
+  }
+
+  :global(.rental-item-picker-modal .ant-modal-content) {
+    display: flex;
+    max-height: calc(100vh - 16px);
+    flex-direction: column;
+  }
+
+  :global(.rental-item-picker-modal .ant-modal-body) {
+    max-height: calc(100vh - 170px);
+    overflow-y: auto;
+  }
+
+  :global(.rental-item-picker-modal .ant-modal-footer) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  :global(.rental-item-picker-modal .ant-modal-footer .ant-btn) {
+    width: 100%;
+    min-height: 40px;
+    margin: 0;
+  }
+
+  .item-picker-mode {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .item-picker-mode :deep(.ant-radio-button-wrapper) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 8px;
+    text-align: center;
+  }
+
+  .item-picker-select :deep(.ant-select-selector) {
+    min-height: 40px;
+  }
+
+  .definition-picker-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .definition-picker-row .definition-picker-name {
+    grid-column: 1 / -1;
+  }
+
   .rental-detail-card :deep(.ant-card-body) {
     padding-bottom: 14px !important;
   }

@@ -8,12 +8,14 @@
 
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <div class="calendar-toolbar">
-        <a-space wrap>
-          <a-button @click="moveMonth(-1)">上月</a-button>
-          <a-button @click="goToday">今天</a-button>
-          <a-button @click="moveMonth(1)">下月</a-button>
+        <div class="calendar-navigation">
+          <div class="calendar-nav-buttons">
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="moveMonth(-1)">上月</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="goToday">今天</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="moveMonth(1)">下月</a-button>
+          </div>
           <span class="month-title">{{ visibleMonth.format('YYYY年MM月') }}</span>
-        </a-space>
+        </div>
         <a-tag v-if="calendar?.item.status" :color="calendar.item.status === 'InStock' ? 'green' : 'blue'">
           {{ getItemStatusText(calendar.item.status) }}
         </a-tag>
@@ -157,6 +159,13 @@ onMounted(loadCalendar);
   font-weight: 600;
 }
 
+.calendar-navigation,
+.calendar-nav-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .availability-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -250,8 +259,28 @@ onMounted(loadCalendar);
     flex-direction: column;
   }
 
+  .calendar-navigation {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calendar-nav-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .calendar-nav-buttons :deep(.ant-btn) {
+    width: 100%;
+  }
+
+  .month-title {
+    text-align: center;
+  }
+
   .day-cell {
-    min-height: 68px;
+    min-height: 76px;
     padding: 4px;
   }
 

@@ -18,6 +18,7 @@
               :options="categoryOptions"
               :loading="categoryStore.loading"
               placeholder="先筛选分类"
+              :size="isMobile ? 'large' : 'middle'"
               class="category-select"
               @change="onCategoryChange"
             />
@@ -31,6 +32,7 @@
               :options="definitionOptions"
               :loading="itemDefStore.loading"
               placeholder="请选择物品定义"
+              :size="isMobile ? 'large' : 'middle'"
               class="definition-select"
               @change="onDefinitionChange"
             />
@@ -39,9 +41,9 @@
 
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="navigation-controls" v-if="selectedDefinitionId">
           <div class="nav-buttons">
-            <a-button @click="moveMonth(-1)">上月</a-button>
-            <a-button @click="goToday">今天</a-button>
-            <a-button @click="moveMonth(1)">下月</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="moveMonth(-1)">上月</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="goToday">今天</a-button>
+            <a-button :size="isMobile ? 'large' : 'middle'" @click="moveMonth(1)">下月</a-button>
           </div>
           <span class="month-title">{{ visibleMonth.format('YYYY年MM月') }}</span>
         </a-space>
