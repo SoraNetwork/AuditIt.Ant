@@ -64,7 +64,7 @@
         </a-col>
       </a-row>
 
-      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+      <a-row v-if="!isMobile" :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
           <a-card title="提醒日历">
             <RentalCalendarPanel compact />
@@ -83,11 +83,21 @@
                   </template>
                   <a-list-item-meta>
                     <template #title>
-                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>·
                       <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
-                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 开始 {{ formatDate(item.startDate) }} · 预计结束 {{ formatDate(item.expectedEndDate) }}
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span v-if="daysUntil(item.expectedShipDate) < 0" style="color: #cf1322; margin-left: 8px">
+                        逾期 {{ -daysUntil(item.expectedShipDate) }} 天发货
+                      </span>
+                      <span v-else-if="daysUntil(item.expectedShipDate) === 0" style="color: #d48806; margin-left: 8px">
+                        今天发货
+                      </span>
+                      <span v-else style="color: #d48806; margin-left: 8px">
+                        {{ daysUntil(item.expectedShipDate) }} 天后发货
+                      </span>
+                       预计发货 {{ formatDate(item.expectedShipDate) }}
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
@@ -223,7 +233,7 @@ const recentRentals = computed(() =>
 const pendingShipmentList = computed(() =>
   [...rentalStore.rentals]
     .filter(r => r.status === 'Pending')
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .sort((a, b) => new Date(a.expectedShipDate).getTime() - new Date(b.expectedShipDate).getTime())
     .slice(0, 8)
 );
 
