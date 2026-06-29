@@ -17,9 +17,9 @@
             </a-select-option>
           </a-select>
           <a-input
-            v-model:value="rentalNumber"
-            placeholder="租赁单号"
-            :style="isMobile ? { width: '100%' } : { width: '180px' }"
+            v-model:value="searchKeyword"
+            placeholder="搜索租客 / 单号 / 物品"
+            :style="isMobile ? { width: '100%' } : { width: '240px' }"
           />
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
@@ -140,7 +140,7 @@ const route = useRoute();
 const router = useRouter();
 
 const status = ref<RentalStatus | undefined>(undefined);
-const rentalNumber = ref('');
+const searchKeyword = ref('');
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
@@ -175,13 +175,13 @@ const readQueryStatus = (value: unknown): RentalStatus | undefined => {
 
 const applyQueryFilters = () => {
   status.value = readQueryStatus(route.query.status);
-  rentalNumber.value = readQueryString(route.query.rentalNumber);
+  searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
 };
 
 const fetchList = async () => {
   await rentalStore.fetchRentals({
     status: status.value,
-    rentalNumber: rentalNumber.value.trim() || undefined,
+    search: searchKeyword.value.trim() || undefined,
     page: 1,
     pageSize: 100,
   });
@@ -259,13 +259,13 @@ const search = async () => {
     path: '/rentals',
     query: {
       status: status.value,
-      rentalNumber: rentalNumber.value.trim() || undefined,
+      search: searchKeyword.value.trim() || undefined,
     },
   });
 };
 
 watch(
-  () => [route.query.status, route.query.rentalNumber],
+  () => [route.query.status, route.query.search, route.query.rentalNumber],
   async () => {
     applyQueryFilters();
     await fetchList();

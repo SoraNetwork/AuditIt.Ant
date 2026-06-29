@@ -260,6 +260,7 @@ export const useRentalStore = defineStore('rental', {
     async fetchRentals(filters: {
       status?: RentalStatus;
       renterId?: string;
+      search?: string;
       rentalNumber?: string;
       startDateFrom?: string;
       startDateTo?: string;
@@ -272,6 +273,7 @@ export const useRentalStore = defineStore('rental', {
         const params = new URLSearchParams();
         if (filters.status) params.append('status', filters.status);
         if (filters.renterId) params.append('renterId', filters.renterId);
+        if (filters.search) params.append('search', filters.search);
         if (filters.rentalNumber) params.append('rentalNumber', filters.rentalNumber);
         if (filters.startDateFrom) params.append('startDateFrom', filters.startDateFrom);
         if (filters.startDateTo) params.append('startDateTo', filters.startDateTo);
