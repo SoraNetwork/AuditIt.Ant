@@ -133,8 +133,7 @@ const formatMoney = (value?: number | null) =>
   value === null || value === undefined ? '￥0.0' : `￥${Number(value).toFixed(1)}`;
 const ownerShareExportLabel = (share: { ownerName?: string | null; itemShortId?: string | null; itemName?: string | null }) => {
   const ownerName = share.ownerName || '未指定所有人';
-  const itemLabel = [share.itemShortId, share.itemName].filter(Boolean).join(' / ');
-  return itemLabel ? `${ownerName} / ${itemLabel}` : ownerName;
+  return ownerName;
 };
 
 const loadReports = async () => {

@@ -53,6 +53,11 @@
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
+          <a-card hoverable class="overview-card" @click="goToPendingSettlementList">
+            <a-statistic title="待结算" :value="pendingSettlementRentals" :value-style="{ color: pendingSettlementRentals > 0 ? '#d48806' : undefined }" />
+          </a-card>
+        </a-col>
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Cancelled')">
             <a-statistic title="已取消" :value="cancelledRentals" />
           </a-card>
@@ -98,6 +103,36 @@
                         {{ daysUntil(item.expectedShipDate) }} 天后发货
                       </span>
                        预计发货 {{ formatDate(item.expectedShipDate) }}
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
+          <a-card title="待结算单">
+            <template #extra>
+              <router-link :to="{ path: '/rentals', query: { pendingSettlement: 'true' } }">查看全部</router-link>
+            </template>
+            <a-list size="small" :data-source="pendingSettlementList" :locale="{ emptyText: '暂无待结算租赁单' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <template #actions>
+                    <router-link :to="`/rentals/${item.id}`">处理</router-link>
+                  </template>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
+                      <a-tag color="gold" style="margin-left: 4px">待结算</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 完成 {{ formatDate(completedAt(item)) || '-' }} · 核算 {{ formatMoney(item.accountedAmount) }}
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
@@ -181,7 +216,7 @@ import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import { useItemStore } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
+import { useRentalStore, type Rental, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import RentalCalendarPanel from '../components/RentalCalendarPanel.vue';
 import RenterLink from '../components/RenterLink.vue';
@@ -209,6 +244,9 @@ const pendingRentals = computed(() => rentalStore.rentals.filter(r => r.status =
 const overdueRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Overdue').length);
 const returnedRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Returned').length);
 const cancelledRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Cancelled').length);
+const isPendingSettlementRental = (rental: Rental) =>
+  (rental.status === 'Returned' || rental.status === 'Renewed') && !rental.settlementNotifiedAt;
+const pendingSettlementRentals = computed(() => rentalStore.rentals.filter(isPendingSettlementRental).length);
 
 const activeRevenue = computed(() =>
   rentalStore.rentals
@@ -237,9 +275,23 @@ const pendingShipmentList = computed(() =>
     .slice(0, 8)
 );
 
+const pendingSettlementList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(isPendingSettlementRental)
+    .sort((a, b) => new Date(completedAt(a)).getTime() - new Date(completedAt(b)).getTime())
+    .slice(0, 8)
+);
+
 const goToRentalsByStatus = (status: RentalStatus) => {
   router.push({ path: '/rentals', query: { status } });
 };
+
+const goToPendingSettlementList = () => {
+  router.push({ path: '/rentals', query: { pendingSettlement: 'true' } });
+};
+
+const completedAt = (rental: Rental) =>
+  rental.actualEndDate || rental.updatedAt || rental.expectedEndDate;
 
 const daysUntil = (dateStr: string) => {
   const now = dayjs().startOf('day');
@@ -249,6 +301,11 @@ const daysUntil = (dateStr: string) => {
 
 const formatDate = (value?: string | null) =>
   value ? formatDateTime(value, 'YYYY-MM-DD') : '';
+
+const formatMoney = (value?: number | null) => {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-';
+  return `¥${Number(value).toFixed(1)}`;
+};
 
 const totalItems = computed(() => itemStore.items.length);
 const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'InStock').length);

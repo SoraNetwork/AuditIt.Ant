@@ -2,8 +2,15 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { execSync } from 'child_process';
 
-// Get the latest git commit hash
-const gitSha = execSync('git rev-parse HEAD').toString().trim();
+const getGitSha = () => {
+  try {
+    return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return 'unknown';
+  }
+};
+
+const gitSha = getGitSha();
 
 // https://vite.dev/config/
 export default defineConfig({

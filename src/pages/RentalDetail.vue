@@ -252,40 +252,62 @@
         <a-button :block="isMobile" type="link" @click="downloadItemsTemplate">下载模板</a-button>
       </a-space>
 
-      <a-table v-if="!isMobile" row-key="id" :columns="itemColumns" :data-source="rental.items" :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'returnedAt'">
-            {{ formatDateTime(record.returnedAt) || '-' }}
-          </template>
-          <template v-else-if="column.key === 'returnCondition'">
-            {{ returnConditionText(record.returnCondition) }}
-          </template>
-          <template v-else-if="column.key === 'perItemPrice'">
-            {{ formatMoney(record.perItemPrice) || '-' }}
-          </template>
-          <template v-else-if="column.key === 'itemShortIdSnapshot'">
-            <span v-if="record.itemId">{{ record.itemShortIdSnapshot }}</span>
-            <a-tag v-else color="orange">待发货不确定物品</a-tag>
-          </template>
-        </template>
-      </a-table>
+      <div v-if="rentalItemCategoryGroups.length" :class="['rental-item-category-list', { mobile: isMobile }]">
+        <section
+          v-for="(group, groupIndex) in rentalItemCategoryGroups"
+          :key="group.key"
+          class="rental-item-category-section"
+          :style="categoryGroupStyle(groupIndex)"
+        >
+          <div class="rental-item-category-header">
+            <div class="rental-item-category-heading">
+              <span>物品分类</span>
+              <h3>{{ group.categoryName }}</h3>
+              <p>物品分类：{{ group.categoryName }}</p>
+            </div>
+            <div class="rental-item-category-summary">
+              <a-tag :color="group.tagColor">{{ group.items.length }} 件</a-tag>
+              <strong>{{ formatMoney(group.totalPrice) || '-' }}</strong>
+            </div>
+          </div>
 
-      <div v-else class="mobile-card-list">
-        <MobileListCard v-for="item in rental.items" :key="item.id">
-          <template #title>{{ item.itemId ? item.itemShortIdSnapshot : '待发货不确定物品' }} | {{ item.itemNameSnapshot }}</template>
-          <template #tags>
-            <a-tag v-if="item.returnCondition" :color="item.returnCondition === 'Good' ? 'green' : 'red'">
-              {{ returnConditionText(item.returnCondition) }}
-            </a-tag>
-          </template>
-          <template #meta>
-            <div>单价：{{ formatMoney(item.perItemPrice) || '-' }}</div>
-            <div v-if="item.listingRemarks">平台备注：{{ item.listingRemarks }}</div>
-            <div v-if="item.returnedAt">归还时间：{{ formatDateTime(item.returnedAt) }}</div>
-          </template>
-        </MobileListCard>
-        <a-empty v-if="!rental.items?.length" description="暂无商品" />
+          <a-table v-if="!isMobile" row-key="id" :columns="itemColumns" :data-source="group.items" :pagination="false" size="small">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'returnedAt'">
+                {{ formatDateTime(record.returnedAt) || '-' }}
+              </template>
+              <template v-else-if="column.key === 'returnCondition'">
+                {{ returnConditionText(record.returnCondition) }}
+              </template>
+              <template v-else-if="column.key === 'perItemPrice'">
+                {{ formatMoney(record.perItemPrice) || '-' }}
+              </template>
+              <template v-else-if="column.key === 'itemShortIdSnapshot'">
+                <span v-if="record.itemId">{{ record.itemShortIdSnapshot }}</span>
+                <a-tag v-else color="orange">待发货不确定物品</a-tag>
+              </template>
+            </template>
+          </a-table>
+
+          <div v-else class="rental-item-mobile-list">
+            <article v-for="item in group.items" :key="item.id" class="rental-item-mobile-row">
+              <div class="rental-item-mobile-title">
+                <span>{{ item.itemId ? item.itemShortIdSnapshot : '待发货不确定物品' }}</span>
+                <a-tag v-if="item.returnCondition" :color="item.returnCondition === 'Good' ? 'green' : 'red'">
+                  {{ returnConditionText(item.returnCondition) }}
+                </a-tag>
+              </div>
+              <div class="rental-item-mobile-name">{{ item.itemNameSnapshot || '-' }}</div>
+              <div class="rental-item-mobile-meta">
+                <span>单价：{{ formatMoney(item.perItemPrice) || '-' }}</span>
+                <span v-if="item.returnedAt">归还：{{ formatDateTime(item.returnedAt) }}</span>
+              </div>
+              <div v-if="item.listingRemarks" class="rental-item-mobile-remarks">平台备注：{{ item.listingRemarks }}</div>
+            </article>
+          </div>
+        </section>
       </div>
+      <a-empty v-else description="暂无商品" />
 
       <a-divider>物流记录</a-divider>
 
@@ -691,7 +713,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
+import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type RentalItem, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
@@ -942,6 +964,73 @@ const itemColumns = [
   { title: '归还状态', dataIndex: 'returnCondition', key: 'returnCondition', width: 140 },
 ];
 
+const categoryPalette = [
+  { accent: '#2563eb', soft: '#eff6ff', border: '#bfdbfe', tag: 'blue' },
+  { accent: '#0f766e', soft: '#ecfdf5', border: '#99f6e4', tag: 'green' },
+  { accent: '#b45309', soft: '#fffbeb', border: '#fde68a', tag: 'gold' },
+  { accent: '#7c3aed', soft: '#f5f3ff', border: '#ddd6fe', tag: 'purple' },
+  { accent: '#be123c', soft: '#fff1f2', border: '#fecdd3', tag: 'red' },
+];
+
+const itemDefinitionCategoryMap = computed(() =>
+  itemDefinitionStore.itemDefinitions.reduce((map: Record<number, { categoryId?: number | null; categoryName: string }>, definition) => {
+    map[definition.id] = {
+      categoryId: definition.categoryId,
+      categoryName: definition.category?.name || '',
+    };
+    return map;
+  }, {})
+);
+
+const resolveRentalItemCategory = (item: RentalItem) => {
+  const fallback = item.itemDefinitionId ? itemDefinitionCategoryMap.value[item.itemDefinitionId] : undefined;
+  const categoryId = item.categoryId ?? fallback?.categoryId ?? null;
+  const categoryName = item.categoryName || fallback?.categoryName || '未分类';
+  return { categoryId, categoryName };
+};
+
+const rentalItemCategoryGroups = computed(() => {
+  const groups: Array<{
+    key: string;
+    categoryName: string;
+    items: RentalItem[];
+    totalPrice: number;
+    tagColor: string;
+  }> = [];
+  const indexByKey = new Map<string, number>();
+
+  (rental.value?.items || []).forEach(item => {
+    const category = resolveRentalItemCategory(item);
+    const key = category.categoryId ? `category-${category.categoryId}` : `category-name-${category.categoryName}`;
+    let groupIndex = indexByKey.get(key);
+    if (groupIndex === undefined) {
+      groupIndex = groups.length;
+      indexByKey.set(key, groupIndex);
+      groups.push({
+        key,
+        categoryName: category.categoryName,
+        items: [],
+        totalPrice: 0,
+        tagColor: categoryPalette[groupIndex % categoryPalette.length].tag,
+      });
+    }
+
+    groups[groupIndex].items.push(item);
+    groups[groupIndex].totalPrice += Number(item.perItemPrice || 0);
+  });
+
+  return groups;
+});
+
+const categoryGroupStyle = (index: number) => {
+  const color = categoryPalette[index % categoryPalette.length];
+  return {
+    '--category-accent': color.accent,
+    '--category-soft': color.soft,
+    '--category-border': color.border,
+  };
+};
+
 const shipmentColumns = [
   { title: '方向', dataIndex: 'direction', key: 'direction', width: 90 },
   { title: '仓库', dataIndex: 'originWarehouseName', key: 'originWarehouseName', width: 160 },
@@ -1035,14 +1124,8 @@ const creatorSettlementLabel = computed(() =>
   settlementInfo.value?.creatorName ? `建单（${settlementInfo.value.creatorName}）` : '建单'
 );
 
-const settlementShareItemLabel = (share: SettlementPreview['ownerShares'][number]) =>
-  [share.itemShortId, share.itemName].filter(Boolean).join(' / ');
-
-const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) => {
-  const ownerLabel = share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
-  const itemLabel = settlementShareItemLabel(share);
-  return itemLabel ? `${ownerLabel} / ${itemLabel}` : ownerLabel;
-};
+const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) =>
+  share.ownerName ? `物品所有（${share.ownerName}）` : '物品所有';
 
 const settlementShipperShareLabel = (share: SettlementPreview['shipperShares'][number]) =>
   share.shipperName ? `发货人（${share.shipperName}）` : '发货人';
@@ -1665,6 +1748,7 @@ onMounted(async () => {
     warehouseStore.fetchWarehouses(),
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
     renterStore.fetchRenters('', 300),
+    itemDefinitionStore.fetchItemDefinitions(),
   ]);
 });
 
@@ -1902,6 +1986,139 @@ watch(
   min-width: 0;
 }
 
+.rental-item-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rental-item-category-section {
+  overflow: hidden;
+  border: 1px solid var(--category-border);
+  border-left: 5px solid var(--category-accent);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rental-item-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--category-soft);
+  border-bottom: 1px solid var(--category-border);
+}
+
+.rental-item-category-heading {
+  min-width: 0;
+}
+
+.rental-item-category-heading span {
+  display: block;
+  color: var(--category-accent);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.rental-item-category-heading h3 {
+  margin: 3px 0 0;
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rental-item-category-heading p {
+  margin: 3px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rental-item-category-summary {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.rental-item-category-summary strong {
+  color: #111827;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.rental-item-category-section :deep(.ant-table-wrapper) {
+  padding: 12px;
+}
+
+.rental-item-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.rental-item-mobile-row {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rental-item-mobile-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.rental-item-mobile-title span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rental-item-mobile-title :deep(.ant-tag) {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+}
+
+.rental-item-mobile-name {
+  margin-top: 5px;
+  color: #1f2937;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rental-item-mobile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 7px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rental-item-mobile-remarks {
+  margin-top: 7px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .sf-route-toolbar {
   margin-bottom: 8px;
 }
@@ -2030,6 +2247,29 @@ watch(
 
   .rental-detail-card :deep(.ant-divider) {
     margin: 16px 0;
+  }
+
+  .rental-item-category-list {
+    gap: 10px;
+  }
+
+  .rental-item-category-section {
+    border-left-width: 4px;
+  }
+
+  .rental-item-category-header {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .rental-item-category-heading h3 {
+    font-size: 16px;
+  }
+
+  .rental-item-category-summary {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
   }
 
   .settlement-header {

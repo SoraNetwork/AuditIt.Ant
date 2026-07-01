@@ -9,6 +9,8 @@ export interface RentalItem {
   id: number;
   itemId?: string | null;
   itemDefinitionId?: number | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
   itemShortIdSnapshot?: string | null;
   itemNameSnapshot?: string | null;
   perItemPrice?: number | null;
@@ -264,6 +266,7 @@ export const useRentalStore = defineStore('rental', {
       rentalNumber?: string;
       startDateFrom?: string;
       startDateTo?: string;
+      pendingSettlement?: boolean;
       page?: number;
       pageSize?: number;
     } = {}) {
@@ -277,6 +280,7 @@ export const useRentalStore = defineStore('rental', {
         if (filters.rentalNumber) params.append('rentalNumber', filters.rentalNumber);
         if (filters.startDateFrom) params.append('startDateFrom', filters.startDateFrom);
         if (filters.startDateTo) params.append('startDateTo', filters.startDateTo);
+        if (filters.pendingSettlement) params.append('pendingSettlement', 'true');
         if (filters.page) params.append('page', String(filters.page));
         if (filters.pageSize) params.append('pageSize', String(filters.pageSize));
 

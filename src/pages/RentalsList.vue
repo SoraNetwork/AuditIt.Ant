@@ -21,6 +21,7 @@
             placeholder="搜索租客 / 单号 / 物品"
             :style="isMobile ? { width: '100%' } : { width: '240px' }"
           />
+          <a-checkbox v-model:checked="pendingSettlement" @change="search">待结算</a-checkbox>
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">
@@ -141,6 +142,7 @@ const router = useRouter();
 
 const status = ref<RentalStatus | undefined>(undefined);
 const searchKeyword = ref('');
+const pendingSettlement = ref(false);
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
@@ -176,12 +178,14 @@ const readQueryStatus = (value: unknown): RentalStatus | undefined => {
 const applyQueryFilters = () => {
   status.value = readQueryStatus(route.query.status);
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
+  pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
 };
 
 const fetchList = async () => {
   await rentalStore.fetchRentals({
     status: status.value,
     search: searchKeyword.value.trim() || undefined,
+    pendingSettlement: pendingSettlement.value,
     page: 1,
     pageSize: 100,
   });
@@ -260,12 +264,13 @@ const search = async () => {
     query: {
       status: status.value,
       search: searchKeyword.value.trim() || undefined,
+      pendingSettlement: pendingSettlement.value ? 'true' : undefined,
     },
   });
 };
 
 watch(
-  () => [route.query.status, route.query.search, route.query.rentalNumber],
+  () => [route.query.status, route.query.search, route.query.rentalNumber, route.query.pendingSettlement],
   async () => {
     applyQueryFilters();
     await fetchList();
