@@ -5,6 +5,15 @@
         <div class="header-actions">
           <a-button :disabled="!item?.id" @click="router.push({ name: 'item-availability-calendar', params: { id: item?.id } })">空闲日历</a-button>
           <a-button :disabled="!item?.id" @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
+          <a-popconfirm
+            v-if="canHidePermanently"
+            title="确认转为永远不可见？保存后所有接口均不再返回该物品。"
+            ok-text="确认"
+            cancel-text="取消"
+            @confirm="hidePermanently"
+          >
+            <a-button danger :loading="itemStore.loading">再也不可见</a-button>
+          </a-popconfirm>
           <a-tag :color="statusDisplay.color">{{ statusDisplay.text }}</a-tag>
         </div>
       </template>
@@ -152,6 +161,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { useItemStore, type Item } from '../stores/itemStore';
+import { useAuthStore } from '../stores/authStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
 import { useItemListingStore, type ItemListing } from '../stores/itemListingStore';
 import { STATUS_MAP } from '../utils/constants';
@@ -161,11 +171,13 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
 import { listingStatusText } from '../utils/rentalDisplay';
+import { PermissionCodes } from '../utils/permissions';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const itemStore = useItemStore();
+const authStore = useAuthStore();
 const auditLogStore = useAuditLogStore();
 const listingStore = useItemListingStore();
 
@@ -210,6 +222,10 @@ const statusDisplay = computed(() => {
   if (!item.value?.status) return { text: '未知', color: 'default' };
   return STATUS_MAP[item.value.status] || { text: '未知', color: 'default' };
 });
+
+const canHidePermanently = computed(() =>
+  item.value?.status === 'Disposed' && authStore.hasPermission(PermissionCodes.ItemDelete)
+);
 
 const loadItem = async () => {
   const itemId = String(route.params.id);
@@ -279,6 +295,13 @@ const deleteListing = async (id: number) => {
   if (!item.value) return;
   await listingStore.deleteListing(id, item.value.id);
   message.success('链接已删除');
+};
+
+const hidePermanently = async () => {
+  if (!item.value) return;
+  await itemStore.hidePermanently(item.value.id);
+  message.success('该物品已转为永远不可见');
+  router.push({ name: 'inventory' });
 };
 
 onMounted(loadItem);
