@@ -238,13 +238,14 @@ const handleSingleCheck = async () => {
 
     const originalStatus = item.status;
     const updatedItem = await itemStore.updateItemStatus(item.id, 'check');
+    const checkedItem = updatedItem || item;
 
     stats.success += 1;
     scannedIds.add(shortIdValue);
     addScannedItem({
       shortId: shortIdValue,
-      name: updatedItem.itemDefinition?.name || '未命名物品',
-      message: `状态：${getItemStatusText(originalStatus)} -> ${getItemStatusText(updatedItem.status)}`,
+      name: checkedItem.itemDefinition?.name || '未命名物品',
+      message: `状态：${getItemStatusText(originalStatus)} -> ${getItemStatusText(checkedItem.status)}`,
       status: 'success',
     });
     successSound.play().catch(() => {});

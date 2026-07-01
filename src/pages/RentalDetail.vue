@@ -267,7 +267,6 @@
             </div>
             <div class="rental-item-category-summary">
               <a-tag :color="group.tagColor">{{ group.items.length }} 件</a-tag>
-              <strong>{{ formatMoney(group.totalPrice) || '-' }}</strong>
             </div>
           </div>
 
@@ -298,8 +297,8 @@
                 </a-tag>
               </div>
               <div class="rental-item-mobile-name">{{ item.itemNameSnapshot || '-' }}</div>
-              <div class="rental-item-mobile-meta">
-                <span>单价：{{ formatMoney(item.perItemPrice) || '-' }}</span>
+              <div v-if="hasRentalItemMeta(item)" class="rental-item-mobile-meta">
+                <span v-if="hasRentalItemPrice(item)">单价：{{ formatMoney(item.perItemPrice) }}</span>
                 <span v-if="item.returnedAt">归还：{{ formatDateTime(item.returnedAt) }}</span>
               </div>
               <div v-if="item.listingRemarks" class="rental-item-mobile-remarks">平台备注：{{ item.listingRemarks }}</div>
@@ -994,7 +993,6 @@ const rentalItemCategoryGroups = computed(() => {
     key: string;
     categoryName: string;
     items: RentalItem[];
-    totalPrice: number;
     tagColor: string;
   }> = [];
   const indexByKey = new Map<string, number>();
@@ -1006,18 +1004,16 @@ const rentalItemCategoryGroups = computed(() => {
     if (groupIndex === undefined) {
       groupIndex = groups.length;
       indexByKey.set(key, groupIndex);
-      groups.push({
-        key,
-        categoryName: category.categoryName,
-        items: [],
-        totalPrice: 0,
-        tagColor: categoryPalette[groupIndex % categoryPalette.length].tag,
-      });
-    }
+        groups.push({
+          key,
+          categoryName: category.categoryName,
+          items: [],
+          tagColor: categoryPalette[groupIndex % categoryPalette.length].tag,
+        });
+      }
 
-    groups[groupIndex].items.push(item);
-    groups[groupIndex].totalPrice += Number(item.perItemPrice || 0);
-  });
+      groups[groupIndex].items.push(item);
+    });
 
   return groups;
 });
@@ -1166,6 +1162,9 @@ const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '';
   return `￥${Number(value).toFixed(1)}`;
 };
+
+const hasRentalItemPrice = (item: RentalItem) => item.perItemPrice !== null && item.perItemPrice !== undefined;
+const hasRentalItemMeta = (item: RentalItem) => hasRentalItemPrice(item) || !!item.returnedAt;
 
 const resetShipForm = (direction: ShipmentDirection) => {
   shipForm.direction = direction;
@@ -2043,14 +2042,6 @@ watch(
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 10px;
-}
-
-.rental-item-category-summary strong {
-  color: #111827;
-  font-size: 15px;
-  line-height: 1.35;
-  font-weight: 700;
 }
 
 .rental-item-category-section :deep(.ant-table-wrapper) {

@@ -114,7 +114,7 @@
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
-import { message, Modal, Input } from 'ant-design-vue';
+import { message, Modal, Input, Checkbox } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
@@ -204,6 +204,7 @@ const hasSelected = computed(() => selectedRowKeys.value.length > 0);
 const showOutboundModal = (action: 'outbound' | 'dispose') => {
   const actionText = action === 'outbound' ? '借出' : '处置';
   let destination: string | undefined = undefined;
+  let permanentlyHidden = false;
 
   Modal.confirm({
     title: `确认${actionText}`,
@@ -213,7 +214,15 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
         placeholder: '请输入目的地（例如：借给某人，或处置原因）',
         onChange: (e) => { destination = e.target.value; },
         style: { marginTop: '16px' }
-      })
+      }),
+      ...(action === 'dispose'
+        ? [
+            h(Checkbox, {
+              style: { marginTop: '12px' },
+              onChange: (e: any) => { permanentlyHidden = Boolean(e.target.checked); },
+            }, () => '再也不可见（保存后所有接口均不再返回）')
+          ]
+        : [])
     ]),
     okText: '确认',
     cancelText: '取消',
@@ -223,9 +232,9 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
         return Promise.reject();
       }
       try {
-        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action, destination));
+        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action, destination, permanentlyHidden));
         await Promise.all(promises);
-        message.success(`成功${actionText} ${selectedRowKeys.value.length} 件物品!`);
+        message.success(`成功${permanentlyHidden ? '处置并隐藏' : actionText} ${selectedRowKeys.value.length} 件物品!`);
         selectedRowKeys.value = [];
         loadItems();
       } catch (error) {

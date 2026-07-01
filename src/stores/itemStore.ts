@@ -209,11 +209,21 @@ export const useItemStore = defineStore('item', {
       }
     },
 
-    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string): Promise<Item> {
+    async updateItemStatus(
+      itemId: string,
+      action: 'outbound' | 'check' | 'return' | 'dispose',
+      destination?: string,
+      permanentlyHidden = false
+    ): Promise<Item | null> {
       this.loading = true;
       this.error = null;
       try {
-        const response = await apiClient.put(`/items/${itemId}/${action}`, { destination });
+        const response = await apiClient.put(`/items/${itemId}/${action}`, { destination, permanentlyHidden });
+        if (response.status === 204 || !response.data) {
+          this.items = this.items.filter(item => item.id !== itemId);
+          return null;
+        }
+
         const normalized = normalizeItem(response.data);
         const index = this.items.findIndex(item => item.id === itemId);
         if (index !== -1) {
@@ -222,6 +232,20 @@ export const useItemStore = defineStore('item', {
         return normalized;
       } catch (err: any) {
         this.error = `物品操作 '${action}' 失败: ` + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async hidePermanently(itemId: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        await apiClient.put(`/items/${itemId}/hide-permanently`);
+        this.items = this.items.filter(item => item.id !== itemId);
+      } catch (err: any) {
+        this.error = '转为永远不可见失败: ' + (err.response?.data?.message || err.message);
         throw err;
       } finally {
         this.loading = false;
