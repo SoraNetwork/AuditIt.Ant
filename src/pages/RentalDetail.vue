@@ -14,6 +14,11 @@
         <a-descriptions-item label="预计发货">{{ formatDate(rental.expectedShipDate) }}</a-descriptions-item>
         <a-descriptions-item label="开始日期">{{ formatDate(rental.startDate) }}</a-descriptions-item>
         <a-descriptions-item label="预计结束">{{ formatDate(rental.expectedEndDate) }}</a-descriptions-item>
+        <a-descriptions-item label="续租意愿">
+          <a-tag :color="rental.hasRenewalIntent ? 'blue' : 'default'">
+            {{ rental.hasRenewalIntent && rental.renewalIntentEndDate ? `是，至 ${formatDate(rental.renewalIntentEndDate)}` : '否' }}
+          </a-tag>
+        </a-descriptions-item>
         <a-descriptions-item label="实际结束">{{ formatDate(rental.actualEndDate) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="总价">{{ formatMoney(rental.totalPrice) }}</a-descriptions-item>
         <a-descriptions-item label="押金">{{ formatMoney(rental.deposit) || '-' }}</a-descriptions-item>
@@ -77,6 +82,10 @@
             <div><span>开始日期</span><strong>{{ formatDate(rental.startDate) || '-' }}</strong></div>
             <div><span>预计结束</span><strong>{{ formatDate(rental.expectedEndDate) || '-' }}</strong></div>
             <div><span>预计发货</span><strong>{{ formatDate(rental.expectedShipDate) || '-' }}</strong></div>
+            <div>
+              <span>续租意愿</span>
+              <strong>{{ rental.hasRenewalIntent && rental.renewalIntentEndDate ? `是，至 ${formatDate(rental.renewalIntentEndDate)}` : '否' }}</strong>
+            </div>
             <div><span>实际结束</span><strong>{{ formatDate(rental.actualEndDate) || '-' }}</strong></div>
             <div v-if="rental.renewedFromRentalId">
               <span>续租自</span>
@@ -631,7 +640,7 @@
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit">
+  <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit(false)">
     <a-form layout="vertical">
       <a-form-item label="租客">
         <a-select
@@ -651,6 +660,16 @@
       </a-form-item>
       <a-form-item label="预计结束日期">
         <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="续租意愿">
+        <a-switch v-model:checked="editForm.hasRenewalIntent" checked-children="是" un-checked-children="否" />
+      </a-form-item>
+      <a-form-item label="续租意愿至" :required="editForm.hasRenewalIntent">
+        <a-date-picker
+          v-model:value="editForm.renewalIntentEndDate"
+          style="width: 100%"
+          :disabled="!editForm.hasRenewalIntent"
+        />
       </a-form-item>
       <a-form-item label="总价">
         <a-input-number v-model:value="editForm.totalPrice" :min="0" :step="0.1" :precision="1" style="width: 100%" />
@@ -742,6 +761,8 @@ interface RentalScheduleConflict {
   itemName: string;
   startDate: string;
   expectedEndDate: string;
+  hasRenewalIntent?: boolean;
+  renewalIntentEndDate?: string | null;
   hasOutboundShipment: boolean;
   conflictReason?: string | null;
 }
@@ -878,6 +899,8 @@ const editForm = reactive({
   startDate: null as Dayjs | null,
   expectedShipDate: null as Dayjs | null,
   expectedEndDate: null as Dayjs | null,
+  hasRenewalIntent: false,
+  renewalIntentEndDate: null as Dayjs | null,
   totalPrice: null as number | null,
   deposit: null as number | null,
   otherFee: 0,
@@ -1463,13 +1486,20 @@ const openItemPicker = async () => {
 
 const conflictLines = (payload: RentalCreateConflictResponse) => {
   const lines: string[] = [payload.message];
+  const conflictEndText = (conflict: RentalScheduleConflict) => {
+    const end = formatDate(conflict.expectedEndDate);
+    if (conflict.hasRenewalIntent && conflict.renewalIntentEndDate) {
+      return `${end}，续租意愿至 ${formatDate(conflict.renewalIntentEndDate)}`;
+    }
+    return end;
+  };
   const append = (title: string, items: RentalScheduleConflict[]) => {
     if (items.length === 0) return;
     lines.push('', title);
     items.forEach(conflict => {
       const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       lines.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${conflictEndText(conflict)}）${reason}`
       );
     });
   };
@@ -1514,6 +1544,19 @@ const showRenewConflictConfirm = (payload: RentalCreateConflictResponse) => {
     content: conflictLines(payload),
     async onOk() {
       await submitRenew(true);
+    },
+  });
+};
+
+const showEditConflictConfirm = (payload: RentalCreateConflictResponse) => {
+  Modal.confirm({
+    title: '租赁时间或续租意愿存在冲突',
+    width: 720,
+    okText: '仍然保存',
+    cancelText: '返回修改',
+    content: conflictLines(payload),
+    async onOk() {
+      await submitEdit(true);
     },
   });
 };
@@ -1604,6 +1647,8 @@ const openEdit = () => {
   editForm.expectedEndDate = toPickerDate(rental.value.expectedEndDate);
   editForm.expectedShipDate = toPickerDate(rental.value.expectedShipDate);
   editForm.startDate = toPickerDate(rental.value.startDate);
+  editForm.hasRenewalIntent = !!rental.value.hasRenewalIntent;
+  editForm.renewalIntentEndDate = rental.value.renewalIntentEndDate ? toPickerDate(rental.value.renewalIntentEndDate) : null;
   editForm.renterId = rental.value.renterId;
   editForm.totalPrice = rental.value.totalPrice ?? null;
   editForm.deposit = rental.value.deposit ?? null;
@@ -1620,7 +1665,7 @@ const openEdit = () => {
   editVisible.value = true;
 };
 
-const submitEdit = async () => {
+const submitEdit = async (allowScheduleConflict = false) => {
   if (!rental.value) return;
   if (!editForm.startDate || !editForm.expectedEndDate) {
     message.error('开始日期和预计结束日期不能为空');
@@ -1629,6 +1674,11 @@ const submitEdit = async () => {
 
   if (!editForm.expectedShipDate) {
     message.error('预计发货日期不能为空');
+    return;
+  }
+
+  if (editForm.hasRenewalIntent && !editForm.renewalIntentEndDate) {
+    message.error('请选择续租意愿日期');
     return;
   }
 
@@ -1644,6 +1694,8 @@ const submitEdit = async () => {
       startDate: toRentalDatePayload(editForm.startDate),
       expectedShipDate: toRentalDatePayload(editForm.expectedShipDate),
       expectedEndDate: toRentalDatePayload(editForm.expectedEndDate),
+      hasRenewalIntent: editForm.hasRenewalIntent,
+      renewalIntentEndDate: editForm.hasRenewalIntent ? toRentalDatePayload(editForm.renewalIntentEndDate) : null,
       totalPrice: editForm.totalPrice ?? undefined,
       deposit: editForm.deposit,
       otherFee: editForm.otherFee,
@@ -1653,11 +1705,17 @@ const submitEdit = async () => {
       assignedTo: editForm.assignedUsers.join(','),
       createdBy: editForm.createdBy || undefined,
       senderName: editForm.senderName || undefined,
+      allowScheduleConflict,
     });
     editVisible.value = false;
     message.success('已保存');
     await load();
   } catch (err: any) {
+    if (err?.response?.status === 409 && err?.response?.data) {
+      showEditConflictConfirm(err.response.data as RentalCreateConflictResponse);
+      return;
+    }
+
     message.error(err?.response?.data || err?.message || '保存失败');
   } finally {
     saving.value = false;
@@ -1750,6 +1808,17 @@ onMounted(async () => {
     itemDefinitionStore.fetchItemDefinitions(),
   ]);
 });
+
+watch(
+  () => editForm.hasRenewalIntent,
+  hasRenewalIntent => {
+    if (!hasRenewalIntent) {
+      editForm.renewalIntentEndDate = null;
+    } else if (!editForm.renewalIntentEndDate) {
+      editForm.renewalIntentEndDate = editForm.expectedEndDate;
+    }
+  }
+);
 
 watch(
   () => route.params.id,

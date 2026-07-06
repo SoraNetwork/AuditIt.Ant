@@ -74,6 +74,11 @@
           <template v-else-if="column.key === 'expectedEndDate'">
             {{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}
           </template>
+          <template v-else-if="column.key === 'renewalIntent'">
+            <a-tag :color="record.hasRenewalIntent ? 'blue' : 'default'">
+              {{ renewalIntentText(record) }}
+            </a-tag>
+          </template>
           <template v-else-if="column.key === 'totalPrice'">
             {{ record.totalPrice != null ? `￥${Number(record.totalPrice).toFixed(1)}` : '-' }}
           </template>
@@ -103,6 +108,7 @@
               <div>预计发货：{{ formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>开始：{{ formatDateTime(record.startDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>续租意愿：{{ renewalIntentText(record) }}</div>
               <div>物品：{{ itemSummary(record) }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
               <div class="mobile-money-row">
@@ -156,6 +162,7 @@ const columns = [
   { title: '预计发货', dataIndex: 'expectedShipDate', key: 'expectedShipDate', width: 140 },
   { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 140 },
   { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 140 },
+  { title: '续租意愿', key: 'renewalIntent', width: 150 },
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
@@ -206,6 +213,11 @@ const rentalDays = (record: Rental) => {
 const dailyAccountedAmount = (record: Rental) =>
   Number(record.accountedAmount || 0) / rentalDays(record);
 
+const renewalIntentText = (record: Rental) =>
+  record.hasRenewalIntent && record.renewalIntentEndDate
+    ? `是，至 ${formatDateTime(record.renewalIntentEndDate, 'YYYY-MM-DD') || '-'}`
+    : '否';
+
 const itemSummary = (record: Rental) => {
   if (!record.items?.length) return '-';
   const items = record.items.map(item => `${item.itemShortIdSnapshot || '-'} / ${item.itemNameSnapshot || '-'}`);
@@ -243,6 +255,7 @@ const exportRentalsXlsx = () => {
     预计发货: formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '',
     开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',
     预计结束: formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '',
+    续租意愿: renewalIntentText(record),
     物品信息: itemSummary(record),
     平台订单号: record.platformOrderNo || '',
     总价: record.totalPrice ?? 0,

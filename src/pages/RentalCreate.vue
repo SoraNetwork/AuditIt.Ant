@@ -175,6 +175,23 @@
         </a-row>
 
         <a-row :gutter="16">
+          <a-col :xs="24" :span="6">
+            <a-form-item label="续租意愿">
+              <a-switch v-model:checked="form.hasRenewalIntent" checked-children="是" un-checked-children="否" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :span="6">
+            <a-form-item label="续租意愿至" :required="form.hasRenewalIntent">
+              <a-date-picker
+                v-model:value="form.renewalIntentEndDate"
+                style="width: 100%"
+                :disabled="!form.hasRenewalIntent"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="16">
           <a-col :xs="24" :span="8">
             <a-form-item label="总价" required>
               <a-input-number
@@ -553,6 +570,8 @@ interface RentalScheduleConflict {
   itemName: string;
   startDate: string;
   expectedEndDate: string;
+  hasRenewalIntent?: boolean;
+  renewalIntentEndDate?: string | null;
   hasOutboundShipment: boolean;
   conflictReason?: string | null;
 }
@@ -605,6 +624,8 @@ const form = reactive({
   expectedShipDate: dayjs().subtract(1, 'day') as Dayjs,
   startDate: dayjs() as Dayjs,
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
+  hasRenewalIntent: false,
+  renewalIntentEndDate: null as Dayjs | null,
   totalPrice: 0,
   deposit: null as number | null,
   otherFee: 0,
@@ -948,6 +969,13 @@ const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '￥0.0';
   return `￥${Number(value).toFixed(1)}`;
 };
+const conflictEndText = (conflict: RentalScheduleConflict) => {
+  const end = formatDate(conflict.expectedEndDate);
+  if (conflict.hasRenewalIntent && conflict.renewalIntentEndDate) {
+    return `${end}，续租意愿至 ${formatDate(conflict.renewalIntentEndDate)}`;
+  }
+  return end;
+};
 
 const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload => {
   const itemIds = selectionMode.value === 'item' ? selectedItemIds.value : [];
@@ -977,6 +1005,8 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     startDate: toRentalDatePayload(form.startDate),
     expectedShipDate: toRentalDatePayload(form.expectedShipDate),
     expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
+    hasRenewalIntent: form.hasRenewalIntent,
+    renewalIntentEndDate: form.hasRenewalIntent ? toRentalDatePayload(form.renewalIntentEndDate) : null,
     totalPrice: Number(form.totalPrice || 0),
     deposit: form.deposit,
     otherFee: Number(form.otherFee || 0),
@@ -1002,7 +1032,7 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
     payload.pendingShipmentConflicts.forEach(conflict => {
       const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       sections.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${conflictEndText(conflict)}）${reason}`
       );
     });
   }
@@ -1015,7 +1045,7 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
     payload.shippedConflicts.forEach(conflict => {
       const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       sections.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${conflictEndText(conflict)}）${reason}`
       );
     });
   }
@@ -1028,7 +1058,7 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
     (payload.returnPendingConflicts || []).forEach(conflict => {
       const reason = conflict.conflictReason ? ` / ${conflict.conflictReason}` : '';
       sections.push(
-        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${formatDate(conflict.expectedEndDate)}）${reason}`
+        `- ${conflict.itemShortId} / ${conflict.itemName}：${conflict.rentalNumber}（${formatDate(conflict.startDate)} ~ ${conflictEndText(conflict)}）${reason}`
       );
     });
   }
@@ -1067,6 +1097,11 @@ const submit = async () => {
     return;
   }
 
+  if (form.hasRenewalIntent && !form.renewalIntentEndDate) {
+    message.error('请选择续租意愿日期');
+    return;
+  }
+
   if (!form.expectedShipDate) {
     message.error('请选择预计发货日期');
     return;
@@ -1097,6 +1132,17 @@ const submit = async () => {
     submitting.value = false;
   }
 };
+
+watch(
+  () => form.hasRenewalIntent,
+  hasRenewalIntent => {
+    if (!hasRenewalIntent) {
+      form.renewalIntentEndDate = null;
+    } else if (!form.renewalIntentEndDate) {
+      form.renewalIntentEndDate = form.expectedEndDate;
+    }
+  }
+);
 
 watch(
   () => form.startDate,

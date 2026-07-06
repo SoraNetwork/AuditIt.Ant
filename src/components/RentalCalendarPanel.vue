@@ -69,6 +69,9 @@
               <template #title>
                 <a-space wrap>
                   <a-tag :color="tagColor(item)">{{ eventTypeText(item) }}</a-tag>
+                  <a-tag v-if="item.hasRenewalIntent && item.renewalIntentEndDate" color="blue">
+                    续租意愿至 {{ formatDateTime(item.renewalIntentEndDate, 'YYYY-MM-DD') }}
+                  </a-tag>
                   <span class="detail-title">{{ detailTitle(item) }}</span>
                 </a-space>
               </template>
@@ -253,6 +256,7 @@ const eventClass = (event: RentalCalendarEvent) => ({
   'event-critical': event.level === 'Critical',
   'event-warning': event.level === 'Warning',
   'event-period': event.kind === 'RentalPeriod',
+  'event-renewal-intent': event.hasRenewalIntent && event.kind === 'RentalPeriod',
   'event-logistics': event.kind === 'OutboundShipment' || event.kind === 'InboundShipment',
   'event-muted-reminder': isMutedReminder(event),
   'event-closed': !event.isOpen,
@@ -422,6 +426,11 @@ onMounted(async () => {
 .event-period {
   background: #e6f4ff;
   color: #0958d9;
+}
+
+.event-renewal-intent {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .event-logistics {

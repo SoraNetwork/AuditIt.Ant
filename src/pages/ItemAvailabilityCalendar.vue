@@ -41,10 +41,10 @@
                 v-for="busy in busyForDate(day).slice(0, 2)"
                 :key="`${day.format('YYYY-MM-DD')}-${busy.rentalId}`"
                 class="busy-pill"
-                :class="{ returning: busy.occupancyStatus === 'Returning', manual: busy.isManualLoan }"
+                :class="{ returning: busy.occupancyStatus === 'Returning', renewal: busy.occupancyStatus === 'RenewalIntent', manual: busy.isManualLoan }"
                 @click.stop="!busy.isManualLoan && $router.push(`/rentals/${busy.rentalId}`)"
               >
-                {{ busy.isManualLoan ? '普通借出' : busy.occupancyStatus === 'Returning' ? '未回货' : busy.rentalNumber }}
+                {{ busy.isManualLoan ? '普通借出' : busy.occupancyStatus === 'Returning' ? '未回货' : busy.occupancyStatus === 'RenewalIntent' ? '续租意愿' : busy.rentalNumber }}
               </span>
             </template>
           </button>
@@ -64,6 +64,7 @@
                 <a-space wrap>
                     <a-tag v-if="item.isManualLoan" color="orange">普通借出</a-tag>
                     <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">未回货</a-tag>
+                    <a-tag v-if="item.occupancyStatus === 'RenewalIntent'" color="blue">续租意愿</a-tag>
                     <a-tag v-if="!item.isManualLoan" :color="item.isOpen ? 'orange' : 'default'">
                       {{ rentalStatusText(item.rentalStatus) }}
                     </a-tag>
@@ -73,6 +74,9 @@
               </template>
               <template #description>
                 {{ formatDate(item.startAt) }} ~ {{ formatDate(item.endAt) }}
+                <span v-if="item.hasRenewalIntent && item.renewalIntentEndDate">
+                  | 续租意愿至 {{ formatDate(item.renewalIntentEndDate) }}
+                </span>
                 <span v-if="item.renterName"> | <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
               </template>
             </a-list-item-meta>
@@ -238,6 +242,11 @@ onMounted(loadCalendar);
 .busy-pill.returning {
   color: #b91c1c;
   background: #fee2e2;
+}
+
+.busy-pill.renewal {
+  color: #1d4ed8;
+  background: #dbeafe;
 }
 
 .busy-pill.manual {

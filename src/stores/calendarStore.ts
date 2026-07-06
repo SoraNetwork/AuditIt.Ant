@@ -21,6 +21,8 @@ export interface RentalCalendarEvent {
   renterId?: string | null;
   renterName?: string | null;
   rentalStatus?: RentalStatus | null;
+  hasRenewalIntent: boolean;
+  renewalIntentEndDate?: string | null;
   reminderId?: number | null;
   title: string;
   description?: string | null;

@@ -121,6 +121,7 @@
                       {{ item.isUncertain ? '待发货不确定商品' : '具体库存分配' }}
                     </a-tag>
                     <a-tag v-if="item.occupancyStatus === 'Returning'" color="red">未回货</a-tag>
+                    <a-tag v-if="item.occupancyStatus === 'RenewalIntent'" color="blue">续租意愿</a-tag>
                     <a-tag v-if="!item.isManualLoan" color="cyan">{{ rentalStatusText(item.rentalStatus) }}</a-tag>
                     <router-link v-if="!item.isManualLoan" :to="`/rentals/${item.rentalId}`" class="rental-link">
                       {{ item.rentalNumber }}
@@ -132,6 +133,9 @@
                   <div class="occupancy-desc">
                     <span v-if="item.renterName" class="renter-name">租客: <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
                     <span class="occupy-qty">占用数量: <strong style="color: #1f2937;">{{ item.quantity }}</strong> 件</span>
+                    <span v-if="item.hasRenewalIntent && item.renewalIntentEndDate" class="occupy-qty">
+                      续租意愿至: <strong style="color: #1d4ed8;">{{ dayjs(item.renewalIntentEndDate).format('YYYY-MM-DD') }}</strong>
+                    </span>
                   </div>
                 </template>
               </a-list-item-meta>

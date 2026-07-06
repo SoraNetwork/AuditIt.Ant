@@ -12,8 +12,11 @@ export interface ItemBusyPeriod {
   startAt: string;
   endAt: string;
   isOpen: boolean;
+  isUncertain?: boolean;
   isManualLoan?: boolean;
-  occupancyStatus?: 'Scheduled' | 'Returning';
+  hasRenewalIntent?: boolean;
+  renewalIntentEndDate?: string | null;
+  occupancyStatus?: 'Scheduled' | 'Returning' | 'RenewalIntent';
 }
 
 export interface ItemFreePeriod {
@@ -83,7 +86,9 @@ export interface ItemDefinitionDailyOccupancy {
   quantity: number;
   isUncertain: boolean;
   isManualLoan?: boolean;
-  occupancyStatus?: 'Scheduled' | 'Returning';
+  hasRenewalIntent?: boolean;
+  renewalIntentEndDate?: string | null;
+  occupancyStatus?: 'Scheduled' | 'Returning' | 'RenewalIntent';
 }
 
 export interface ItemDefinitionDailyStock {
