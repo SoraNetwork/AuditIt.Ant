@@ -44,7 +44,8 @@
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Overdue')">
-            <a-statistic title="逾期租赁" :value="overdueRentals" :value-style="{ color: overdueRentals > 0 ? '#cf1322' : undefined }" />
+            <a-statistic title="逾期租赁" :value="overdueRentals"
+              :value-style="{ color: overdueRentals > 0 ? '#cf1322' : undefined }" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
@@ -54,7 +55,8 @@
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card hoverable class="overview-card" @click="goToPendingSettlementList">
-            <a-statistic title="待结算" :value="pendingSettlementRentals" :value-style="{ color: pendingSettlementRentals > 0 ? '#d48806' : undefined }" />
+            <a-statistic title="待结算" :value="pendingSettlementRentals"
+              :value-style="{ color: pendingSettlementRentals > 0 ? '#d48806' : undefined }" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
@@ -89,7 +91,8 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>·
-                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{
+                        rentalDisplayStatusText(item) }}</a-tag>
                     </template>
                     <template #description>
                       <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
@@ -102,8 +105,59 @@
                       <span v-else style="color: #d48806; margin-left: 8px">
                         {{ daysUntil(item.expectedShipDate) }} 天后发货
                       </span>
-                       预计发货 {{ formatDate(item.expectedShipDate) }}
+                      预计发货 {{ formatDate(item.expectedShipDate) }}
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24" :md="12">
+          <a-card title="即将到期 / 逾期">
+            <a-list size="small" :data-source="dueSoonList" :locale="{ emptyText: '暂无到期或逾期' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{
+                        rentalDisplayStatusText(item) }}</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 预计结束 {{
+                        formatDate(item.expectedEndDate) }}
+                      <span v-if="daysUntil(item.expectedEndDate) < 0" style="color: #cf1322; margin-left: 8px">
+                        逾期 {{ -daysUntil(item.expectedEndDate) }} 天
+                      </span>
+                      <span v-else style="color: #d48806; margin-left: 8px">
+                        {{ daysUntil(item.expectedEndDate) }} 天后到期
+                      </span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+        <a-col :xs="24" :md="12">
+          <a-card title="最近租赁">
+            <a-list size="small" :data-source="recentRentals" :locale="{ emptyText: '暂无租赁' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{
+                        rentalDisplayStatusText(item) }}</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · ¥{{
+                        Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -128,59 +182,14 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
+                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{
+                        rentalDisplayStatusText(item) }}</a-tag>
                       <a-tag color="gold" style="margin-left: 4px">待结算</a-tag>
                     </template>
                     <template #description>
-                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 完成 {{ formatDate(completedAt(item)) || '-' }} · 核算 {{ formatMoney(item.accountedAmount) }}
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 完成 {{
+                        formatDate(completedAt(item)) || '-' }} · 核算 {{ formatMoney(item.accountedAmount) }}
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
-                    </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
-        <a-col :xs="24" :md="12">
-          <a-card title="即将到期 / 逾期">
-            <a-list size="small" :data-source="dueSoonList" :locale="{ emptyText: '暂无到期或逾期' }">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <a-list-item-meta>
-                    <template #title>
-                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
-                    </template>
-                    <template #description>
-                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · 预计结束 {{ formatDate(item.expectedEndDate) }}
-                      <span v-if="daysUntil(item.expectedEndDate) < 0" style="color: #cf1322; margin-left: 8px">
-                        逾期 {{ -daysUntil(item.expectedEndDate) }} 天
-                      </span>
-                      <span v-else style="color: #d48806; margin-left: 8px">
-                        {{ daysUntil(item.expectedEndDate) }} 天后到期
-                      </span>
-                    </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :md="12">
-          <a-card title="最近租赁">
-            <a-list size="small" :data-source="recentRentals" :locale="{ emptyText: '暂无租赁' }">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <a-list-item-meta>
-                    <template #title>
-                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{ rentalDisplayStatusText(item) }}</a-tag>
-                    </template>
-                    <template #description>
-                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · ¥{{ Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -327,7 +336,7 @@ const pieChartData = computed(() => ({
 
 const barChartData = computed(() => {
   const labels = warehouseStore.warehouses.map(w => w.name);
-  const data = warehouseStore.warehouses.map(w => 
+  const data = warehouseStore.warehouses.map(w =>
     itemStore.items.filter(i => i.warehouseId === w.id && i.status === 'InStock').length
   );
   return {
@@ -347,8 +356,13 @@ const chartOptions = {
 </script>
 
 <style scoped>
-.page-container { padding: 24px; }
-.chart-wrapper { height: 240px; }
+.page-container {
+  padding: 24px;
+}
+
+.chart-wrapper {
+  height: 240px;
+}
 
 .page-container :deep(.ant-card) {
   height: 100%;
@@ -363,7 +377,9 @@ const chartOptions = {
 }
 
 @media (max-width: 767.98px) {
-  .page-container { padding: 12px; }
+  .page-container {
+    padding: 12px;
+  }
 
   .page-container :deep(.ant-card-body) {
     padding: 14px 12px;
@@ -378,6 +394,8 @@ const chartOptions = {
     padding-right: 0;
   }
 
-  .chart-wrapper { height: 220px; }
+  .chart-wrapper {
+    height: 220px;
+  }
 }
 </style>
