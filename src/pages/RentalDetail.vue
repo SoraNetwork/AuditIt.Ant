@@ -14,6 +14,7 @@
         <a-descriptions-item label="预计发货">{{ formatDate(rental.expectedShipDate) }}</a-descriptions-item>
         <a-descriptions-item label="开始日期">{{ formatDate(rental.startDate) }}</a-descriptions-item>
         <a-descriptions-item label="预计结束">{{ formatDate(rental.expectedEndDate) }}</a-descriptions-item>
+        <a-descriptions-item label="预计回货">{{ formatDate(rental.expectedReturnDate) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="续租意愿">
           <a-tag :color="rental.hasRenewalIntent ? 'blue' : 'default'">
             {{ rental.hasRenewalIntent && rental.renewalIntentEndDate ? `是，至 ${formatDate(rental.renewalIntentEndDate)}` : '否' }}
@@ -81,6 +82,7 @@
           <div class="rental-mobile-key-values">
             <div><span>开始日期</span><strong>{{ formatDate(rental.startDate) || '-' }}</strong></div>
             <div><span>预计结束</span><strong>{{ formatDate(rental.expectedEndDate) || '-' }}</strong></div>
+            <div><span>预计回货</span><strong>{{ formatDate(rental.expectedReturnDate) || '-' }}</strong></div>
             <div><span>预计发货</span><strong>{{ formatDate(rental.expectedShipDate) || '-' }}</strong></div>
             <div>
               <span>续租意愿</span>
@@ -661,6 +663,9 @@
       <a-form-item label="预计结束日期">
         <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
       </a-form-item>
+      <a-form-item label="预计回货时间">
+        <a-date-picker v-model:value="editForm.expectedReturnDate" style="width: 100%" />
+      </a-form-item>
       <a-form-item label="续租意愿">
         <a-switch v-model:checked="editForm.hasRenewalIntent" checked-children="是" un-checked-children="否" />
       </a-form-item>
@@ -761,6 +766,7 @@ interface RentalScheduleConflict {
   itemName: string;
   startDate: string;
   expectedEndDate: string;
+  expectedReturnDate?: string | null;
   hasRenewalIntent?: boolean;
   renewalIntentEndDate?: string | null;
   hasOutboundShipment: boolean;
@@ -899,6 +905,7 @@ const editForm = reactive({
   startDate: null as Dayjs | null,
   expectedShipDate: null as Dayjs | null,
   expectedEndDate: null as Dayjs | null,
+  expectedReturnDate: null as Dayjs | null,
   hasRenewalIntent: false,
   renewalIntentEndDate: null as Dayjs | null,
   totalPrice: null as number | null,
@@ -1648,6 +1655,9 @@ const openEdit = () => {
   if (!rental.value) return;
   editForm.expectedEndDate = toPickerDate(rental.value.expectedEndDate);
   editForm.expectedShipDate = toPickerDate(rental.value.expectedShipDate);
+  editForm.expectedReturnDate = rental.value.expectedReturnDate
+    ? toPickerDate(rental.value.expectedReturnDate)
+    : toPickerDate(rental.value.expectedEndDate)?.add(2, 'day') || null;
   editForm.startDate = toPickerDate(rental.value.startDate);
   editForm.hasRenewalIntent = !!rental.value.hasRenewalIntent;
   editForm.renewalIntentEndDate = rental.value.renewalIntentEndDate ? toPickerDate(rental.value.renewalIntentEndDate) : null;
@@ -1679,6 +1689,11 @@ const submitEdit = async (allowScheduleConflict = false) => {
     return;
   }
 
+  if (!editForm.expectedReturnDate) {
+    message.error('预计回货时间不能为空');
+    return;
+  }
+
   if (editForm.hasRenewalIntent && !editForm.renewalIntentEndDate) {
     message.error('请选择续租意愿日期');
     return;
@@ -1696,6 +1711,7 @@ const submitEdit = async (allowScheduleConflict = false) => {
       startDate: toRentalDatePayload(editForm.startDate),
       expectedShipDate: toRentalDatePayload(editForm.expectedShipDate),
       expectedEndDate: toRentalDatePayload(editForm.expectedEndDate),
+      expectedReturnDate: toRentalDatePayload(editForm.expectedReturnDate),
       hasRenewalIntent: editForm.hasRenewalIntent,
       renewalIntentEndDate: editForm.hasRenewalIntent ? toRentalDatePayload(editForm.renewalIntentEndDate) : null,
       totalPrice: editForm.totalPrice ?? undefined,
@@ -1818,6 +1834,19 @@ watch(
       editForm.renewalIntentEndDate = null;
     } else if (!editForm.renewalIntentEndDate) {
       editForm.renewalIntentEndDate = editForm.expectedEndDate;
+    }
+  }
+);
+
+watch(
+  () => editForm.expectedEndDate,
+  (nextEnd, previousEnd) => {
+    if (!nextEnd) return;
+
+    const currentReturnDate = editForm.expectedReturnDate?.format('YYYY-MM-DD');
+    const previousDefaultReturnDate = previousEnd?.add(2, 'day').format('YYYY-MM-DD');
+    if (!currentReturnDate || currentReturnDate === previousDefaultReturnDate) {
+      editForm.expectedReturnDate = nextEnd.add(2, 'day');
     }
   }
 );

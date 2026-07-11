@@ -89,6 +89,7 @@ export interface Rental {
   startDate: string;
   expectedShipDate: string;
   expectedEndDate: string;
+  expectedReturnDate?: string | null;
   actualEndDate?: string | null;
   hasRenewalIntent: boolean;
   renewalIntentEndDate?: string | null;
@@ -135,6 +136,7 @@ export interface CreateRentalPayload {
   startDate?: string;
   expectedShipDate?: string;
   expectedEndDate: string;
+  expectedReturnDate?: string | null;
   hasRenewalIntent?: boolean;
   renewalIntentEndDate?: string | null;
   totalPrice: number;
@@ -152,6 +154,7 @@ export interface UpdateRentalPayload {
   startDate?: string;
   expectedShipDate?: string;
   expectedEndDate?: string;
+  expectedReturnDate?: string | null;
   hasRenewalIntent?: boolean;
   renewalIntentEndDate?: string | null;
   totalPrice?: number;

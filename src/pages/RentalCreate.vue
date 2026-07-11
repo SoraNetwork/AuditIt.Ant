@@ -168,6 +168,11 @@
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
+            <a-form-item label="预计回货时间" required>
+              <a-date-picker v-model:value="form.expectedReturnDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :span="6">
             <a-form-item label="平台订单号">
               <a-input v-model:value="form.platformOrderNo" placeholder="可选" />
             </a-form-item>
@@ -624,6 +629,7 @@ const form = reactive({
   expectedShipDate: dayjs().subtract(1, 'day') as Dayjs,
   startDate: dayjs() as Dayjs,
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
+  expectedReturnDate: dayjs().add(9, 'day') as Dayjs,
   hasRenewalIntent: false,
   renewalIntentEndDate: null as Dayjs | null,
   totalPrice: 0,
@@ -1005,6 +1011,7 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     startDate: toRentalDatePayload(form.startDate),
     expectedShipDate: toRentalDatePayload(form.expectedShipDate),
     expectedEndDate: toRentalDatePayload(form.expectedEndDate)!,
+    expectedReturnDate: toRentalDatePayload(form.expectedReturnDate),
     hasRenewalIntent: form.hasRenewalIntent,
     renewalIntentEndDate: form.hasRenewalIntent ? toRentalDatePayload(form.renewalIntentEndDate) : null,
     totalPrice: Number(form.totalPrice || 0),
@@ -1097,6 +1104,11 @@ const submit = async () => {
     return;
   }
 
+  if (!form.expectedReturnDate) {
+    message.error('请选择预计回货时间');
+    return;
+  }
+
   if (form.hasRenewalIntent && !form.renewalIntentEndDate) {
     message.error('请选择续租意愿日期');
     return;
@@ -1140,6 +1152,19 @@ watch(
       form.renewalIntentEndDate = null;
     } else if (!form.renewalIntentEndDate) {
       form.renewalIntentEndDate = form.expectedEndDate;
+    }
+  }
+);
+
+watch(
+  () => form.expectedEndDate,
+  (nextEnd, previousEnd) => {
+    if (!nextEnd) return;
+
+    const currentReturnDate = form.expectedReturnDate?.format('YYYY-MM-DD');
+    const previousDefaultReturnDate = previousEnd?.add(2, 'day').format('YYYY-MM-DD');
+    if (!currentReturnDate || currentReturnDate === previousDefaultReturnDate) {
+      form.expectedReturnDate = nextEnd.add(2, 'day');
     }
   }
 );

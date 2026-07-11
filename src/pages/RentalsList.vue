@@ -74,6 +74,9 @@
           <template v-else-if="column.key === 'expectedEndDate'">
             {{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}
           </template>
+          <template v-else-if="column.key === 'expectedReturnDate'">
+            {{ formatDateTime(record.expectedReturnDate, 'YYYY-MM-DD') || '-' }}
+          </template>
           <template v-else-if="column.key === 'renewalIntent'">
             <a-tag :color="record.hasRenewalIntent ? 'blue' : 'default'">
               {{ renewalIntentText(record) }}
@@ -108,6 +111,7 @@
               <div>预计发货：{{ formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>开始：{{ formatDateTime(record.startDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>预计结束：{{ formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '-' }}</div>
+              <div>预计回货：{{ formatDateTime(record.expectedReturnDate, 'YYYY-MM-DD') || '-' }}</div>
               <div>续租意愿：{{ renewalIntentText(record) }}</div>
               <div>物品：{{ itemSummary(record) }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
@@ -162,6 +166,7 @@ const columns = [
   { title: '预计发货', dataIndex: 'expectedShipDate', key: 'expectedShipDate', width: 140 },
   { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 140 },
   { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 140 },
+  { title: '预计回货', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 140 },
   { title: '续租意愿', key: 'renewalIntent', width: 150 },
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
@@ -255,6 +260,7 @@ const exportRentalsXlsx = () => {
     预计发货: formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '',
     开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',
     预计结束: formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '',
+    预计回货: formatDateTime(record.expectedReturnDate, 'YYYY-MM-DD') || '',
     续租意愿: renewalIntentText(record),
     物品信息: itemSummary(record),
     平台订单号: record.platformOrderNo || '',
