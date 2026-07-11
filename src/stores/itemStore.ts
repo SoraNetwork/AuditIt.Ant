@@ -17,6 +17,7 @@ export interface Item {
   ownerUserName?: string | null;
   status: ItemStatus;
   currentDestination?: string | null;
+  expectedReturnDate?: string | null;
   remarks?: string | null;
   photoUrl?: string | null;
   itemValue?: number | null;
@@ -44,6 +45,8 @@ interface UpdateItemPayload {
   serialNumber?: string;
   remarks?: string;
   currentDestination?: string;
+  expectedReturnDate?: string | null;
+  clearExpectedReturnDate?: boolean;
   ownerUserNames?: string[];
   clearOwnerUser?: boolean;
   photo?: File | null;
@@ -78,6 +81,7 @@ function normalizeItem(raw: any): Item {
     ownerUserName: raw.ownerUserName ?? (ownerUserNames.join(',') || null),
     status: raw.status,
     currentDestination: raw.currentDestination ?? null,
+    expectedReturnDate: raw.expectedReturnDate ?? null,
     remarks: raw.remarks ?? null,
     photoUrl: raw.photoUrl ?? null,
     itemValue: raw.itemValue !== undefined ? raw.itemValue : null,
@@ -185,6 +189,10 @@ export const useItemStore = defineStore('item', {
         if (payload.shortId) formData.append('shortId', payload.shortId);
         if (payload.serialNumber !== undefined) formData.append('serialNumber', payload.serialNumber || '');
         if (payload.currentDestination !== undefined) formData.append('currentDestination', payload.currentDestination || '');
+        if (payload.expectedReturnDate !== undefined && payload.expectedReturnDate !== null) {
+          formData.append('expectedReturnDate', payload.expectedReturnDate);
+        }
+        if (payload.clearExpectedReturnDate) formData.append('clearExpectedReturnDate', 'true');
         appendOwnerNames(formData, payload.ownerUserNames);
         if (payload.clearOwnerUser) formData.append('clearOwnerUser', 'true');
         if (payload.itemValue !== undefined && payload.itemValue !== null) {
@@ -213,12 +221,13 @@ export const useItemStore = defineStore('item', {
       itemId: string,
       action: 'outbound' | 'check' | 'return' | 'dispose',
       destination?: string,
-      permanentlyHidden = false
+      permanentlyHidden = false,
+      expectedReturnDate?: string | null
     ): Promise<Item | null> {
       this.loading = true;
       this.error = null;
       try {
-        const response = await apiClient.put(`/items/${itemId}/${action}`, { destination, permanentlyHidden });
+        const response = await apiClient.put(`/items/${itemId}/${action}`, { destination, permanentlyHidden, expectedReturnDate });
         if (response.status === 204 || !response.data) {
           this.items = this.items.filter(item => item.id !== itemId);
           return null;

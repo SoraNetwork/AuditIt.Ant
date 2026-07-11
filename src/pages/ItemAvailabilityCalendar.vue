@@ -77,6 +77,7 @@
                 <span v-if="item.hasRenewalIntent && item.renewalIntentEndDate">
                   | 续租意愿至 {{ formatDate(item.renewalIntentEndDate) }}
                 </span>
+                <span v-if="item.isManualLoan && item.expectedReturnDate"> | 预计回库 {{ formatDate(item.expectedReturnDate) }}</span>
                 <span v-if="item.renterName"> | <RenterLink :renter-id="item.renterId" :name="item.renterName" /></span>
               </template>
             </a-list-item-meta>

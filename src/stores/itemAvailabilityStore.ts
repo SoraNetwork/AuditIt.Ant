@@ -16,6 +16,7 @@ export interface ItemBusyPeriod {
   isManualLoan?: boolean;
   hasRenewalIntent?: boolean;
   renewalIntentEndDate?: string | null;
+  expectedReturnDate?: string | null;
   occupancyStatus?: 'Scheduled' | 'Returning' | 'RenewalIntent';
 }
 
@@ -88,6 +89,7 @@ export interface ItemDefinitionDailyOccupancy {
   isManualLoan?: boolean;
   hasRenewalIntent?: boolean;
   renewalIntentEndDate?: string | null;
+  expectedReturnDate?: string | null;
   occupancyStatus?: 'Scheduled' | 'Returning' | 'RenewalIntent';
 }
 

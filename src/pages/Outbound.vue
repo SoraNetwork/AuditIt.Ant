@@ -114,7 +114,7 @@
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
-import { message, Modal, Input, Checkbox } from 'ant-design-vue';
+import { message, Modal, Input, Checkbox, DatePicker } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 
@@ -205,6 +205,7 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
   const actionText = action === 'outbound' ? '借出' : '处置';
   let destination: string | undefined = undefined;
   let permanentlyHidden = false;
+  let expectedReturnDate: string | null = null;
 
   Modal.confirm({
     title: `确认${actionText}`,
@@ -215,6 +216,17 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
         onChange: (e) => { destination = e.target.value; },
         style: { marginTop: '16px' }
       }),
+      ...(action === 'outbound'
+        ? [
+            h(DatePicker as any, {
+              placeholder: '请选择预计回库时间',
+              style: { width: '100%', marginTop: '12px' },
+              onChange: (value: any) => {
+                expectedReturnDate = value ? value.startOf('day').toISOString() : null;
+              },
+            })
+          ]
+        : []),
       ...(action === 'dispose'
         ? [
             h(Checkbox, {
@@ -231,8 +243,12 @@ const showOutboundModal = (action: 'outbound' | 'dispose') => {
         message.error('目的地不能为空');
         return Promise.reject();
       }
+      if (action === 'outbound' && !expectedReturnDate) {
+        message.error('请选择预计回库时间');
+        return Promise.reject();
+      }
       try {
-        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action, destination, permanentlyHidden));
+        const promises = selectedRowKeys.value.map(id => itemStore.updateItemStatus(id, action, destination, permanentlyHidden, expectedReturnDate));
         await Promise.all(promises);
         message.success(`成功${permanentlyHidden ? '处置并隐藏' : actionText} ${selectedRowKeys.value.length} 件物品!`);
         selectedRowKeys.value = [];

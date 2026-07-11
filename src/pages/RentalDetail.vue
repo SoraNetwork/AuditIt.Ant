@@ -173,7 +173,7 @@
               show-icon
               message="该结算只覆盖当前租赁单，续租后的费用请到续租单结算。"
             />
-
+<!--
             <div v-if="canShowSettlementDetails" class="settlement-header">
               <a-space wrap>
                 <a-tag v-if="settlementInfo?.settlementNotifiedAt" color="green">
@@ -190,7 +190,7 @@
                 </a-button>
               </a-space>
             </div>
-
+-->
             <a-descriptions v-if="settlementInfo && canShowSettlementDetails" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
               <a-descriptions-item label="总价">{{ formatMoney(settlementInfo.totalPrice) }}</a-descriptions-item>
               <a-descriptions-item label="核算">{{ formatMoney(settlementInfo.accountedAmount) }}</a-descriptions-item>
@@ -823,7 +823,7 @@ const renewVisible = ref(false);
 const renewing = ref(false);
 const settlementInfo = ref<SettlementPreview | null>(null);
 const settlementLoading = ref(false);
-const settlementSending = ref(false);
+//const settlementSending = ref(false);
 
 const userOptions = computed(() =>
   userStore.users.map(user => ({ label: user.name, value: user.name }))
@@ -1122,10 +1122,10 @@ const canRenew = computed(() =>
 const canShowSettlementPanel = computed(() =>
   !!rental.value && ['Returned', 'Overdue', 'Renewed'].includes(rental.value.status)
 );
-
+/*
 const canSendSettlement = computed(() =>
   !!settlementInfo.value?.canSend && authStore.hasPermission(PermissionCodes.RentalReturn)
-);
+); */
 
 const canShowSettlementDetails = computed(() =>
   !!settlementInfo.value?.canSend
@@ -1239,7 +1239,7 @@ const loadSettlementInfo = async (id = rental.value?.id) => {
     settlementLoading.value = false;
   }
 };
-
+/*
 const confirmSendSettlement = () => {
   if (!rental.value || !settlementInfo.value) return;
 
@@ -1253,7 +1253,8 @@ const confirmSendSettlement = () => {
     },
   });
 };
-
+*/
+/*
 const sendSettlement = async () => {
   if (!rental.value) return;
 
@@ -1268,6 +1269,7 @@ const sendSettlement = async () => {
     settlementSending.value = false;
   }
 };
+*/
 
 const load = async (id = routeRentalId.value) => {
   if (!id) return;

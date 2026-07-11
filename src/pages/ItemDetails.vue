@@ -39,6 +39,7 @@
             <a-descriptions-item label="当前去向">
               <RentalReferenceText :text="item?.currentDestination || '-'" />
             </a-descriptions-item>
+            <a-descriptions-item v-if="item?.expectedReturnDate" label="预计回库时间">{{ formatDateTime(item.expectedReturnDate) }}</a-descriptions-item>
             <a-descriptions-item label="备注">{{ item?.remarks || '-' }}</a-descriptions-item>
             <a-descriptions-item label="UUID">{{ item?.id }}</a-descriptions-item>
           </a-descriptions>
@@ -58,6 +59,7 @@
               <a-descriptions-item label="当前去向" :span="2">
                 <RentalReferenceText :text="item?.currentDestination || '-'" />
               </a-descriptions-item>
+              <a-descriptions-item v-if="item?.expectedReturnDate" label="预计回库时间" :span="2">{{ formatDateTime(item.expectedReturnDate) }}</a-descriptions-item>
               <a-descriptions-item label="备注" :span="2">{{ item?.remarks || '-' }}</a-descriptions-item>
               <a-descriptions-item label="UUID" :span="2">{{ item?.id }}</a-descriptions-item>
             </a-descriptions>

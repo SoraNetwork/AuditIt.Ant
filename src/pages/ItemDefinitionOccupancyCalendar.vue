@@ -136,6 +136,7 @@
                     <span v-if="item.hasRenewalIntent && item.renewalIntentEndDate" class="occupy-qty">
                       续租意愿至: <strong style="color: #1d4ed8;">{{ dayjs(item.renewalIntentEndDate).format('YYYY-MM-DD') }}</strong>
                     </span>
+                    <span v-if="item.isManualLoan && item.expectedReturnDate" class="occupy-qty">预计回库: {{ formatDate(item.expectedReturnDate) }}</span>
                   </div>
                 </template>
               </a-list-item-meta>
@@ -292,6 +293,8 @@ const selectedDailyOccupancies = computed(() => {
   const stock = getStockForDate(selectedDate.value);
   return stock ? stock.details : [];
 });
+
+const formatDate = (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD') : '';
 
 onMounted(async () => {
   await Promise.all([

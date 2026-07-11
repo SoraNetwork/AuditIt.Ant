@@ -10,6 +10,9 @@
           <a-form-item label="去向 (可选)">
             <a-input v-model:value="formState.currentDestination" />
           </a-form-item>
+          <a-form-item v-if="canEditExpectedReturnDate" label="预计回库时间">
+            <a-date-picker v-model:value="formState.expectedReturnDate" allow-clear style="width: 100%" />
+          </a-form-item>
           <a-form-item label="物品所有者">
             <a-select
               v-model:value="formState.ownerUserNames"
@@ -70,6 +73,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useItemStore, type Item } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
 import { message, type UploadProps } from 'ant-design-vue';
@@ -90,6 +94,7 @@ const formState = reactive({
   shortId: '',
   remarks: '',
   currentDestination: '',
+  expectedReturnDate: null as Dayjs | null,
   ownerUserNames: [] as string[],
   photo: undefined as File | undefined,
   itemValue: null as number | null,
@@ -98,6 +103,10 @@ const fileList = ref<UploadProps['fileList']>([]);
 const isPhotoDeleted = ref(false);
 const isCompressing = ref(false);
 const userOptions = computed(() => userStore.users.map(user => ({ label: user.name, value: user.name })));
+const canEditExpectedReturnDate = computed(() =>
+  item.value?.status === 'LoanedOut'
+  && !(item.value?.currentDestination || '').startsWith('租赁 ')
+);
 
 const currentPhotoUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
@@ -126,6 +135,7 @@ onMounted(async () => {
     formState.shortId = foundItem.shortId || '';
     formState.remarks = foundItem.remarks || '';
     formState.currentDestination = foundItem.currentDestination || '';
+    formState.expectedReturnDate = foundItem.expectedReturnDate ? dayjs(foundItem.expectedReturnDate) : null;
     formState.ownerUserNames = [...(foundItem.ownerUserNames || [])];
     formState.itemValue = foundItem.itemValue !== undefined && foundItem.itemValue !== null ? foundItem.itemValue : null;
   } else {
@@ -179,6 +189,10 @@ const handleSave = async () => {
       shortId: formState.shortId,
       remarks: formState.remarks,
       currentDestination: formState.currentDestination,
+      expectedReturnDate: canEditExpectedReturnDate.value && formState.expectedReturnDate
+        ? formState.expectedReturnDate.startOf('day').toISOString()
+        : null,
+      clearExpectedReturnDate: canEditExpectedReturnDate.value && !formState.expectedReturnDate,
       ownerUserNames: formState.ownerUserNames,
       clearOwnerUser: formState.ownerUserNames.length === 0,
       photo: formState.photo,
