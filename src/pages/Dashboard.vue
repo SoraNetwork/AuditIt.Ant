@@ -243,6 +243,17 @@ const warehouseStore = useWarehouseStore();
 const rentalStore = useRentalStore();
 const router = useRouter();
 
+type RentalDateSortField = 'expectedShipDate' | 'startDate' | 'expectedEndDate' | 'expectedReturnDate';
+type RentalSortOrder = 'ascend' | 'descend';
+
+const rentalListDefaultSorts: Partial<Record<RentalStatus, { sortField: RentalDateSortField; sortOrder: RentalSortOrder }>> = {
+  Pending: { sortField: 'expectedShipDate', sortOrder: 'ascend' },
+  Active: { sortField: 'expectedEndDate', sortOrder: 'ascend' },
+  Overdue: { sortField: 'expectedEndDate', sortOrder: 'ascend' },
+  Returned: { sortField: 'expectedReturnDate', sortOrder: 'descend' },
+  Cancelled: { sortField: 'expectedShipDate', sortOrder: 'descend' },
+};
+
 onMounted(() => {
   itemStore.fetchItems();
   warehouseStore.fetchWarehouses();
@@ -286,7 +297,7 @@ const pendingShipmentList = computed(() =>
 );
 
 const goToRentalsByStatus = (status: RentalStatus) => {
-  router.push({ path: '/rentals', query: { status } });
+  router.push({ path: '/rentals', query: { status, ...rentalListDefaultSorts[status] } });
 };
 /*
 const goToPendingSettlementList = () => {

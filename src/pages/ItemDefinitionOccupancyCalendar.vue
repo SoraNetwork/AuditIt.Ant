@@ -621,6 +621,32 @@ onMounted(async () => {
     width: 100%;
   }
 
+  .filter-controls {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #edf0f5;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .filter-controls :deep(.ant-space-item) {
+    width: 100%;
+  }
+
+  .navigation-controls {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #edf0f5;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .navigation-controls :deep(.ant-space-item) {
+    width: 100%;
+  }
+
   .filter-field {
     width: 100%;
     flex-direction: column;
@@ -637,11 +663,13 @@ onMounted(async () => {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: 10px;
   }
 
   .nav-buttons :deep(.ant-btn) {
+    min-width: 0;
     width: 100%;
+    font-weight: 600;
   }
 
   .month-title {

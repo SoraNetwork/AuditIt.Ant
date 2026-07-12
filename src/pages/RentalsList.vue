@@ -21,7 +21,7 @@
             placeholder="搜索租客 / 单号 / 物品"
             :style="isMobile ? { width: '100%' } : { width: '240px' }"
           />
-          <a-checkbox v-model:checked="pendingSettlement" @change="search">待结算</a-checkbox>
+        <!--  <a-checkbox v-model:checked="pendingSettlement" @change="search">待结算</a-checkbox> -->
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">
@@ -45,8 +45,9 @@
         row-key="id"
         :loading="rentalStore.loading"
         :columns="columns"
-        :data-source="rentalStore.rentals"
+        :data-source="sortedRentals"
         :pagination="false"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'rentalNumber'">
@@ -95,9 +96,27 @@
       </a-table>
 
       <div v-else class="mobile-card-list">
+        <div class="mobile-sort-toolbar">
+          <span class="mobile-sort-label">排序</span>
+          <a-space wrap>
+            <a-button
+              v-for="item in sortableDateOptions"
+              :key="item.value"
+              size="small"
+              :type="sortField === item.value ? 'primary' : 'default'"
+              @click="setSortField(item.value)"
+            >
+              {{ item.label }}
+            </a-button>
+            <a-button size="small" :disabled="!sortField" @click="toggleSortOrder">
+              {{ sortOrder === 'descend' ? '降序' : '升序' }}
+            </a-button>
+            <a-button v-if="sortField" size="small" @click="clearSort">默认</a-button>
+          </a-space>
+        </div>
         <a-skeleton :loading="rentalStore.loading" active :paragraph="{ rows: 4 }">
           <MobileListCard
-            v-for="record in rentalStore.rentals"
+            v-for="record in sortedRentals"
             :key="record.id"
             clickable
             @click="$router.push(`/rentals/${record.id}`)"
@@ -123,7 +142,7 @@
               <div v-if="record.assignedTo">负责人：{{ record.assignedTo }}</div>
             </template>
           </MobileListCard>
-          <a-empty v-if="rentalStore.rentals.length === 0 && !rentalStore.loading" description="暂无租赁记录" />
+          <a-empty v-if="sortedRentals.length === 0 && !rentalStore.loading" description="暂无租赁记录" />
         </a-skeleton>
       </div>
     </a-card>
@@ -158,22 +177,99 @@ const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returne
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
 
-const columns = [
+type RentalDateSortField = 'expectedShipDate' | 'startDate' | 'expectedEndDate' | 'expectedReturnDate';
+type RentalSortOrder = 'ascend' | 'descend';
+
+interface TableSorter {
+  field?: string;
+  columnKey?: string;
+  order?: RentalSortOrder | null;
+}
+
+const sortableDateOptions: { value: RentalDateSortField; label: string }[] = [
+  { value: 'expectedShipDate', label: '预计发货' },
+  { value: 'startDate', label: '开始日期' },
+  { value: 'expectedEndDate', label: '预计结束' },
+  { value: 'expectedReturnDate', label: '预计回货' },
+];
+
+const sortableDateFields = sortableDateOptions.map(item => item.value);
+const sortField = ref<RentalDateSortField | undefined>(undefined);
+const sortOrder = ref<RentalSortOrder | undefined>(undefined);
+
+const compareDateField = (a: Rental, b: Rental, field: RentalDateSortField, order: RentalSortOrder = 'ascend') => {
+  const aTime = dateSortValue(a[field]);
+  const bTime = dateSortValue(b[field]);
+  if (aTime === bTime) return 0;
+  if (aTime === null) return 1;
+  if (bTime === null) return -1;
+  return (aTime - bTime) * (order === 'ascend' ? 1 : -1);
+};
+
+const getDateColumnSortOrder = (field: RentalDateSortField) =>
+  sortField.value === field ? sortOrder.value : null;
+
+const columns = computed(() => [
   { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber', width: 180 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
   { title: '租客', key: 'renter', width: 160 },
   { title: '物品信息', key: 'items', width: 260 },
-  { title: '预计发货', dataIndex: 'expectedShipDate', key: 'expectedShipDate', width: 140 },
-  { title: '开始日期', dataIndex: 'startDate', key: 'startDate', width: 140 },
-  { title: '预计结束', dataIndex: 'expectedEndDate', key: 'expectedEndDate', width: 140 },
-  { title: '预计回货', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 140 },
+  {
+    title: '预计发货',
+    dataIndex: 'expectedShipDate',
+    key: 'expectedShipDate',
+    width: 140,
+    sorter: true,
+    sortOrder: getDateColumnSortOrder('expectedShipDate'),
+  },
+  {
+    title: '开始日期',
+    dataIndex: 'startDate',
+    key: 'startDate',
+    width: 140,
+    sorter: true,
+    sortOrder: getDateColumnSortOrder('startDate'),
+  },
+  {
+    title: '预计结束',
+    dataIndex: 'expectedEndDate',
+    key: 'expectedEndDate',
+    width: 140,
+    sorter: true,
+    sortOrder: getDateColumnSortOrder('expectedEndDate'),
+  },
+  {
+    title: '预计回货',
+    dataIndex: 'expectedReturnDate',
+    key: 'expectedReturnDate',
+    width: 140,
+    sorter: true,
+    sortOrder: getDateColumnSortOrder('expectedReturnDate'),
+  },
   { title: '续租意愿', key: 'renewalIntent', width: 150 },
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
   { title: '日均', key: 'dailyPrice', width: 110 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
-];
+]);
+
+const dateSortValue = (value?: string | null) => {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+};
+
+const sortedRentals = computed(() => {
+  if (!sortField.value || !sortOrder.value) return rentalStore.rentals;
+
+  const originalIndex = new Map(rentalStore.rentals.map((rental, index) => [rental.id, index]));
+  return [...rentalStore.rentals].sort((a, b) => {
+    const result = compareDateField(a, b, sortField.value!, sortOrder.value);
+    if (result !== 0) return result;
+    return (originalIndex.get(a.id) ?? 0) - (originalIndex.get(b.id) ?? 0);
+  });
+});
 
 const readQueryString = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -187,10 +283,22 @@ const readQueryStatus = (value: unknown): RentalStatus | undefined => {
   return rentalStatuses.includes(nextStatus as RentalStatus) ? (nextStatus as RentalStatus) : undefined;
 };
 
+const readQuerySortField = (value: unknown): RentalDateSortField | undefined => {
+  const nextField = readQueryString(value);
+  return sortableDateFields.includes(nextField as RentalDateSortField) ? (nextField as RentalDateSortField) : undefined;
+};
+
+const readQuerySortOrder = (value: unknown): RentalSortOrder | undefined => {
+  const nextOrder = readQueryString(value);
+  return nextOrder === 'ascend' || nextOrder === 'descend' ? nextOrder : undefined;
+};
+
 const applyQueryFilters = () => {
   status.value = readQueryStatus(route.query.status);
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
   pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
+  sortField.value = readQuerySortField(route.query.sortField);
+  sortOrder.value = sortField.value ? readQuerySortOrder(route.query.sortOrder) || 'ascend' : undefined;
 };
 
 const fetchList = async () => {
@@ -253,7 +361,7 @@ const refreshPendingSfRoutes = async () => {
 };
 
 const exportRentalsXlsx = () => {
-  const rows = rentalStore.rentals.map(record => ({
+  const rows = sortedRentals.value.map(record => ({
     租赁单号: record.rentalNumber,
     状态: rentalDisplayStatusText(record),
     租客: record.renter?.name || '',
@@ -284,12 +392,64 @@ const search = async () => {
       status: status.value,
       search: searchKeyword.value.trim() || undefined,
       pendingSettlement: pendingSettlement.value ? 'true' : undefined,
+      sortField: sortField.value,
+      sortOrder: sortField.value ? sortOrder.value : undefined,
     },
   });
 };
 
+const updateSortQuery = async (field?: RentalDateSortField, order?: RentalSortOrder) => {
+  await router.push({
+    path: '/rentals',
+    query: {
+      ...route.query,
+      sortField: field,
+      sortOrder: field ? order || 'ascend' : undefined,
+    },
+  });
+};
+
+const setSortField = async (field: RentalDateSortField) => {
+  const nextOrder = sortField.value === field ? sortOrder.value || 'ascend' : 'ascend';
+  await updateSortQuery(field, nextOrder);
+};
+
+const toggleSortOrder = async () => {
+  if (!sortField.value) return;
+  await updateSortQuery(sortField.value, sortOrder.value === 'ascend' ? 'descend' : 'ascend');
+};
+
+const clearSort = async () => {
+  await updateSortQuery(undefined, undefined);
+};
+
+const normalizeTableSorter = (sorter: unknown): TableSorter => {
+  if (Array.isArray(sorter)) return (sorter[0] || {}) as TableSorter;
+  return sorter && typeof sorter === 'object' ? (sorter as TableSorter) : {};
+};
+
+const handleTableChange = async (_pagination: unknown, _filters: unknown, sorter: unknown) => {
+  const nextSorter = normalizeTableSorter(sorter);
+  const nextField = readQuerySortField(nextSorter.field || nextSorter.columnKey);
+  const nextOrder = nextSorter.order || undefined;
+
+  if (nextField && nextOrder) {
+    await updateSortQuery(nextField, nextOrder);
+    return;
+  }
+
+  await clearSort();
+};
+
 watch(
-  () => [route.query.status, route.query.search, route.query.rentalNumber, route.query.pendingSettlement],
+  () => [
+    route.query.status,
+    route.query.search,
+    route.query.rentalNumber,
+    route.query.pendingSettlement,
+    route.query.sortField,
+    route.query.sortOrder,
+  ],
   async () => {
     applyQueryFilters();
     await fetchList();
@@ -356,10 +516,27 @@ watch(
   word-break: break-word;
 }
 
+.mobile-sort-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mobile-sort-label {
+  flex: none;
+  color: #667085;
+  font-size: 12px;
+}
+
 @media (max-width: 767.98px) {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .mobile-sort-toolbar {
+    align-items: flex-start;
   }
 }
 </style>
