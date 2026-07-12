@@ -282,7 +282,7 @@ const pendingShipmentList = computed(() =>
   [...rentalStore.rentals]
     .filter(r => r.status === 'Pending')
     .sort((a, b) => new Date(a.expectedShipDate).getTime() - new Date(b.expectedShipDate).getTime())
-    .slice(0, 8)
+    .slice(0, 12)
 );
 
 const goToRentalsByStatus = (status: RentalStatus) => {
