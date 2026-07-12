@@ -14,7 +14,7 @@
           size="small"
           class="target-select"
           :options="targetOptions"
-          @change="loadEvents"
+          @change="handleTargetUserChange"
         />
         <router-link v-if="compact" :to="{ path: '/calendar', query: { month: visibleMonth.format('YYYY-MM'), user: targetUser } }">
           详情
@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import dayjs, { type Dayjs } from 'dayjs';
 import type { SelectProps } from 'ant-design-vue';
 import { PermissionCodes } from '../utils/permissions';
@@ -114,6 +114,7 @@ const selectedDate = ref(props.initialDate ? dayjs(props.initialDate) : today);
 const authStore = useAuthStore();
 const calendarStore = useCalendarStore();
 const userStore = useUserStore();
+const route = useRoute();
 const router = useRouter();
 const canPickUser = computed(() => authStore.hasPermission(PermissionCodes.ReminderDismissAny));
 const canLoadUsers = computed(() => authStore.hasPermission(PermissionCodes.UserView));
@@ -151,23 +152,46 @@ const loadEvents = async () => {
   await calendarStore.fetchCalendar(rangeStart.value, rangeEnd.value, targetUser.value);
 };
 
+const syncCalendarQuery = async () => {
+  if (props.compact) return;
+
+  await router.replace({
+    query: {
+      ...route.query,
+      month: visibleMonth.value.format('YYYY-MM'),
+      date: selectedDate.value.format('YYYY-MM-DD'),
+      user: targetUser.value || undefined,
+    },
+  });
+};
+
+const handleTargetUserChange = async () => {
+  await syncCalendarQuery();
+  await loadEvents();
+};
+
 const moveMonth = async (step: number) => {
   visibleMonth.value = visibleMonth.value.add(step, 'month');
   selectedDate.value = visibleMonth.value.startOf('month');
+  await syncCalendarQuery();
   await loadEvents();
 };
 
 const goToday = async () => {
   visibleMonth.value = today.startOf('month');
   selectedDate.value = today;
+  await syncCalendarQuery();
   await loadEvents();
 };
 
-const selectDate = (day: Dayjs) => {
+const selectDate = async (day: Dayjs) => {
   selectedDate.value = day;
   if (props.compact) {
-    router.push({ path: '/calendar', query: { date: day.format('YYYY-MM-DD'), user: targetUser.value } });
+    await router.push({ path: '/calendar', query: { date: day.format('YYYY-MM-DD'), user: targetUser.value } });
+    return;
   }
+
+  await syncCalendarQuery();
 };
 
 const eventsForDate = (day: Dayjs) => {
@@ -183,13 +207,15 @@ const selectedEvents = computed(() => eventsForDate(selectedDate.value));
 const hasLevel = (day: Dayjs, level: string) =>
   eventsForDate(day).some(event => event.level === level && event.isOpen);
 
-const openEvent = (event: RentalCalendarEvent) => {
+const openEvent = async (event: RentalCalendarEvent) => {
+  await syncCalendarQuery();
+
   if (event.rentalId) {
-    router.push(`/rentals/${event.rentalId}`);
+    await router.push(`/rentals/${event.rentalId}`);
     return;
   }
   if (event.reminderId) {
-    router.push('/reminders');
+    await router.push('/reminders');
   }
 };
 

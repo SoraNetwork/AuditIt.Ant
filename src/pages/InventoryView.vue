@@ -131,8 +131,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { reactive, onMounted, computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import dayjs from 'dayjs';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
@@ -146,10 +146,12 @@ import { DownloadOutlined, UploadOutlined } from '@ant-design/icons-vue';
 import apiClient from '../services/api';
 import type { Warehouse } from '../stores/warehouseStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import { readQueryNumber, readQueryString } from '../utils/routeQuery';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
+const route = useRoute();
 const router = useRouter();
 
 const itemStore = useItemStore();
@@ -157,11 +159,17 @@ const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
 const categoryStore = useCategoryStore();
 
+const itemStatuses: ItemStatus[] = ['InStock', 'LoanedOut', 'Disposed'];
+const readQueryItemStatus = (value: unknown): ItemStatus | undefined => {
+  const status = readQueryString(value);
+  return itemStatuses.includes(status as ItemStatus) ? (status as ItemStatus) : undefined;
+};
+
 const filters = reactive<{ warehouseId?: number; categoryId?: number; status?: ItemStatus; searchTerm?: string }>({
-  warehouseId: undefined,
-  categoryId: undefined,
-  status: undefined,
-  searchTerm: '',
+  warehouseId: readQueryNumber(route.query.warehouseId),
+  categoryId: readQueryNumber(route.query.categoryId),
+  status: readQueryItemStatus(route.query.status),
+  searchTerm: readQueryString(route.query.search) || '',
 });
 
 const statusDisplay = (status: ItemStatus) => {
@@ -251,17 +259,7 @@ const columns = [
   },
 ];
 
-onMounted(() => {
-  // Initial fetch without filters
-  itemStore.fetchItems();
-  warehouseStore.fetchWarehouses();
-  itemDefStore.fetchItemDefinitions();
-  categoryStore.fetchCategories();
-});
-
-const applyFilters = () => {
-  // This function now only fetches from the API based on warehouse and status.
-  // The text search is applied client-side on the results.
+const itemServerFilters = () => {
   const queryFilters: { warehouseId?: number; categoryId?: number; status?: ItemStatus } = {};
   if (filters.warehouseId) {
     queryFilters.warehouseId = Number(filters.warehouseId);
@@ -272,8 +270,37 @@ const applyFilters = () => {
   if (filters.status) {
     queryFilters.status = filters.status;
   }
-  itemStore.fetchItems(queryFilters);
+  return queryFilters;
 };
+
+const syncInventoryQuery = async () => {
+  await router.replace({
+    query: {
+      ...route.query,
+      warehouseId: filters.warehouseId,
+      categoryId: filters.categoryId,
+      status: filters.status,
+      search: filters.searchTerm?.trim() || undefined,
+    },
+  });
+};
+
+onMounted(() => {
+  itemStore.fetchItems(itemServerFilters());
+  warehouseStore.fetchWarehouses();
+  itemDefStore.fetchItemDefinitions();
+  categoryStore.fetchCategories();
+});
+
+const applyFilters = async () => {
+  // Text search is applied client-side; the other filters are sent to the API.
+  await syncInventoryQuery();
+  itemStore.fetchItems(itemServerFilters());
+};
+
+watch(() => filters.searchTerm, () => {
+  syncInventoryQuery();
+});
 
 const importing = ref(false);
 const importReport = ref<{ success: number; errors: string[] } | null>(null);

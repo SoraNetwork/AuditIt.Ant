@@ -88,7 +88,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { useFinanceReportStore } from '../stores/financeReportStore';
@@ -96,12 +97,19 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import { formatDateTime } from '../utils/formatters';
 import { exportMultiSheetXlsx } from '../utils/xlsx';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import { readQueryDay, readQueryString } from '../utils/routeQuery';
 import RenterLink from '../components/RenterLink.vue';
 
+const route = useRoute();
+const router = useRouter();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const reportStore = useFinanceReportStore();
-const activeTab = ref('summary');
-const range = ref<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()]);
+const reportTab = readQueryString(route.query.tab);
+const activeTab = ref(reportTab === 'detail' ? 'detail' : 'summary');
+const range = ref<[Dayjs, Dayjs]>([
+  readQueryDay(route.query.start, dayjs().startOf('month')),
+  readQueryDay(route.query.end, dayjs()),
+]);
 
 const moneyColumns = ['totalPrice', 'deposit', 'totalShippingFee', 'otherFee', 'accountedAmount'];
 
@@ -134,6 +142,17 @@ const formatMoney = (value?: number | null) =>
 const ownerShareExportLabel = (share: { ownerName?: string | null; itemShortId?: string | null; itemName?: string | null }) => {
   const ownerName = share.ownerName || '未指定所有人';
   return ownerName;
+};
+
+const syncReportQuery = async () => {
+  await router.replace({
+    query: {
+      ...route.query,
+      start: range.value?.[0]?.format('YYYY-MM-DD'),
+      end: range.value?.[1]?.format('YYYY-MM-DD'),
+      tab: activeTab.value,
+    },
+  });
 };
 
 const loadReports = async () => {
@@ -262,6 +281,15 @@ const exportReport = async () => {
     hide();
   }
 };
+
+watch(
+  () => [
+    range.value?.[0]?.format('YYYY-MM-DD') || '',
+    range.value?.[1]?.format('YYYY-MM-DD') || '',
+    activeTab.value,
+  ],
+  syncReportQuery
+);
 
 onMounted(loadReports);
 </script>

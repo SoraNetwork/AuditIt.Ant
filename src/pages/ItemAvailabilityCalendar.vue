@@ -30,7 +30,7 @@
             type="button"
             class="day-cell"
             :class="{ muted: day.month() !== visibleMonth.month(), busy: busyForDate(day).length > 0 }"
-            @click="selectedDate = day"
+            @click="selectDate(day)"
           >
             <span class="day-number">{{ day.date() }}</span>
             <template v-if="busyForDate(day).length === 0">
@@ -90,20 +90,23 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { useItemAvailabilityStore, type ItemBusyPeriod } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { getStatusText as getItemStatusText } from '../stores/itemStore';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import { readQueryDay, readQueryMonth } from '../utils/routeQuery';
 import RenterLink from '../components/RenterLink.vue';
 
 const route = useRoute();
+const router = useRouter();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const availabilityStore = useItemAvailabilityStore();
-const visibleMonth = ref(dayjs().startOf('month'));
-const selectedDate = ref(dayjs());
+const initialSelectedDate = readQueryDay(route.query.date, dayjs());
+const visibleMonth = ref(readQueryMonth(route.query.month, initialSelectedDate));
+const selectedDate = ref(initialSelectedDate);
 const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
 
 const calendar = computed(() => availabilityStore.calendar);
@@ -123,15 +126,32 @@ const loadCalendar = async () => {
   }
 };
 
+const syncCalendarQuery = async () => {
+  await router.replace({
+    query: {
+      ...route.query,
+      month: visibleMonth.value.format('YYYY-MM'),
+      date: selectedDate.value.format('YYYY-MM-DD'),
+    },
+  });
+};
+
+const selectDate = async (day: Dayjs) => {
+  selectedDate.value = day;
+  await syncCalendarQuery();
+};
+
 const moveMonth = async (step: number) => {
   visibleMonth.value = visibleMonth.value.add(step, 'month');
   selectedDate.value = visibleMonth.value.startOf('month');
+  await syncCalendarQuery();
   await loadCalendar();
 };
 
 const goToday = async () => {
   visibleMonth.value = dayjs().startOf('month');
   selectedDate.value = dayjs();
+  await syncCalendarQuery();
   await loadCalendar();
 };
 

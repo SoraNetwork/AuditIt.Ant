@@ -68,7 +68,7 @@
                   alert: isStockShort(day),
                   warning: isStockWarning(day)
                 }"
-              @click="selectedDate = day"
+              @click="selectDate(day)"
             >
               <div class="day-header">
                 <span class="day-number">{{ day.date() }}</span>
@@ -150,6 +150,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -157,17 +158,21 @@ import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useItemAvailabilityStore, type ItemDefinitionDailyStock } from '../stores/itemAvailabilityStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { rentalStatusText } from '../utils/rentalDisplay';
+import { readQueryDay, readQueryMonth, readQueryNumber } from '../utils/routeQuery';
 import RenterLink from '../components/RenterLink.vue';
 
+const route = useRoute();
+const router = useRouter();
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
 const availabilityStore = useItemAvailabilityStore();
 
-const selectedCategoryId = ref<number | undefined>();
-const selectedDefinitionId = ref<number | undefined>();
-const visibleMonth = ref(dayjs().startOf('month'));
-const selectedDate = ref(dayjs());
+const initialSelectedDate = readQueryDay(route.query.date, dayjs());
+const selectedCategoryId = ref<number | undefined>(readQueryNumber(route.query.categoryId));
+const selectedDefinitionId = ref<number | undefined>(readQueryNumber(route.query.definitionId));
+const visibleMonth = ref(readQueryMonth(route.query.month, initialSelectedDate));
+const selectedDate = ref(initialSelectedDate);
 const loading = ref(false);
 const calendarData = ref<Record<string, ItemDefinitionDailyStock>>({});
 const totalStock = ref(0);
@@ -230,36 +235,58 @@ const loadOccupancy = async () => {
   }
 };
 
+const syncCalendarQuery = async () => {
+  await router.replace({
+    query: {
+      ...route.query,
+      categoryId: selectedCategoryId.value,
+      definitionId: selectedDefinitionId.value,
+      month: selectedDefinitionId.value ? visibleMonth.value.format('YYYY-MM') : undefined,
+      date: selectedDefinitionId.value ? selectedDate.value.format('YYYY-MM-DD') : undefined,
+    },
+  });
+};
+
+const selectDate = async (day: Dayjs) => {
+  selectedDate.value = day;
+  await syncCalendarQuery();
+};
+
 const onDefinitionChange = async () => {
   const today = dayjs();
   visibleMonth.value = today.startOf('month');
   selectedDate.value = today;
+  await syncCalendarQuery();
   await loadOccupancy();
 };
 
-const onCategoryChange = () => {
+const onCategoryChange = async () => {
   const selectedDefinitionStillVisible =
     selectedDefinitionId.value
     && filteredDefinitions.value.some(def => def.id === selectedDefinitionId.value);
 
   if (selectedDefinitionStillVisible) {
+    await syncCalendarQuery();
     return;
   }
 
   selectedDefinitionId.value = undefined;
   calendarData.value = {};
   totalStock.value = 0;
+  await syncCalendarQuery();
 };
 
 const moveMonth = async (step: number) => {
   visibleMonth.value = visibleMonth.value.add(step, 'month');
   selectedDate.value = visibleMonth.value.startOf('month');
+  await syncCalendarQuery();
   await loadOccupancy();
 };
 
 const goToday = async () => {
   visibleMonth.value = dayjs().startOf('month');
   selectedDate.value = dayjs();
+  await syncCalendarQuery();
   await loadOccupancy();
 };
 
@@ -301,6 +328,22 @@ onMounted(async () => {
     categoryStore.fetchCategories(),
     itemDefStore.fetchItemDefinitions(),
   ]);
+
+  const selectedDefinitionStillVisible =
+    selectedDefinitionId.value
+    && filteredDefinitions.value.some(def => def.id === selectedDefinitionId.value);
+
+  if (selectedDefinitionId.value && !selectedDefinitionStillVisible) {
+    selectedDefinitionId.value = undefined;
+    calendarData.value = {};
+    totalStock.value = 0;
+    await syncCalendarQuery();
+    return;
+  }
+
+  if (selectedDefinitionId.value) {
+    await loadOccupancy();
+  }
 });
 </script>
 
