@@ -21,7 +21,7 @@
             placeholder="搜索租客 / 单号 / 物品"
             :style="isMobile ? { width: '100%' } : { width: '240px' }"
           />
-        <!--  <a-checkbox v-model:checked="pendingSettlement" @change="search">待结算</a-checkbox> -->
+          <a-checkbox v-model:checked="pendingSettlement" @change="search">待结算</a-checkbox> 
           <a-button :block="isMobile" @click="search">查询</a-button>
         </a-space>
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">

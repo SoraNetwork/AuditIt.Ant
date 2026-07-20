@@ -53,14 +53,14 @@
             <a-statistic title="已归还" :value="returnedRentals" />
           </a-card>
         </a-col>
-<!--
+
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card hoverable class="overview-card" @click="goToPendingSettlementList">
             <a-statistic title="待结算" :value="pendingSettlementRentals"
               :value-style="{ color: pendingSettlementRentals > 0 ? '#d48806' : undefined }" />
           </a-card>
         </a-col>
--->
+
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
           <a-card hoverable class="overview-card" @click="goToRentalsByStatus('Cancelled')">
             <a-statistic title="已取消" :value="cancelledRentals" />
@@ -198,7 +198,7 @@
           </a-card>
         </a-col>
       </a-row>
-<!--
+
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
           <a-card title="待结算单">
@@ -230,7 +230,7 @@
           </a-card>
         </a-col>
       </a-row>
--->
+
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 24px;">
         <a-col :xs="24" :md="12">
           <a-card title="物品状态分布">
@@ -291,14 +291,28 @@ onMounted(() => {
   rentalStore.fetchRentals({ pageSize: 200 });
 });
 
+const pendingSettlementList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(isPendingSettlementRental)
+    .sort((a, b) => new Date(completedAt(a)).getTime() - new Date(completedAt(b)).getTime())
+    .slice(0, 8)
+);
+const completedAt = (rental: Rental) =>
+  rental.actualEndDate || rental.updatedAt || rental.expectedEndDate;
+
+const formatMoney = (value?: number | null) => {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-';
+  return `¥${Number(value).toFixed(1)}`;
+};
+
 const activeRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Active').length);
 const pendingRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Pending').length);
 const overdueRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Overdue').length);
 const returnedRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Returned').length);
 const cancelledRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Cancelled').length);
-//const isPendingSettlementRental = (rental: Rental) =>
-//  (rental.status === 'Returned' || rental.status === 'Renewed') && !rental.settlementNotifiedAt;
-//const pendingSettlementRentals = computed(() => rentalStore.rentals.filter(isPendingSettlementRental).length);
+const isPendingSettlementRental = (rental: Rental) =>
+  (rental.status === 'Returned' || rental.status === 'Renewed') && !rental.settlementNotifiedAt;
+const pendingSettlementRentals = computed(() => rentalStore.rentals.filter(isPendingSettlementRental).length);
 
 const activeRevenue = computed(() =>
   rentalStore.rentals
@@ -354,11 +368,11 @@ const returnInTransitList = computed(() =>
 const goToRentalsByStatus = (status: RentalStatus) => {
   router.push({ path: '/rentals', query: { status, ...rentalListDefaultSorts[status] } });
 };
-/*
+
 const goToPendingSettlementList = () => {
   router.push({ path: '/rentals', query: { pendingSettlement: 'true' } });
 };
-*/
+
 const daysUntil = (dateStr: string) => {
   const now = dayjs().startOf('day');
   const target = dayjs(dateStr).startOf('day');
