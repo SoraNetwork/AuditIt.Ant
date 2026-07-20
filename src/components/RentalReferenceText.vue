@@ -24,7 +24,9 @@ const props = defineProps<{
 
 const router = useRouter();
 const rentalStore = useRentalStore();
-const rentalNumberRegex = /R\d{8}-?\d{4}/g;
+// Renewal rentals append a sequence, e.g. R20260601-0001-01.
+// Keep the suffix in the link so it cannot resolve to the source rental.
+const rentalNumberRegex = /R\d{8}-?\d{4}(?:-\d+)?/g;
 
 const parts = computed(() => {
   const value = props.text || '-';

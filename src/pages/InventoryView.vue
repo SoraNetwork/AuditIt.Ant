@@ -3,9 +3,21 @@
     <a-page-header title="库存总览" sub-title="查询所有仓库中的物品状态" />
     <div class="page-container">
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
-        <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filters" @finish="applyFilters" class="filter-form">
+        <a-form
+          :layout="isMobile ? 'vertical' : 'inline'"
+          :model="filters"
+          @finish="applyFilters"
+          class="filter-form"
+          data-form-draft-ignore="true"
+        >
           <a-form-item label="搜索">
-            <a-input v-model:value="filters.searchTerm" placeholder="搜索ID或名称" :style="isMobile ? { width: '100%' } : { width: '200px' }" allow-clear />
+            <a-input
+              v-model:value="filters.searchTerm"
+              placeholder="搜索ID或名称"
+              :style="isMobile ? { width: '100%' } : { width: '200px' }"
+              allow-clear
+              @press-enter="applyFilters"
+            />
           </a-form-item>
           <a-form-item label="仓库">
             <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear>
@@ -131,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, computed, ref, watch } from 'vue';
+import { reactive, onMounted, computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import dayjs from 'dayjs';
@@ -297,10 +309,6 @@ const applyFilters = async () => {
   await syncInventoryQuery();
   itemStore.fetchItems(itemServerFilters());
 };
-
-watch(() => filters.searchTerm, () => {
-  syncInventoryQuery();
-});
 
 const importing = ref(false);
 const importReport = ref<{ success: number; errors: string[] } | null>(null);

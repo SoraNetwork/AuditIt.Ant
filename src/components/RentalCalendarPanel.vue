@@ -219,7 +219,7 @@ const openEvent = async (event: RentalCalendarEvent) => {
   }
 };
 
-const rentalNumberPattern = /R\d{8}-\d{4,}/i;
+const rentalNumberPattern = /R\d{8}-\d{4}(?:-\d+)?/i;
 
 const eventTypeText = (event: RentalCalendarEvent, short = false) => {
   if (event.kind === 'ShipmentRequired') return short ? '需发货' : '需要发货';

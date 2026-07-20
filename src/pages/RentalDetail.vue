@@ -136,7 +136,7 @@
             <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
           </a-tooltip>
           <a-tooltip :title="returnDisabledReason" :open="canReturn ? false : undefined">
-            <a-button :disabled="!canReturn" @click="returnVisible = true">登记归还</a-button>
+            <a-button :disabled="!canReturn" @click="openReturn">登记归还</a-button>
           </a-tooltip>
         </div>
         <div class="rental-secondary-actions">
@@ -154,7 +154,7 @@
           <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
         </a-tooltip>
         <a-tooltip :title="returnDisabledReason" :open="canReturn ? false : undefined">
-          <a-button :disabled="!canReturn" @click="returnVisible = true">登记归还</a-button>
+          <a-button :disabled="!canReturn" @click="openReturn">登记归还</a-button>
         </a-tooltip>
         <a-button v-if="canCancel" danger @click="cancelVisible = true">取消租赁</a-button>
       </div>
@@ -337,6 +337,11 @@
           <template v-else-if="column.key === 'shippingFee'">
             {{ formatMoney(record.shippingFee) || '-' }}
           </template>
+          <template v-else-if="column.key === 'items'">
+            <span :class="{ 'shipment-items-unassigned': !record.items?.length }">
+              {{ formatShipmentItems(record) }}
+            </span>
+          </template>
           <template v-else-if="column.key === 'actions'">
             <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">标记签收</a-button>
           </template>
@@ -357,6 +362,7 @@
           <template #meta>
             <div v-if="shipment.originWarehouseName">仓库：{{ shipment.originWarehouseName }}</div>
             <div v-if="shipment.shippingFee">运费：{{ formatMoney(shipment.shippingFee) }}</div>
+            <div>物品：{{ formatShipmentItems(shipment) }}</div>
             <div v-if="shipment.shippedAt">发货时间：{{ formatDateTime(shipment.shippedAt) }}</div>
             <div v-if="shipment.deliveredAt">签收时间：{{ formatDateTime(shipment.deliveredAt) }}</div>
           </template>
@@ -371,7 +377,7 @@
         <a-divider>顺丰路由</a-divider>
         <div class="sf-route-toolbar">
           <a-space wrap>
-            <span class="sf-route-hint">使用 SF 运单号 + 租客手机号后四位查询，默认 2 小时后端缓存。</span>
+            <span class="sf-route-hint">优先使用租客手机号后四位，查不到时依次回退建单人及 Admin 手机尾号；默认 2 小时后端缓存。</span>
             <a-button size="small" :loading="sfRouteLoading" @click="loadSfRoutes(true)">刷新顺丰路由</a-button>
           </a-space>
         </div>
@@ -449,6 +455,29 @@
           </a-select-option>
         </a-select>
       </a-form-item>
+      <template v-if="shipForm.direction === 'Inbound'">
+        <a-divider>关联回货物品（可多选）</a-divider>
+        <a-form-item label="本物流单对应物品">
+          <a-select
+            v-model:value="selectedInboundRentalItemIds"
+            mode="multiple"
+            placeholder="可选择一个或多个未归还物品；不选表示未指定"
+            option-filter-prop="label"
+            :max-tag-count="3"
+            show-search
+          >
+            <a-select-option
+              v-for="item in activeRentalItems"
+              :key="item.id"
+              :value="item.id"
+              :label="`${item.itemShortIdSnapshot || '-'} ${item.itemNameSnapshot || ''}`"
+            >
+              {{ item.itemShortIdSnapshot || '-' }} - {{ item.itemNameSnapshot || '未命名物品' }}
+            </a-select-option>
+          </a-select>
+          <div class="form-help-text">历史物流没有物品关联；本次不选择时也会按未指定物品保存。</div>
+        </a-form-item>
+      </template>
       <template v-if="shipForm.direction === 'Outbound' && uncertainRentalItems.length > 0">
         <a-divider>确定发货商品（一物一码）</a-divider>
         <div v-if="!shipForm.originWarehouseId" style="color: #ff4d4f; margin-bottom: 12px;">
@@ -504,12 +533,25 @@
     <a-form layout="vertical">
       <a-form-item label="归还状态">
         <a-select v-model:value="returnForm.condition">
-          <a-select-option value="Good">Good</a-select-option>
-          <a-select-option value="MinorDamage">MinorDamage</a-select-option>
-          <a-select-option value="MajorDamage">MajorDamage</a-select-option>
-          <a-select-option value="Lost">Lost</a-select-option>
+          <a-select-option value="Good">良好</a-select-option>
+          <a-select-option value="MinorDamage">轻微损坏</a-select-option>
+          <a-select-option value="MajorDamage">严重损坏</a-select-option>
+          <a-select-option value="Lost">丢失</a-select-option>
         </a-select>
       </a-form-item>
+      <template v-if="isDamageReturn">
+        <a-form-item label="维修占用">
+          <a-checkbox v-model:checked="returnForm.repairOccupancy">需要因维修占用</a-checkbox>
+          <div class="form-help">勾选后，物品会按“普通借出”占用，并标记借出原因为“损坏维修”。</div>
+        </a-form-item>
+        <a-form-item v-if="returnForm.repairOccupancy" label="维修占用至" required>
+          <a-date-picker
+            v-model:value="returnForm.repairExpectedReturnDate"
+            style="width: 100%"
+            :disabled-date="(date: Dayjs) => date && date.endOf('day').isBefore(dayjs().startOf('day'))"
+          />
+        </a-form-item>
+      </template>
       <a-form-item label="备注">
         <a-textarea v-model:value="returnForm.notes" :rows="2" />
       </a-form-item>
@@ -736,7 +778,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type RentalItem, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
+import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type RentalItem, type RentalShipment, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
@@ -798,10 +840,14 @@ const routeRentalId = computed(() => {
   return Array.isArray(raw) ? raw[0] : String(raw || '');
 });
 const selectedShipItems = ref<Record<number, string>>({});
+const selectedInboundRentalItemIds = ref<number[]>([]);
 const uncertainRentalItems = computed(() => {
   if (shipForm.direction !== 'Outbound') return [];
   return rental.value?.items.filter(item => !item.itemId) || [];
 });
+const activeRentalItems = computed(() =>
+  rental.value?.items.filter(item => !item.returnedAt && item.itemId) || []
+);
 const availableItemsForDefinition = (definitionId?: number | null) => {
   const warehouseId = shipForm.originWarehouseId;
   if (!warehouseId || !definitionId) return [];
@@ -962,7 +1008,13 @@ const shipForm = reactive({
 const returnForm = reactive({
   condition: 'Good' as ReturnCondition,
   notes: '',
+  repairOccupancy: false,
+  repairExpectedReturnDate: null as Dayjs | null,
 });
+
+const isDamageReturn = computed(() =>
+  returnForm.condition === 'MinorDamage' || returnForm.condition === 'MajorDamage'
+);
 
 const cancelReason = ref('');
 
@@ -1062,11 +1114,20 @@ const shipmentColumns = [
   { title: '仓库', dataIndex: 'originWarehouseName', key: 'originWarehouseName', width: 160 },
   { title: '物流公司', dataIndex: 'carrier', key: 'carrier', width: 140 },
   { title: '运单号', dataIndex: 'trackingNumber', key: 'trackingNumber', width: 180 },
+  { title: '对应物品', key: 'items', width: 240 },
   { title: '运费', dataIndex: 'shippingFee', key: 'shippingFee', width: 100 },
   { title: '发货时间', dataIndex: 'shippedAt', key: 'shippedAt', width: 180 },
   { title: '签收时间', dataIndex: 'deliveredAt', key: 'deliveredAt', width: 180 },
   { title: '操作', key: 'actions', width: 100 },
 ];
+
+const formatShipmentItems = (shipment: RentalShipment) => {
+  if (!shipment.items?.length) return '未指定物品（历史物流）';
+  const labels = shipment.items.map(item =>
+    item.itemShortIdSnapshot || item.itemNameSnapshot || `租赁项 ${item.rentalItemId}`
+  );
+  return labels.length <= 3 ? labels.join('、') : `${labels.slice(0, 3).join('、')} 等 ${labels.length} 件`;
+};
 
 const sfRouteByShipment = computed(() => {
   const map = new Map<number, SfShipmentRoute>();
@@ -1203,6 +1264,7 @@ const resetShipForm = (direction: ShipmentDirection) => {
   shipForm.trackingNumber = '';
   shipForm.shippingFee = null;
   shipForm.notes = '';
+  selectedInboundRentalItemIds.value = [];
 };
 
 const openOutbound = async () => {
@@ -1215,6 +1277,14 @@ const openOutbound = async () => {
 const openInbound = () => {
   resetShipForm('Inbound');
   shipVisible.value = true;
+};
+
+const openReturn = () => {
+  returnForm.condition = 'Good';
+  returnForm.notes = '';
+  returnForm.repairOccupancy = false;
+  returnForm.repairExpectedReturnDate = null;
+  returnVisible.value = true;
 };
 
 const openRenew = () => {
@@ -1368,10 +1438,15 @@ const submitShip = async (allowOpenItemConflict = false) => {
     }
   }
 
-  const itemSelections = Object.entries(selectedShipItems.value).map(([rentalItemId, itemId]) => ({
-    rentalItemId: Number(rentalItemId),
-    itemId,
-  }));
+  const itemSelections = shipForm.direction === 'Inbound'
+    ? selectedInboundRentalItemIds.value.flatMap(rentalItemId => {
+        const itemId = rental.value?.items.find(item => item.id === rentalItemId)?.itemId;
+        return itemId ? [{ rentalItemId, itemId }] : [];
+      })
+    : Object.entries(selectedShipItems.value).map(([rentalItemId, itemId]) => ({
+        rentalItemId: Number(rentalItemId),
+        itemId,
+      }));
 
   try {
     await rentalStore.ship(rental.value.id, {
@@ -1414,10 +1489,17 @@ const deliver = async (shipmentId: number) => {
 const submitReturn = async () => {
   if (!rental.value) return;
 
+  if (returnForm.repairOccupancy && !returnForm.repairExpectedReturnDate) {
+    message.error('请选择维修占用结束日期');
+    return;
+  }
+
   try {
     await rentalStore.returnRental(rental.value.id, {
       condition: returnForm.condition,
       notes: returnForm.notes.trim() || undefined,
+      repairOccupancy: returnForm.repairOccupancy,
+      repairExpectedReturnDate: toRentalDatePayload(returnForm.repairExpectedReturnDate),
     });
     returnVisible.value = false;
     message.success('归还登记成功');
@@ -1839,6 +1921,16 @@ watch(
 );
 
 watch(
+  () => returnForm.condition,
+  condition => {
+    if (condition !== 'MinorDamage' && condition !== 'MajorDamage') {
+      returnForm.repairOccupancy = false;
+      returnForm.repairExpectedReturnDate = null;
+    }
+  }
+);
+
+watch(
   () => editForm.expectedEndDate,
   (nextEnd, previousEnd) => {
     if (!nextEnd) return;
@@ -2208,6 +2300,17 @@ watch(
   font-size: 12px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.form-help-text {
+  margin-top: 6px;
+  color: #697386;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.shipment-items-unassigned {
+  color: #697386;
 }
 
 .sf-route-toolbar {

@@ -31,6 +31,14 @@ export interface RentalShipment {
   deliveredAt?: string | null;
   shippingFee?: number | null;
   notes?: string | null;
+  items?: RentalShipmentItem[];
+}
+
+export interface RentalShipmentItem {
+  rentalItemId: number;
+  itemId?: string | null;
+  itemShortIdSnapshot?: string | null;
+  itemNameSnapshot?: string | null;
 }
 
 export interface SfRouteNode {
@@ -133,6 +141,7 @@ export interface CreateRentalPayload {
   };
   itemIds: string[];
   itemDefinitionIds?: number[];
+  itemPrices?: { itemId?: string; itemDefinitionId?: number; perItemPrice: number }[];
   startDate?: string;
   expectedShipDate?: string;
   expectedEndDate: string;
@@ -204,6 +213,8 @@ export interface ReturnPayload {
   rentalItemIds?: number[];
   condition?: ReturnCondition;
   notes?: string;
+  repairOccupancy?: boolean;
+  repairExpectedReturnDate?: string;
 }
 
 export interface BulkUpdateRentalItemPayload {

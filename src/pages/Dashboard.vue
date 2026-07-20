@@ -118,6 +118,37 @@
         </a-col>
       </a-row>
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
+          <a-card title="回货中">
+            <a-list size="small" :data-source="returnInTransitList" :locale="{ emptyText: '暂无回货中的物流' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <template #actions>
+                    <router-link :to="`/rentals/${item.id}`">查看</router-link>
+                  </template>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag color="processing" style="margin-left: 8px">回货中</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span style="margin-left: 8px">
+                        {{ latestPendingInboundShipment(item)?.carrier || '回货物流' }}
+                        {{ latestPendingInboundShipment(item)?.trackingNumber || '-' }}
+                      </span>
+                      <span v-if="latestPendingInboundShipment(item)" style="margin-left: 8px">
+                        已寄回 {{ -daysUntil(latestPendingInboundShipment(item)!.shippedAt) }} 天
+                      </span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+      </a-row>
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24" :md="12">
           <a-card title="即将到期 / 逾期">
             <a-list size="small" :data-source="dueSoonList" :locale="{ emptyText: '暂无到期或逾期' }">
@@ -226,7 +257,7 @@ import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import { useItemStore } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
-import { useRentalStore, type RentalStatus } from '../stores/rentalStore';
+import { useRentalStore, type Rental, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import RentalCalendarPanel from '../components/RentalCalendarPanel.vue';
 import RenterLink from '../components/RenterLink.vue';
@@ -277,10 +308,15 @@ const activeRevenue = computed(() =>
 
 const dueSoonList = computed(() =>
   [...rentalStore.rentals]
-    .filter(r => (r.status === 'Active' || r.status === 'Overdue' || r.status === 'Pending') && r.expectedEndDate)
+    .filter(r => {
+      if (!r.expectedEndDate) return false;
+      if (isUnreturnedOverdueRental(r)) return true;
+      return (r.status === 'Active' || r.status === 'Pending')
+        && daysUntil(r.expectedEndDate) >= 0
+        && daysUntil(r.expectedEndDate) <= 7;
+    })
     .sort((a, b) => new Date(a.expectedEndDate).getTime() - new Date(b.expectedEndDate).getTime())
-    .filter(r => daysUntil(r.expectedEndDate) <= 7)
-    .slice(0, 8)
+    .slice(0, 12)
 );
 
 const recentRentals = computed(() =>
@@ -293,6 +329,25 @@ const pendingShipmentList = computed(() =>
   [...rentalStore.rentals]
     .filter(r => r.status === 'Pending')
     .sort((a, b) => new Date(a.expectedShipDate).getTime() - new Date(b.expectedShipDate).getTime())
+    .slice(0, 12)
+);
+
+const latestPendingInboundShipment = (rental: Rental) =>
+  [...(rental.shipments || [])]
+    .filter(shipment => shipment.direction === 'Inbound' && !shipment.deliveredAt)
+    .sort((left, right) => new Date(right.shippedAt).getTime() - new Date(left.shippedAt).getTime())[0];
+
+const returnInTransitList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(rental =>
+      (rental.status === 'Active' || rental.status === 'Overdue')
+      && rental.items.some(item => !item.returnedAt)
+      && Boolean(latestPendingInboundShipment(rental))
+    )
+    .sort((left, right) =>
+      new Date(latestPendingInboundShipment(right)!.shippedAt).getTime()
+      - new Date(latestPendingInboundShipment(left)!.shippedAt).getTime()
+    )
     .slice(0, 12)
 );
 
@@ -309,6 +364,12 @@ const daysUntil = (dateStr: string) => {
   const target = dayjs(dateStr).startOf('day');
   return target.diff(now, 'day');
 };
+
+const isUnreturnedOverdueRental = (rental: Rental) =>
+  (rental.status === 'Active' || rental.status === 'Overdue')
+  && rental.items.some(item => !item.returnedAt)
+  && !rental.shipments.some(shipment => shipment.direction === 'Inbound')
+  && daysUntil(rental.expectedEndDate) < -1;
 
 const formatDate = (value?: string | null) =>
   value ? formatDateTime(value, 'YYYY-MM-DD') : '';

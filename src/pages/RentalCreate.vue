@@ -200,7 +200,8 @@
           <a-col :xs="24" :span="8">
             <a-form-item label="总价" required>
               <a-input-number
-                v-model:value="form.totalPrice"
+                :value="calculatedTotalPrice"
+                disabled
                 :min="0"
                 :step="0.1"
                 :precision="1"
@@ -461,6 +462,37 @@
             </div>
           </div>
         </template>
+
+        <div class="rental-price-panel">
+          <div class="rental-price-heading">
+            <div>
+              <div class="rental-price-title">逐件填写租赁价格</div>
+              <div class="section-subtitle">每件物品单独定价，系统自动汇总总价</div>
+            </div>
+            <a-tag color="processing">总价 {{ formatMoney(calculatedTotalPrice) }}</a-tag>
+          </div>
+          <a-empty v-if="selectedRentalPriceEntries.length === 0" description="请先选择租赁物品" />
+          <a-list v-else size="small" :data-source="selectedRentalPriceEntries" class="rental-price-list">
+            <template #renderItem="{ item }">
+              <a-list-item>
+                <div class="rental-price-entry">
+                  <div>
+                    <div>{{ item.label }}</div>
+                    <div class="rental-price-entry-meta">{{ item.meta }}</div>
+                  </div>
+                  <a-input-number
+                    v-model:value="itemPriceValues[item.key]"
+                    :min="0"
+                    :step="0.1"
+                    :precision="1"
+                    placeholder="租赁价格"
+                    style="width: 150px"
+                  />
+                </div>
+              </a-list-item>
+            </template>
+          </a-list>
+        </div>
       </section>
 
       <div v-if="!isMobile" class="desktop-action-bar">
@@ -590,6 +622,14 @@ interface RentalCreateConflictResponse {
 
 type RenterMatchView = 'exact' | 'fuzzy' | 'manual';
 
+interface RentalPriceEntry {
+  key: string;
+  label: string;
+  meta: string;
+  itemId?: string;
+  itemDefinitionId?: number;
+}
+
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const rentalStore = useRentalStore();
 const renterStore = useRenterStore();
@@ -608,6 +648,7 @@ const renterMatchView = ref<RenterMatchView>('exact');
 const selectionMode = ref<'item' | 'definition'>('item');
 const selectedItemIds = ref<string[]>([]);
 const definitionQuantities = reactive<Record<number, number>>({});
+const itemPriceValues = reactive<Record<string, number | null>>({});
 const submitting = ref(false);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
@@ -632,15 +673,65 @@ const form = reactive({
   expectedReturnDate: dayjs().add(9, 'day') as Dayjs,
   hasRenewalIntent: false,
   renewalIntentEndDate: null as Dayjs | null,
-  totalPrice: 0,
   deposit: null as number | null,
   otherFee: 0,
   platformOrderNo: '',
   notes: '',
 });
 
+const selectedRentalPriceEntries = computed<RentalPriceEntry[]>(() => {
+  if (selectionMode.value === 'item') {
+    return selectedItemIds.value.map(itemId => {
+      const item = itemStore.items.find(candidate => candidate.id === itemId);
+      const itemName = item?.itemDefinition?.name || item?.itemDefinitionName || '未命名物品';
+      return {
+        key: `item:${itemId}`,
+        itemId,
+        label: `${item?.shortId || itemId} - ${itemName}`,
+        meta: item?.warehouse?.name || item?.warehouseName || '具体物品',
+      };
+    });
+  }
+
+  return selectedDefinitionCartItems.value.flatMap(definition =>
+    Array.from({ length: Number(definitionQuantities[definition.id] || 0) }, (_, index) => ({
+      key: `definition:${definition.id}:${index}`,
+      itemDefinitionId: definition.id,
+      label: `${definition.name}（第 ${index + 1} 件）`,
+      meta: `${categoryMap.value[definition.categoryId] || '未分类'} · ${definition.unit || '-'}`,
+    }))
+  );
+});
+
+watch(
+  () => selectedRentalPriceEntries.value.map(entry => entry.key),
+  keys => {
+    const currentKeys = new Set(keys);
+    Object.keys(itemPriceValues).forEach(key => {
+      if (!currentKeys.has(key)) delete itemPriceValues[key];
+    });
+    keys.forEach(key => {
+      if (!(key in itemPriceValues)) itemPriceValues[key] = null;
+    });
+  },
+  { immediate: true }
+);
+
+const calculatedTotalPrice = computed(() =>
+  selectedRentalPriceEntries.value.reduce(
+    (sum, entry) => sum + Number(itemPriceValues[entry.key] ?? 0),
+    0
+  )
+);
+
+const hasMissingRentalItemPrice = computed(() =>
+  selectedRentalPriceEntries.value.some(entry =>
+    itemPriceValues[entry.key] === null || itemPriceValues[entry.key] === undefined
+  )
+);
+
 const accountedAmount = computed(() =>
-  Number(form.totalPrice || 0) - Number(form.otherFee || 0)
+  calculatedTotalPrice.value - Number(form.otherFee || 0)
 );
 
 const normalizePhone = (value?: string | null) => (value || '').replace(/\D/g, '');
@@ -1014,7 +1105,12 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     expectedReturnDate: toRentalDatePayload(form.expectedReturnDate),
     hasRenewalIntent: form.hasRenewalIntent,
     renewalIntentEndDate: form.hasRenewalIntent ? toRentalDatePayload(form.renewalIntentEndDate) : null,
-    totalPrice: Number(form.totalPrice || 0),
+    totalPrice: calculatedTotalPrice.value,
+    itemPrices: selectedRentalPriceEntries.value.map(entry => ({
+      itemId: entry.itemId,
+      itemDefinitionId: entry.itemDefinitionId,
+      perItemPrice: Number(itemPriceValues[entry.key] ?? 0),
+    })),
     deposit: form.deposit,
     otherFee: Number(form.otherFee || 0),
     shippingAddress: form.shippingAddress.trim() || undefined,
@@ -1126,6 +1222,11 @@ const submit = async () => {
 
   if (selectionMode.value === 'definition' && totalSelectedDefinitionQuantity.value === 0) {
     message.error('至少选择一个物品定义且数量大于0');
+    return;
+  }
+
+  if (hasMissingRentalItemPrice.value) {
+    message.error('请为每件租赁物品填写价格');
     return;
   }
 
@@ -1444,6 +1545,34 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.rental-price-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.rental-price-heading,
+.rental-price-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.rental-price-title {
+  font-weight: 600;
+}
+
+.rental-price-entry {
+  width: 100%;
+}
+
+.rental-price-entry-meta {
+  margin-top: 2px;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
 .desktop-action-bar {
   position: sticky;
   bottom: 0;
@@ -1525,6 +1654,17 @@ onMounted(async () => {
 
   .item-summary {
     justify-content: flex-start;
+  }
+
+  .rental-price-heading,
+  .rental-price-entry {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rental-price-entry .ant-input-number {
+    width: 100% !important;
   }
 }
 </style>
