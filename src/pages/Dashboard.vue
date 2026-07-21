@@ -214,17 +214,7 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag color="processing" style="margin-left: 8px">回货中</a-tag>
-                    </template>
-                    <template #description>
-                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
-                      <span style="margin-left: 8px">
-                        {{ latestPendingInboundShipment(item)?.carrier || '回货物流' }}
-                        {{ latestPendingInboundShipment(item)?.trackingNumber || '-' }}
-                      </span>
-                      <span v-if="latestPendingInboundShipment(item)" style="margin-left: 8px">
-                        已寄回 {{ -daysUntil(latestPendingInboundShipment(item)!.shippedAt) }} 天
-                      </span>
+                      <a-tag color="processing" style="margin-left: 8px">待归还</a-tag>
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
