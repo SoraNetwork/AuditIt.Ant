@@ -201,6 +201,41 @@
 
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
+          <a-card title="已签收待归还单">
+          <!--  <template #extra>
+              <router-link :to="{ path: '/rentals', query: { pendingSettlement: 'true' } }">查看全部</router-link>
+            </template>-->
+            <a-list size="small" :data-source="transReturnedButNotCheckList" :locale="{ emptyText: '暂无待结算租赁单' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <template #actions>
+                    <router-link :to="`/rentals/${item.id}`">处理</router-link>
+                  </template>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag color="processing" style="margin-left: 8px">回货中</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span style="margin-left: 8px">
+                        {{ latestPendingInboundShipment(item)?.carrier || '回货物流' }}
+                        {{ latestPendingInboundShipment(item)?.trackingNumber || '-' }}
+                      </span>
+                      <span v-if="latestPendingInboundShipment(item)" style="margin-left: 8px">
+                        已寄回 {{ -daysUntil(latestPendingInboundShipment(item)!.shippedAt) }} 天
+                      </span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
           <a-card title="待结算单">
             <template #extra>
               <router-link :to="{ path: '/rentals', query: { pendingSettlement: 'true' } }">查看全部</router-link>
@@ -361,6 +396,18 @@ const returnInTransitList = computed(() =>
     .sort((left, right) =>
       new Date(latestPendingInboundShipment(right)!.shippedAt).getTime()
       - new Date(latestPendingInboundShipment(left)!.shippedAt).getTime()
+    )
+    .slice(0, 12)
+);
+
+const transReturnedButNotCheckList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(rental =>
+      (rental.status === 'Active' || rental.status === 'Overdue')
+      && rental.shipments.some(shipment => shipment.direction === 'Inbound' && shipment.deliveredAt)
+    )
+    .sort((left, right) =>
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
     )
     .slice(0, 12)
 );
