@@ -209,8 +209,13 @@ export interface DeliverPayload {
   deliveredAt?: string;
 }
 
+export interface UpdateShipmentPayload {
+  shippingFee?: number | null;
+}
+
 export interface ReturnPayload {
   rentalItemIds?: number[];
+  items?: { rentalItemId: number; condition?: ReturnCondition }[];
   condition?: ReturnCondition;
   notes?: string;
   repairOccupancy?: boolean;
@@ -356,6 +361,12 @@ export const useRentalStore = defineStore('rental', {
 
     async deliver(id: string, shipmentId: number, payload: DeliverPayload = {}): Promise<Rental> {
       const response = await apiClient.post<Rental>(`/rentals/${id}/shipments/${shipmentId}/deliver`, payload);
+      this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async updateShipment(id: string, shipmentId: number, payload: UpdateShipmentPayload): Promise<Rental> {
+      const response = await apiClient.put<Rental>(`/rentals/${id}/shipments/${shipmentId}`, payload);
       this.replaceInList(response.data);
       return response.data;
     },
