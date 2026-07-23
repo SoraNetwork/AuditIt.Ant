@@ -485,7 +485,7 @@
                     :min="0"
                     :step="0.1"
                     :precision="1"
-                    placeholder="租赁价格"
+                    placeholder="0"
                     style="width: 150px"
                   />
                 </div>
@@ -711,7 +711,7 @@ watch(
       if (!currentKeys.has(key)) delete itemPriceValues[key];
     });
     keys.forEach(key => {
-      if (!(key in itemPriceValues)) itemPriceValues[key] = null;
+      if (!(key in itemPriceValues)) itemPriceValues[key] = 0;
     });
   },
   { immediate: true }
@@ -721,12 +721,6 @@ const calculatedTotalPrice = computed(() =>
   selectedRentalPriceEntries.value.reduce(
     (sum, entry) => sum + Number(itemPriceValues[entry.key] ?? 0),
     0
-  )
-);
-
-const hasMissingRentalItemPrice = computed(() =>
-  selectedRentalPriceEntries.value.some(entry =>
-    itemPriceValues[entry.key] === null || itemPriceValues[entry.key] === undefined
   )
 );
 
@@ -1222,11 +1216,6 @@ const submit = async () => {
 
   if (selectionMode.value === 'definition' && totalSelectedDefinitionQuantity.value === 0) {
     message.error('至少选择一个物品定义且数量大于0');
-    return;
-  }
-
-  if (hasMissingRentalItemPrice.value) {
-    message.error('请为每件租赁物品填写价格');
     return;
   }
 
