@@ -146,7 +146,7 @@
               :loading="itemStore.loading"
               @click="showTransferModal"
             >
-              杞Щ{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
+              转移{{ selectedRowKeys.length ? ` (${selectedRowKeys.length})` : '' }}
             </a-button>
           </div>
           <div class="mobile-selection-spacer" />

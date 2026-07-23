@@ -411,7 +411,7 @@ GHI789"
                     </template>
                     <template #footer>
                       <a-image v-if="record.photoPreview" :width="56" :src="record.photoPreview" />
-                      <a-popconfirm title="纭畾瑕佺Щ闄ゅ悧?" @confirm="removeFromExportList(index)">
+                      <a-popconfirm title="确定要移除吗？" @confirm="removeFromExportList(index)">
                         <a-button size="small" danger>移除</a-button>
                       </a-popconfirm>
                     </template>
