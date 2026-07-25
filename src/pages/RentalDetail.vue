@@ -701,6 +701,7 @@
           :size="isMobile ? 'large' : 'middle'"
           :max-tag-count="isMobile ? 'responsive' : undefined"
           class="item-picker-select"
+          @change="ensureSelectedRentalItemPrices"
         />
         <div v-if="selectedRentalItemEntries.length" class="item-price-list">
           <div v-for="entry in selectedRentalItemEntries" :key="entry.id" class="item-price-row">
@@ -709,7 +710,7 @@
               <span>{{ entry.name }}</span>
             </div>
             <a-input-number
-              v-model:value="selectedRentalItemPrices[entry.id]"
+              :value="selectedRentalItemPrices[entry.id] ?? 0"
               :min="0"
               :step="0.1"
               :precision="1"
@@ -717,6 +718,7 @@
               addon-before="￥"
               placeholder="对应金额"
               class="item-price-input"
+              @change="setSelectedRentalItemPrice(entry.id, $event)"
             />
             <a-button
               :size="isMobile ? 'large' : 'middle'"
@@ -765,7 +767,7 @@
               <label v-for="index in entry.quantity" :key="`${entry.id}-${index}`">
                 <span>第 {{ index }} 件金额</span>
                 <a-input-number
-                  :value="selectedRentalDefinitionPrices[entry.id]?.[index - 1]"
+                  :value="selectedRentalDefinitionPrices[entry.id]?.[index - 1] ?? 0"
                   :min="0"
                   :step="0.1"
                   :precision="1"
@@ -786,7 +788,7 @@
       <a-alert
         type="info"
         show-icon
-        :message="`当前选中 ${selectedRentalItemTotal} 件；物品与对应金额会在一次保存中同步更新。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
+        :message="`当前选中 ${selectedRentalItemTotal} 件；未单独定价的配件默认按 ￥0.0 保存，有需要时再填写对应金额。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
       />
     </a-form>
   </a-modal>
@@ -1366,11 +1368,11 @@ const selectedRentalItemPriceValues = computed<Array<number | null>>(() => {
   if (effectiveItemPickerMode.value === 'definition') {
     return selectedRentalDefinitionEntries.value.flatMap(entry =>
       selectedRentalDefinitionPrices[entry.id]?.slice(0, entry.quantity)
-      ?? Array.from({ length: entry.quantity }, () => null)
+      ?? Array.from({ length: entry.quantity }, () => 0)
     );
   }
 
-  return selectedRentalItemIds.value.map(itemId => selectedRentalItemPrices[itemId] ?? null);
+  return selectedRentalItemIds.value.map(itemId => selectedRentalItemPrices[itemId] ?? 0);
 });
 
 const selectedRentalItemPricesComplete = computed(() =>
@@ -1841,7 +1843,7 @@ const resetSelectedRentalDefinitions = (counts: Record<number, number>) => {
     if (definitionId > 0 && quantity > 0) {
       selectedRentalDefinitionQuantities[definitionId] = quantity;
       selectedRentalDefinitionPrices[definitionId] =
-        Array.from({ length: quantity }, () => null);
+        Array.from({ length: quantity }, () => 0);
     }
   });
 };
@@ -1857,7 +1859,7 @@ const setRentalDefinitionQuantity = (definitionId: number, quantity: number) => 
   const prices = selectedRentalDefinitionPrices[definitionId] || [];
   selectedRentalDefinitionPrices[definitionId] = Array.from(
     { length: next },
-    (_, index) => prices[index] ?? null
+    (_, index) => prices[index] ?? 0
   );
   selectedRentalDefinitionQuantities[definitionId] = next;
 };
@@ -1885,10 +1887,27 @@ const setRentalDefinitionPrice = (
   const prices = selectedRentalDefinitionPrices[definitionId]
     || Array.from(
       { length: selectedRentalDefinitionQuantities[definitionId] || 0 },
-      () => null
+      () => 0
     );
-  prices[index] = value === null || value === '' ? null : Number(value);
+  prices[index] = value === null || value === '' ? 0 : Number(value);
   selectedRentalDefinitionPrices[definitionId] = [...prices];
+};
+
+const setSelectedRentalItemPrice = (
+  itemId: string,
+  value: number | string | null
+) => {
+  selectedRentalItemPrices[itemId] =
+    value === null || value === '' ? 0 : Number(value);
+};
+
+const ensureSelectedRentalItemPrices = () => {
+  selectedRentalItemIds.value.forEach(itemId => {
+    if (selectedRentalItemPrices[itemId] === undefined
+        || selectedRentalItemPrices[itemId] === null) {
+      selectedRentalItemPrices[itemId] = 0;
+    }
+  });
 };
 
 const removeSelectedRentalItem = (itemId: string) => {
@@ -1904,7 +1923,7 @@ const openItemPicker = async () => {
   rental.value.items
     .filter(item => !item.returnedAt && !!item.itemId)
     .forEach(item => {
-      selectedRentalItemPrices[item.itemId as string] = item.perItemPrice ?? null;
+      selectedRentalItemPrices[item.itemId as string] = item.perItemPrice ?? 0;
     });
   resetSelectedRentalDefinitions(currentActiveRentalDefinitionQuantities.value);
   const definitionPriceIndexes: Record<number, number> = {};
@@ -1915,7 +1934,7 @@ const openItemPicker = async () => {
       const prices = selectedRentalDefinitionPrices[definitionId] || [];
       const priceIndex = definitionPriceIndexes[definitionId] || 0;
       if (priceIndex < prices.length) {
-        prices[priceIndex] = item.perItemPrice ?? null;
+        prices[priceIndex] = item.perItemPrice ?? 0;
       }
       definitionPriceIndexes[definitionId] = priceIndex + 1;
       selectedRentalDefinitionPrices[definitionId] = [...prices];
@@ -2082,12 +2101,12 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
             .slice(0, entry.quantity)
             .map(perItemPrice => ({
               itemDefinitionId: entry.id,
-              perItemPrice: Number(perItemPrice),
+              perItemPrice: Number(perItemPrice ?? 0),
             }))
         )
       : selectedRentalItemIds.value.map(itemId => ({
           itemId,
-          perItemPrice: Number(selectedRentalItemPrices[itemId]),
+          perItemPrice: Number(selectedRentalItemPrices[itemId] ?? 0),
         }));
 
     rental.value = await rentalStore.updateRentalItems(rental.value.id, {
