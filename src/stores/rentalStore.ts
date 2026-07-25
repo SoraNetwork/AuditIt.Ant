@@ -231,6 +231,7 @@ export interface BulkUpdateRentalItemPayload {
 export interface UpdateRentalItemsPayload {
   itemIds: string[];
   itemDefinitionIds?: number[];
+  itemPrices?: { itemId?: string; itemDefinitionId?: number; perItemPrice: number }[];
   allowScheduleConflict?: boolean;
 }
 
@@ -367,6 +368,12 @@ export const useRentalStore = defineStore('rental', {
 
     async updateShipment(id: string, shipmentId: number, payload: UpdateShipmentPayload): Promise<Rental> {
       const response = await apiClient.put<Rental>(`/rentals/${id}/shipments/${shipmentId}`, payload);
+      this.replaceInList(response.data);
+      return response.data;
+    },
+
+    async deleteShipment(id: string, shipmentId: number): Promise<Rental> {
+      const response = await apiClient.delete<Rental>(`/rentals/${id}/shipments/${shipmentId}`);
       this.replaceInList(response.data);
       return response.data;
     },

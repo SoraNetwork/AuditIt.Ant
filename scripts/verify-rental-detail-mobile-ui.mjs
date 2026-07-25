@@ -24,6 +24,12 @@ const requiredSnippets = [
   '.rental-mobile-info-section',
   '.rental-mobile-toolbar',
   '.rental-mobile-upload',
+  'useNativeDateInput',
+  'type="date"',
+  'inputmode="none"',
+  'class="mobile-native-date-input"',
+  'selectedRentalItemPrices',
+  '删除物流',
   'overflow-wrap: anywhere',
 ];
 

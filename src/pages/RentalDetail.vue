@@ -348,6 +348,15 @@
                 {{ record.shippingFee === null || record.shippingFee === undefined ? '补录运费' : '修改运费' }}
               </a-button>
               <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">标记签收</a-button>
+              <a-button
+                v-if="canManageShipments"
+                type="link"
+                danger
+                :loading="deletingShipmentId === record.id"
+                @click="confirmDeleteShipment(record)"
+              >
+                删除物流
+              </a-button>
             </a-space>
           </template>
         </template>
@@ -377,6 +386,15 @@
                 {{ shipment.shippingFee === null || shipment.shippingFee === undefined ? '补录运费' : '修改运费' }}
               </a-button>
               <a-button v-if="!shipment.deliveredAt" size="small" type="primary" @click="deliver(shipment.id)">标记签收</a-button>
+              <a-button
+                v-if="canManageShipments"
+                size="small"
+                danger
+                :loading="deletingShipmentId === shipment.id"
+                @click="confirmDeleteShipment(shipment)"
+              >
+                删除物流
+              </a-button>
             </a-space>
           </template>
         </MobileListCard>
@@ -684,6 +702,32 @@
           :max-tag-count="isMobile ? 'responsive' : undefined"
           class="item-picker-select"
         />
+        <div v-if="selectedRentalItemEntries.length" class="item-price-list">
+          <div v-for="entry in selectedRentalItemEntries" :key="entry.id" class="item-price-row">
+            <div class="item-price-name">
+              <strong>{{ entry.shortId }}</strong>
+              <span>{{ entry.name }}</span>
+            </div>
+            <a-input-number
+              v-model:value="selectedRentalItemPrices[entry.id]"
+              :min="0"
+              :step="0.1"
+              :precision="1"
+              :size="isMobile ? 'large' : 'middle'"
+              addon-before="￥"
+              placeholder="对应金额"
+              class="item-price-input"
+            />
+            <a-button
+              :size="isMobile ? 'large' : 'middle'"
+              type="link"
+              danger
+              @click="removeSelectedRentalItem(entry.id)"
+            >
+              移除
+            </a-button>
+          </div>
+        </div>
       </a-form-item>
       <a-form-item v-if="effectiveItemPickerMode === 'definition'" label="物品定义占位" required>
         <a-select
@@ -704,28 +748,62 @@
             :key="entry.id"
             class="definition-picker-row"
           >
-            <span class="definition-picker-name">{{ entry.label }}</span>
-            <a-input-number
-              :value="entry.quantity"
-              :min="0"
-              :precision="0"
-              :size="isMobile ? 'large' : 'middle'"
-              @change="handleRentalDefinitionQuantityChange(entry.id, $event)"
-            />
-            <a-button :size="isMobile ? 'large' : 'middle'" type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
+            <div class="definition-picker-heading">
+              <span class="definition-picker-name">{{ entry.label }}</span>
+              <div class="definition-picker-actions">
+                <a-input-number
+                  :value="entry.quantity"
+                  :min="0"
+                  :precision="0"
+                  :size="isMobile ? 'large' : 'middle'"
+                  @change="handleRentalDefinitionQuantityChange(entry.id, $event)"
+                />
+                <a-button :size="isMobile ? 'large' : 'middle'" type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
+              </div>
+            </div>
+            <div class="definition-price-list">
+              <label v-for="index in entry.quantity" :key="`${entry.id}-${index}`">
+                <span>第 {{ index }} 件金额</span>
+                <a-input-number
+                  :value="selectedRentalDefinitionPrices[entry.id]?.[index - 1]"
+                  :min="0"
+                  :step="0.1"
+                  :precision="1"
+                  :size="isMobile ? 'large' : 'middle'"
+                  addon-before="￥"
+                  placeholder="对应金额"
+                  @change="setRentalDefinitionPrice(entry.id, index - 1, $event)"
+                />
+              </label>
+            </div>
           </div>
         </div>
       </a-form-item>
+      <div class="item-picker-total">
+        <span>当前金额合计</span>
+        <strong>{{ formatMoney(selectedRentalItemPriceTotal) }}</strong>
+      </div>
       <a-alert
         type="info"
         show-icon
-        :message="`当前选中 ${selectedRentalItemTotal} 件。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
+        :message="`当前选中 ${selectedRentalItemTotal} 件；物品与对应金额会在一次保存中同步更新。移出的物品会结束本租赁项，新增物品会按本租期检查冲突。`"
       />
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="editVisible" title="编辑基础信息" ok-text="保存" cancel-text="取消" :confirm-loading="saving" @ok="submitEdit(false)">
-    <a-form layout="vertical">
+  <a-modal
+    v-model:open="editVisible"
+    title="编辑租赁信息"
+    ok-text="保存"
+    cancel-text="取消"
+    :confirm-loading="saving"
+    :width="isMobile ? 'calc(100vw - 16px)' : 680"
+    :style="{ top: isMobile ? '8px' : undefined }"
+    :body-style="{ padding: isMobile ? '16px 12px' : undefined }"
+    wrap-class-name="rental-edit-modal"
+    @ok="submitEdit(false)"
+  >
+    <a-form layout="vertical" class="rental-edit-form">
       <a-form-item label="租客">
         <a-select
           v-model:value="editForm.renterId"
@@ -736,23 +814,70 @@
           placeholder="选择租客"
         />
       </a-form-item>
-      <a-form-item label="开始日期">
-        <a-date-picker v-model:value="editForm.startDate" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="预计发货日期">
-        <a-date-picker v-model:value="editForm.expectedShipDate" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="预计结束日期">
-        <a-date-picker v-model:value="editForm.expectedEndDate" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="预计回货时间">
-        <a-date-picker v-model:value="editForm.expectedReturnDate" style="width: 100%" />
-      </a-form-item>
+      <section class="rental-edit-section">
+        <div class="rental-edit-section-title">租赁时间</div>
+        <div class="rental-edit-date-grid">
+          <a-form-item label="开始日期" required>
+            <input
+              v-if="useNativeDateInput"
+              type="date"
+              inputmode="none"
+              class="mobile-native-date-input"
+              :value="toNativeDateValue(editForm.startDate)"
+              @input="onEditNativeDate('startDate', $event)"
+            />
+            <a-date-picker v-else v-model:value="editForm.startDate" style="width: 100%" />
+          </a-form-item>
+          <a-form-item label="预计发货日期" required>
+            <input
+              v-if="useNativeDateInput"
+              type="date"
+              inputmode="none"
+              class="mobile-native-date-input"
+              :value="toNativeDateValue(editForm.expectedShipDate)"
+              @input="onEditNativeDate('expectedShipDate', $event)"
+            />
+            <a-date-picker v-else v-model:value="editForm.expectedShipDate" style="width: 100%" />
+          </a-form-item>
+          <a-form-item label="预计结束日期" required>
+            <input
+              v-if="useNativeDateInput"
+              type="date"
+              inputmode="none"
+              class="mobile-native-date-input"
+              :value="toNativeDateValue(editForm.expectedEndDate)"
+              @input="onEditNativeDate('expectedEndDate', $event)"
+            />
+            <a-date-picker v-else v-model:value="editForm.expectedEndDate" style="width: 100%" />
+          </a-form-item>
+          <a-form-item label="预计回货时间" required>
+            <input
+              v-if="useNativeDateInput"
+              type="date"
+              inputmode="none"
+              class="mobile-native-date-input"
+              :value="toNativeDateValue(editForm.expectedReturnDate)"
+              @input="onEditNativeDate('expectedReturnDate', $event)"
+            />
+            <a-date-picker v-else v-model:value="editForm.expectedReturnDate" style="width: 100%" />
+          </a-form-item>
+        </div>
+      </section>
       <a-form-item label="续租意愿">
         <a-switch v-model:checked="editForm.hasRenewalIntent" checked-children="是" un-checked-children="否" />
       </a-form-item>
       <a-form-item label="续租意愿至" :required="editForm.hasRenewalIntent">
+        <input
+          v-if="useNativeDateInput"
+          type="date"
+          inputmode="none"
+          class="mobile-native-date-input"
+          :value="toNativeDateValue(editForm.renewalIntentEndDate)"
+          :disabled="!editForm.hasRenewalIntent"
+          @input="onEditNativeDate('renewalIntentEndDate', $event)"
+        />
         <a-date-picker
+          v-else
           v-model:value="editForm.renewalIntentEndDate"
           style="width: 100%"
           :disabled="!editForm.hasRenewalIntent"
@@ -863,6 +988,9 @@ interface RentalCreateConflictResponse {
 }
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
+const isAndroidBrowser = typeof navigator !== 'undefined'
+  && /Android/i.test(navigator.userAgent);
+const useNativeDateInput = computed(() => isMobile.value || isAndroidBrowser);
 const route = useRoute();
 const router = useRouter();
 const rentalStore = useRentalStore();
@@ -910,8 +1038,11 @@ const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
 const itemPickerMode = ref<'item' | 'definition'>('item');
 const selectedRentalItemIds = ref<string[]>([]);
+const selectedRentalItemPrices = reactive<Record<string, number | null>>({});
 const selectedRentalDefinitionQuantities = reactive<Record<number, number>>({});
+const selectedRentalDefinitionPrices = reactive<Record<number, Array<number | null>>>({});
 const definitionToAdd = ref<number | undefined>(undefined);
+const deletingShipmentId = ref<number | null>(null);
 const sfRoutes = ref<SfShipmentRoute[]>([]);
 const sfRouteLoading = ref(false);
 const renewVisible = ref(false);
@@ -957,6 +1088,18 @@ const itemPickerOptions = computed(() => {
       label: `${item.shortId} / ${item.itemDefinitionName || item.name || '-'} / ${item.warehouseName || '-'}`,
     }));
 });
+
+const selectedRentalItemEntries = computed(() =>
+  selectedRentalItemIds.value.map(id => {
+    const item = itemStore.items.find(candidate => candidate.id === id);
+    const snapshot = rental.value?.items.find(candidate => !candidate.returnedAt && candidate.itemId === id);
+    return {
+      id,
+      shortId: item?.shortId || snapshot?.itemShortIdSnapshot || '-',
+      name: item?.itemDefinitionName || item?.name || snapshot?.itemNameSnapshot || '未命名物品',
+    };
+  })
+);
 
 const itemDefinitionPickerOptions = computed(() =>
   itemDefinitionStore.itemDefinitions.map(definition => ({
@@ -1168,7 +1311,7 @@ const shipmentColumns = [
   { title: '运费', dataIndex: 'shippingFee', key: 'shippingFee', width: 100 },
   { title: '发货时间', dataIndex: 'shippedAt', key: 'shippedAt', width: 180 },
   { title: '签收时间', dataIndex: 'deliveredAt', key: 'deliveredAt', width: 180 },
-  { title: '操作', key: 'actions', width: 180 },
+  { title: '操作', key: 'actions', width: 250 },
 ];
 
 const formatShipmentItems = (shipment: RentalShipment) => {
@@ -1219,11 +1362,39 @@ const selectedRentalItemTotal = computed(() =>
     : selectedRentalItemIds.value.length
 );
 
+const selectedRentalItemPriceValues = computed<Array<number | null>>(() => {
+  if (effectiveItemPickerMode.value === 'definition') {
+    return selectedRentalDefinitionEntries.value.flatMap(entry =>
+      selectedRentalDefinitionPrices[entry.id]?.slice(0, entry.quantity)
+      ?? Array.from({ length: entry.quantity }, () => null)
+    );
+  }
+
+  return selectedRentalItemIds.value.map(itemId => selectedRentalItemPrices[itemId] ?? null);
+});
+
+const selectedRentalItemPricesComplete = computed(() =>
+  selectedRentalItemPriceValues.value.length === selectedRentalItemTotal.value
+  && selectedRentalItemPriceValues.value.every(value =>
+    value !== null && Number.isFinite(Number(value))
+  )
+);
+
+const selectedRentalItemPriceTotal = computed(() =>
+  selectedRentalItemPriceValues.value.reduce<number>(
+    (sum, value) => sum + Number(value ?? 0),
+    0
+  )
+);
+
 const hasDeliveredOutbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
 );
 
 const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
+const canManageShipments = computed(() =>
+  authStore.hasPermission(PermissionCodes.RentalShip)
+);
 const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
@@ -1298,6 +1469,21 @@ const toPickerDate = (value?: string | null) => {
 };
 
 const toRentalDatePayload = (value?: Dayjs | null) => value?.format('YYYY-MM-DD');
+
+const toNativeDateValue = (value?: Dayjs | null) =>
+  value?.isValid() ? value.format('YYYY-MM-DD') : '';
+
+type EditDateField =
+  | 'startDate'
+  | 'expectedShipDate'
+  | 'expectedEndDate'
+  | 'expectedReturnDate'
+  | 'renewalIntentEndDate';
+
+const onEditNativeDate = (field: EditDateField, event: Event) => {
+  const value = (event.target as HTMLInputElement).value;
+  editForm[field] = value ? dayjs(value) : null;
+};
 
 const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '';
@@ -1561,6 +1747,43 @@ const submitShipmentFee = async () => {
   }
 };
 
+const deleteShipment = async (shipment: RentalShipment) => {
+  if (!rental.value) return;
+
+  deletingShipmentId.value = shipment.id;
+  try {
+    rental.value = await rentalStore.deleteShipment(rental.value.id, shipment.id);
+    sfRoutes.value = sfRoutes.value.filter(route => route.shipmentId !== shipment.id);
+    message.success('物流已删除，订单状态与运费合计已重新计算');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '物流删除失败');
+    throw err;
+  } finally {
+    deletingShipmentId.value = null;
+  }
+};
+
+const confirmDeleteShipment = (shipment: RentalShipment) => {
+  const feeText = shipment.shippingFee === null || shipment.shippingFee === undefined
+    ? '未填写运费'
+    : `运费 ${formatMoney(shipment.shippingFee)}`;
+  const stateHint = shipment.direction === 'Outbound'
+    ? '若这是最后一条发货物流，未结束订单会回退为待发货，相关物品恢复在库。'
+    : '若删除最后一条回货物流，逾期订单会恢复为逾期状态。';
+
+  Modal.confirm({
+    title: '确认删除这条物流？',
+    content: `${shipmentDirectionText(shipment.direction)} · ${shipment.carrier || '未知物流'} · ${shipment.trackingNumber || '无运单号'}（${feeText}）。${stateHint}运费合计会自动重算。`,
+    okText: '删除物流',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      await deleteShipment(shipment);
+    },
+  });
+};
+
 const submitReturn = async () => {
   if (!rental.value) return;
 
@@ -1610,10 +1833,15 @@ const resetSelectedRentalDefinitions = (counts: Record<number, number>) => {
   Object.keys(selectedRentalDefinitionQuantities).forEach(id => {
     delete selectedRentalDefinitionQuantities[Number(id)];
   });
+  Object.keys(selectedRentalDefinitionPrices).forEach(id => {
+    delete selectedRentalDefinitionPrices[Number(id)];
+  });
   Object.entries(counts).forEach(([id, quantity]) => {
     const definitionId = Number(id);
     if (definitionId > 0 && quantity > 0) {
       selectedRentalDefinitionQuantities[definitionId] = quantity;
+      selectedRentalDefinitionPrices[definitionId] =
+        Array.from({ length: quantity }, () => null);
     }
   });
 };
@@ -1622,8 +1850,15 @@ const setRentalDefinitionQuantity = (definitionId: number, quantity: number) => 
   const next = Math.max(0, Math.floor(Number(quantity || 0)));
   if (next <= 0) {
     delete selectedRentalDefinitionQuantities[definitionId];
+    delete selectedRentalDefinitionPrices[definitionId];
     return;
   }
+
+  const prices = selectedRentalDefinitionPrices[definitionId] || [];
+  selectedRentalDefinitionPrices[definitionId] = Array.from(
+    { length: next },
+    (_, index) => prices[index] ?? null
+  );
   selectedRentalDefinitionQuantities[definitionId] = next;
 };
 
@@ -1642,10 +1877,49 @@ const addRentalDefinition = (definitionId: number) => {
   definitionToAdd.value = undefined;
 };
 
+const setRentalDefinitionPrice = (
+  definitionId: number,
+  index: number,
+  value: number | string | null
+) => {
+  const prices = selectedRentalDefinitionPrices[definitionId]
+    || Array.from(
+      { length: selectedRentalDefinitionQuantities[definitionId] || 0 },
+      () => null
+    );
+  prices[index] = value === null || value === '' ? null : Number(value);
+  selectedRentalDefinitionPrices[definitionId] = [...prices];
+};
+
+const removeSelectedRentalItem = (itemId: string) => {
+  selectedRentalItemIds.value = selectedRentalItemIds.value.filter(id => id !== itemId);
+};
+
 const openItemPicker = async () => {
   if (!rental.value) return;
   selectedRentalItemIds.value = [...currentActiveRentalItemIds.value];
+  Object.keys(selectedRentalItemPrices).forEach(itemId => {
+    delete selectedRentalItemPrices[itemId];
+  });
+  rental.value.items
+    .filter(item => !item.returnedAt && !!item.itemId)
+    .forEach(item => {
+      selectedRentalItemPrices[item.itemId as string] = item.perItemPrice ?? null;
+    });
   resetSelectedRentalDefinitions(currentActiveRentalDefinitionQuantities.value);
+  const definitionPriceIndexes: Record<number, number> = {};
+  rental.value.items
+    .filter(item => !item.returnedAt && !item.itemId && !!item.itemDefinitionId)
+    .forEach(item => {
+      const definitionId = item.itemDefinitionId as number;
+      const prices = selectedRentalDefinitionPrices[definitionId] || [];
+      const priceIndex = definitionPriceIndexes[definitionId] || 0;
+      if (priceIndex < prices.length) {
+        prices[priceIndex] = item.perItemPrice ?? null;
+      }
+      definitionPriceIndexes[definitionId] = priceIndex + 1;
+      selectedRentalDefinitionPrices[definitionId] = [...prices];
+    });
   definitionToAdd.value = undefined;
   itemPickerMode.value = !hasRentalStarted.value
     && currentActiveRentalItemIds.value.length === 0
@@ -1794,16 +2068,36 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
     return;
   }
 
+  if (!selectedRentalItemPricesComplete.value) {
+    message.error('请为每件租赁物品填写对应金额');
+    return;
+  }
+
   itemPickerSaving.value = true;
   try {
     const useDefinitionMode = effectiveItemPickerMode.value === 'definition';
+    const itemPrices = useDefinitionMode
+      ? selectedRentalDefinitionEntries.value.flatMap(entry =>
+          (selectedRentalDefinitionPrices[entry.id] || [])
+            .slice(0, entry.quantity)
+            .map(perItemPrice => ({
+              itemDefinitionId: entry.id,
+              perItemPrice: Number(perItemPrice),
+            }))
+        )
+      : selectedRentalItemIds.value.map(itemId => ({
+          itemId,
+          perItemPrice: Number(selectedRentalItemPrices[itemId]),
+        }));
+
     rental.value = await rentalStore.updateRentalItems(rental.value.id, {
       itemIds: useDefinitionMode ? [] : selectedRentalItemIds.value,
       itemDefinitionIds: useDefinitionMode ? selectedRentalDefinitionIds.value : [],
+      itemPrices,
       allowScheduleConflict,
     });
     itemPickerVisible.value = false;
-    message.success('租赁物品已更新');
+    message.success('租赁物品与对应金额已更新');
     await load();
   } catch (err: any) {
     if (err?.response?.status === 409 && err?.response?.data) {
@@ -2052,22 +2346,172 @@ watch(
 .definition-picker-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-top: 10px;
 }
 
 .definition-picker-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.definition-picker-heading,
+.definition-picker-actions {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
 
+.definition-picker-heading {
+  justify-content: space-between;
+}
+
 .definition-picker-name {
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.definition-price-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.definition-price-list label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: #697386;
+  font-size: 12px;
+}
+
+.definition-price-list :deep(.ant-input-number-group-wrapper),
+.definition-price-list :deep(.ant-input-number) {
+  width: 100%;
+}
+
+.item-price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.item-price-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.item-price-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-price-name strong,
+.item-price-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-price-name span {
+  color: #697386;
+  font-size: 12px;
+}
+
+.item-price-input {
+  width: 100%;
+}
+
+.item-picker-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.item-picker-total span {
+  color: #475569;
+  font-size: 13px;
+}
+
+.item-picker-total strong {
+  color: #1d4ed8;
+  font-size: 17px;
+}
+
+.rental-edit-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.rental-edit-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.rental-edit-section-title {
+  margin-bottom: 10px;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rental-edit-date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
+.mobile-native-date-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 4px 11px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+  color: rgba(0, 0, 0, 0.88);
+  font: inherit;
+  line-height: 1.5715;
+}
+
+.mobile-native-date-input:focus {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
+}
+
+.mobile-native-date-input:disabled {
+  border-color: #d9d9d9;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.25);
 }
 
 .rental-mobile-shell {
@@ -2507,28 +2951,34 @@ watch(
 }
 
 @media (max-width: 767.98px) {
+  :global(.rental-edit-modal .ant-modal),
   :global(.rental-item-picker-modal .ant-modal) {
     max-width: calc(100vw - 16px);
     margin: 0 auto;
   }
 
+  :global(.rental-edit-modal .ant-modal-content),
   :global(.rental-item-picker-modal .ant-modal-content) {
     display: flex;
     max-height: calc(100vh - 16px);
     flex-direction: column;
   }
 
+  :global(.rental-edit-modal .ant-modal-body),
   :global(.rental-item-picker-modal .ant-modal-body) {
     max-height: calc(100vh - 170px);
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
+  :global(.rental-edit-modal .ant-modal-footer),
   :global(.rental-item-picker-modal .ant-modal-footer) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
+  :global(.rental-edit-modal .ant-modal-footer .ant-btn),
   :global(.rental-item-picker-modal .ant-modal-footer .ant-btn) {
     width: 100%;
     min-height: 40px;
@@ -2555,14 +3005,48 @@ watch(
     min-height: 40px;
   }
 
-  .definition-picker-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+  .rental-edit-date-grid {
+    grid-template-columns: 1fr;
   }
 
-  .definition-picker-row .definition-picker-name {
+  .rental-edit-section {
+    padding: 10px;
+  }
+
+  .rental-edit-date-grid :deep(.ant-form-item) {
+    margin-bottom: 12px;
+  }
+
+  .item-price-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .item-price-input {
     grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .item-price-row > :deep(.ant-btn) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .definition-picker-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .definition-picker-actions {
+    width: 100%;
+  }
+
+  .definition-picker-actions :deep(.ant-input-number) {
+    flex: 1;
+    width: 100%;
+  }
+
+  .definition-price-list {
+    grid-template-columns: 1fr;
   }
 
   .rental-detail-card :deep(.ant-card-body) {
