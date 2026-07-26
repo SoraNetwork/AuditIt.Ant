@@ -247,6 +247,27 @@ export const useItemStore = defineStore('item', {
       }
     },
 
+    async updateExpectedReturnDate(itemId: string, expectedReturnDate: string): Promise<Item> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put(`/items/${itemId}/expected-return`, {
+          expectedReturnDate,
+        });
+        const normalized = normalizeItem(response.data);
+        const index = this.items.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          this.items[index] = normalized;
+        }
+        return normalized;
+      } catch (err: any) {
+        this.error = '重新设置预计回库时间失败: ' + (err.response?.data?.message || err.response?.data || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async hidePermanently(itemId: string) {
       this.loading = true;
       this.error = null;

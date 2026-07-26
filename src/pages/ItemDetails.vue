@@ -4,6 +4,7 @@
       <template #extra>
         <div class="header-actions">
           <a-button :disabled="!item?.id" @click="router.push({ name: 'item-availability-calendar', params: { id: item?.id } })">空闲日历</a-button>
+          <a-button v-if="canResetExpectedReturn" type="primary" @click="openExpectedReturnReset">重设预计回库</a-button>
           <a-button :disabled="!item?.id" @click="router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
           <a-popconfirm
             v-if="canHidePermanently"
@@ -126,6 +127,33 @@
       </a-card>
     </div>
 
+    <a-modal
+      v-model:open="expectedReturnResetVisible"
+      title="重设预计回库时间"
+      ok-text="保存"
+      cancel-text="取消"
+      :confirm-loading="itemStore.loading"
+      @ok="saveExpectedReturnReset"
+    >
+      <a-alert
+        type="info"
+        show-icon
+        message="保存后，普通借出将占用到新的预计回库日期；原逾期提醒会自动标记为已处理。"
+        style="margin-bottom: 16px"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="新的预计回库时间" required>
+          <input
+            v-model="expectedReturnResetDate"
+            class="native-date-input"
+            type="date"
+            inputmode="none"
+            :min="todayDate"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
     <a-modal v-model:open="listingVisible" :title="listingEditingId ? '编辑链接' : '新增链接'" ok-text="保存" cancel-text="取消" @ok="saveListing">
       <a-form layout="vertical">
         <a-form-item label="平台" required>
@@ -174,6 +202,7 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
 import { listingStatusText } from '../utils/rentalDisplay';
 import { PermissionCodes } from '../utils/permissions';
+import dayjs from 'dayjs';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
@@ -184,6 +213,9 @@ const auditLogStore = useAuditLogStore();
 const listingStore = useItemListingStore();
 
 const item = ref<Item | null>(null);
+const expectedReturnResetVisible = ref(false);
+const expectedReturnResetDate = ref('');
+const todayDate = dayjs().format('YYYY-MM-DD');
 
 const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '-';
@@ -227,6 +259,12 @@ const statusDisplay = computed(() => {
 
 const canHidePermanently = computed(() =>
   item.value?.status === 'Disposed' && authStore.hasPermission(PermissionCodes.ItemDelete)
+);
+
+const canResetExpectedReturn = computed(() =>
+  item.value?.status === 'LoanedOut'
+  && !item.value.currentDestination?.startsWith('租赁 ')
+  && authStore.hasPermission(PermissionCodes.ItemUpdate)
 );
 
 const loadItem = async () => {
@@ -299,6 +337,37 @@ const deleteListing = async (id: number) => {
   message.success('链接已删除');
 };
 
+const openExpectedReturnReset = () => {
+  const current = item.value?.expectedReturnDate
+    ? dayjs(item.value.expectedReturnDate).format('YYYY-MM-DD')
+    : '';
+  expectedReturnResetDate.value = current >= todayDate ? current : todayDate;
+  expectedReturnResetVisible.value = true;
+};
+
+const saveExpectedReturnReset = async () => {
+  if (!item.value || !expectedReturnResetDate.value) {
+    message.error('请选择新的预计回库时间');
+    return;
+  }
+  if (expectedReturnResetDate.value < todayDate) {
+    message.error('预计回库时间不能早于今天');
+    return;
+  }
+
+  try {
+    item.value = await itemStore.updateExpectedReturnDate(
+      item.value.id,
+      expectedReturnResetDate.value,
+    );
+    expectedReturnResetVisible.value = false;
+    await auditLogStore.fetchLogs({ itemId: item.value.id });
+    message.success('预计回库时间已更新');
+  } catch (error: any) {
+    message.error(error.response?.data?.message || error.response?.data || '更新失败');
+  }
+};
+
 const hidePermanently = async () => {
   if (!item.value) return;
   await itemStore.hidePermanently(item.value.id);
@@ -328,6 +397,23 @@ onMounted(loadItem);
   border-radius: 14px;
   background: #f8fafc;
   border: 1px solid #edf2f7;
+}
+
+.native-date-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 11px;
+  color: rgba(0, 0, 0, 0.88);
+  font: inherit;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  outline: none;
+}
+
+.native-date-input:focus {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
 }
 
 .lifecycle-card :deep(.ant-timeline-item-content p) {

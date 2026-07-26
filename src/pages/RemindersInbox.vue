@@ -71,6 +71,13 @@
             </a-list-item-meta>
             <template #actions>
               <a-button
+                v-if="item.relatedEntityType === 'ManualLoan'"
+                type="link"
+                @click="openRelatedItem(item)"
+              >
+                查看物品
+              </a-button>
+              <a-button
                 type="link"
                 :disabled="!!item.dismissedAt"
                 @click="dismiss(item.id)"
@@ -103,6 +110,14 @@
                 <div v-if="item.dismissedAt">已读：{{ formatDateTime(item.dismissedAt) }}</div>
               </template>
               <template #footer>
+                <a-button
+                  v-if="item.relatedEntityType === 'ManualLoan'"
+                  size="small"
+                  type="primary"
+                  @click="openRelatedItem(item)"
+                >
+                  查看物品
+                </a-button>
                 <a-button
                   size="small"
                   :disabled="!!item.dismissedAt"
@@ -157,6 +172,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import RentalReferenceText from '../components/RentalReferenceText.vue';
@@ -167,6 +183,7 @@ import { formatDateTime } from '../utils/formatters';
 import { reminderLevelText, reminderTypeText } from '../utils/rentalDisplay';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
+const router = useRouter();
 const reminderStore = useReminderStore();
 const userStore = useUserStore();
 const createVisible = ref(false);
@@ -247,6 +264,11 @@ const dismiss = async (id: number) => {
 const dismissAll = async () => {
   await reminderStore.dismissAll();
   message.success('已全部忽略');
+};
+
+const openRelatedItem = (item: Reminder) => {
+  if (!item.relatedEntityId) return;
+  router.push({ name: 'item-details', params: { id: item.relatedEntityId } });
 };
 
 const openCreate = async () => {

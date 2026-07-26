@@ -104,6 +104,7 @@ const actionOptions = [
   { value: 'RentalExtended', label: '租赁续期' },
   { value: 'RentalCancelled', label: '租赁取消' },
   { value: 'RentalUpdated', label: '租赁修改' },
+  { value: 'ExpectedReturnUpdated', label: '预计回库时间修改' },
 ];
 
 const actionLabelMap: Record<string, string> = Object.fromEntries(
@@ -121,6 +122,7 @@ const actionColor = (action: string) => {
   if (action === 'RentalCreated' || action === 'RentalDelivered') return 'geekblue';
   if (action === 'RentalExtended') return 'orange';
   if (action === 'RentalUpdated') return 'gold';
+  if (action === 'ExpectedReturnUpdated') return 'cyan';
   return 'default';
 };
 
