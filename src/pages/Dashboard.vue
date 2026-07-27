@@ -351,7 +351,7 @@ const dueSoonList = computed(() =>
       if (!r.expectedEndDate) return false;
       if (isUnreturnedOverdueRental(r)) return true;
       return (r.status === 'Active' || r.status === 'Pending')
-        && daysUntil(r.expectedEndDate) >= 0
+        //&& daysUntil(r.expectedEndDate) >= 0
         && daysUntil(r.expectedEndDate) <= 7;
     })
     .sort((a, b) => new Date(a.expectedEndDate).getTime() - new Date(b.expectedEndDate).getTime())
