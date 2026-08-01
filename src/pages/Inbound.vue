@@ -16,6 +16,7 @@
                   <a-select
                     v-model:value="quickFormState.itemDefinitionId"
                     show-search
+                    option-filter-prop="label"
                     placeholder="搜索或选择物品定义"
                     :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
                     style="width: calc(100% - 60px)"
@@ -26,6 +27,8 @@
               <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                 <a-select
                   v-model:value="quickFormState.warehouseId"
+                  show-search
+                  option-filter-prop="label"
                   placeholder="选择仓库"
                   :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
                 ></a-select>
@@ -128,6 +131,7 @@
                       <a-select
                         v-model:value="batchFormState.itemDefinitionId"
                         show-search
+                        option-filter-prop="label"
                         placeholder="搜索或选择物品定义"
                         :options="itemDefinitionStore.itemDefinitions. map(d => ({ value: d.  id, label: d.name }))"
                         style="width: calc(100% - 60px)"
@@ -138,6 +142,8 @@
                   <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                     <a-select
                       v-model:value="batchFormState.warehouseId"
+                      show-search
+                      option-filter-prop="label"
                       placeholder="选择仓库"
                       :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
                     ></a-select>
@@ -319,6 +325,7 @@ GHI789"
                         <a-select
                           v-model:value="manualFormState.itemDefinitionId"
                           show-search
+                          option-filter-prop="label"
                           placeholder="搜索或选择物品定义"
                           :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
                            style="width: calc(100% - 60px)"
@@ -329,6 +336,8 @@ GHI789"
                   <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                     <a-select
                       v-model:value="manualFormState.warehouseId"
+                      show-search
+                      option-filter-prop="label"
                       placeholder="选择仓库"
                       :options="warehouseStore.warehouses. map(w => ({ value: w.id, label: w.name }))"
                     ></a-select>

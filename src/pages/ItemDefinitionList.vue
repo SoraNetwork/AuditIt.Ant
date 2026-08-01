@@ -3,15 +3,23 @@
     <a-table
       v-if="!isMobile"
       :columns="columns"
-      :data-source="tableData"
+      :data-source="filteredTableData"
       :loading="itemDefStore.loading || categoryStore.loading"
       row-key="id"
     >
       <template #title>
-        <a-row justify="space-between">
+        <a-row justify="space-between" :gutter="[12, 12]" align="middle">
           <a-col><h2>物品定义管理</h2></a-col>
           <a-col>
-            <a-button type="primary" @click="showAddModal">添加物品定义</a-button>
+            <a-space wrap>
+              <a-input-search
+                v-model:value="definitionSearchTerm"
+                allow-clear
+                placeholder="搜索名称、分类、单位或 ID"
+                style="width: 260px"
+              />
+              <a-button type="primary" @click="showAddModal">添加物品定义</a-button>
+            </a-space>
           </a-col>
         </a-row>
       </template>
@@ -37,11 +45,16 @@
         <div>
           <h2>物品定义管理</h2>
         </div>
+        <a-input-search
+          v-model:value="definitionSearchTerm"
+          allow-clear
+          placeholder="搜索名称、分类、单位或 ID"
+        />
         <a-button type="primary" block @click="showAddModal">新增定义</a-button>
       </div>
       <a-skeleton :loading="itemDefStore.loading || categoryStore.loading" active :paragraph="{ rows: 3 }">
-        <div v-if="tableData.length > 0" class="mobile-card-list">
-          <MobileListCard v-for="def in tableData" :key="def.id">
+        <div v-if="filteredTableData.length > 0" class="mobile-card-list">
+          <MobileListCard v-for="def in filteredTableData" :key="def.id">
             <template #title>{{ def.name }}</template>
             <template #meta>
               <div>分类：{{ def.categoryName }}</div>
@@ -101,6 +114,7 @@ const itemDefFormRef = ref<InstanceType<typeof ItemDefinitionForm> | null>(null)
 const isModalVisible = ref(false);
 const editingId = ref<number | null>(null);
 const currentItemDef = ref<Partial<ItemDefinition>>({});
+const definitionSearchTerm = ref('');
 
 const modalTitle = computed(() =>
   editingId.value !== null ? '编辑物品定义' : '添加物品定义'
@@ -119,6 +133,21 @@ const tableData = computed(() =>
     categoryName: categoryMap.value[item.categoryId] || 'N/A',
   }))
 );
+
+const filteredTableData = computed(() => {
+  const keyword = definitionSearchTerm.value.trim().toLocaleLowerCase();
+  if (!keyword) return tableData.value;
+
+  return tableData.value.filter(definition =>
+    [
+      definition.id,
+      definition.name,
+      definition.categoryName,
+      definition.unit,
+      definition.description,
+    ].some(value => String(value ?? '').toLocaleLowerCase().includes(keyword))
+  );
+});
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },

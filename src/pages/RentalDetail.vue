@@ -477,8 +477,8 @@
   <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="() => submitShip()">
     <a-form layout="vertical">
       <a-form-item :label="shipForm.direction === 'Outbound' ? '发货仓库' : '回货仓库'" required>
-        <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库">
-          <a-select-option v-for="warehouse in warehouseStore.warehouses" :key="warehouse.id" :value="warehouse.id">
+        <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库" show-search option-filter-prop="label">
+          <a-select-option v-for="warehouse in warehouseStore.warehouses" :key="warehouse.id" :value="warehouse.id" :label="warehouse.name">
             {{ warehouse.name }}
           </a-select-option>
         </a-select>
@@ -911,6 +911,8 @@
           :options="userOptions"
           :loading="userStore.loading"
           allow-clear
+          show-search
+          option-filter-prop="label"
         />
       </a-form-item>
       <a-form-item label="建单人">
@@ -921,6 +923,7 @@
           :loading="userStore.loading"
           allow-clear
           show-search
+          option-filter-prop="label"
         />
       </a-form-item>
       <a-form-item label="发货人">
@@ -931,6 +934,7 @@
           :loading="userStore.loading"
           allow-clear
           show-search
+          option-filter-prop="label"
         />
       </a-form-item>
       <a-form-item label="备注">

@@ -15,6 +15,8 @@
           <a-form-item label="选择库房">
             <a-select
               v-model:value="filterState.warehouseId"
+              show-search
+              option-filter-prop="label"
               placeholder="请选择库房"
               :style="isMobile ? { width: '100%' } : { width: '200px' }"
               allow-clear
@@ -23,6 +25,7 @@
                 v-for="wh in warehouseStore.warehouses"
                 :key="wh.id"
                 :value="wh.id"
+                :label="wh.name"
               >
                 {{ wh.name }}
               </a-select-option>

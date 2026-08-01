@@ -57,7 +57,7 @@
           <a-input v-model:value="form.description" />
         </a-form-item>
         <a-form-item label="权限">
-          <a-select v-model:value="form.permissions" mode="multiple" :options="permissionOptions" option-filter-prop="label" />
+          <a-select v-model:value="form.permissions" mode="multiple" show-search :options="permissionOptions" option-filter-prop="label" />
         </a-form-item>
       </a-form>
     </a-modal>

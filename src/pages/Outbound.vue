@@ -5,8 +5,8 @@
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-form :layout="isMobile ? 'vertical' : 'inline'" :model="filterState" @finish="loadItems">
           <a-form-item label="选择仓库">
-            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" :style="isMobile ? { width: '100%' } : { width: '200px' }" @change="loadItems" allow-clear>
-              <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
+            <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" :style="isMobile ? { width: '100%' } : { width: '200px' }" @change="loadItems" allow-clear show-search option-filter-prop="label">
+              <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id" :label="wh.name">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="搜索">

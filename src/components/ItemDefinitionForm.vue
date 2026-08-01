@@ -12,6 +12,8 @@
     <a-form-item label="分类" name="categoryId">
       <a-select
         v-model:value="formState.categoryId"
+        show-search
+        option-filter-prop="label"
         placeholder="请选择一个分类"
         :loading="categoryStore.loading"
       >
@@ -19,6 +21,7 @@
           v-for="cat in categoryStore.categories"
           :key="cat.id"
           :value="cat.id"
+          :label="cat.name"
         >
           {{ cat.name }}
         </a-select-option>

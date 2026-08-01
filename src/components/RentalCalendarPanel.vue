@@ -11,6 +11,8 @@
         <a-select
           v-if="canPickUser"
           v-model:value="targetUser"
+          show-search
+          option-filter-prop="label"
           size="small"
           class="target-select"
           :options="targetOptions"

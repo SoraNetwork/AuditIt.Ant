@@ -11,8 +11,10 @@
               :style="isMobile ? { width: '100%' } : { width: '200px' }"
               @change="loadItems"
               allow-clear
+              show-search
+              option-filter-prop="label"
             >
-              <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">
+              <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id" :label="wh.name">
                 {{ wh.name }}
               </a-select-option>
             </a-select>
@@ -167,6 +169,8 @@
         <a-form-item label="目标库房" required>
           <a-select 
             v-model:value="transferForm.targetWarehouseId" 
+            show-search
+            option-filter-prop="label"
             placeholder="请选择目标库房"
             style="width: 100%"
           >
@@ -174,6 +178,7 @@
               v-for="wh in availableTargetWarehouses" 
               :key="wh.id" 
               :value="wh.id"
+              :label="wh.name"
             >
               {{ wh.name }}
             </a-select-option>

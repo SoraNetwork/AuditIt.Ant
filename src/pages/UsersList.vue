@@ -91,7 +91,7 @@
     <a-modal v-model:open="roleVisible" title="分配角色" ok-text="保存" cancel-text="取消" @ok="saveRoles">
       <a-form layout="vertical">
         <a-form-item label="角色">
-          <a-select v-model:value="selectedRoleIds" mode="multiple" :options="roleOptions" />
+          <a-select v-model:value="selectedRoleIds" mode="multiple" show-search option-filter-prop="label" :options="roleOptions" />
         </a-form-item>
       </a-form>
     </a-modal>
