@@ -57,9 +57,16 @@ export interface ShipmentReminderTestResult {
   error?: string | null;
 }
 
+export interface ShipmentReminderRecipient {
+  id: string;
+  name: string;
+  mobile?: string | null;
+}
+
 interface ShipmentReminderState {
   settings: ShipmentReminderSettings | null;
   smsTemplates: AliyunSmsTemplate[];
+  recipients: ShipmentReminderRecipient[];
   loading: boolean;
 }
 
@@ -67,6 +74,7 @@ export const useShipmentReminderStore = defineStore('shipmentReminder', {
   state: (): ShipmentReminderState => ({
     settings: null,
     smsTemplates: [],
+    recipients: [],
     loading: false,
   }),
   actions: {
@@ -84,6 +92,12 @@ export const useShipmentReminderStore = defineStore('shipmentReminder', {
     async fetchSmsTemplates(): Promise<AliyunSmsTemplate[]> {
       const response = await apiClient.get<AliyunSmsTemplate[]>('/shipment-reminder-settings/sms-templates');
       this.smsTemplates = response.data;
+      return response.data;
+    },
+
+    async fetchRecipients(): Promise<ShipmentReminderRecipient[]> {
+      const response = await apiClient.get<ShipmentReminderRecipient[]>('/shipment-reminder-settings/recipients');
+      this.recipients = response.data;
       return response.data;
     },
 

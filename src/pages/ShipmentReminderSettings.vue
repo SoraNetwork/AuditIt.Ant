@@ -1,6 +1,6 @@
 <template>
   <div class="shipment-reminder-settings-page">
-    <a-page-header title="发货通知设置" sub-title="预计发货日当天 12:00 向建单人、负责人和指定管理员发送提醒" />
+    <a-page-header title="发货通知设置" sub-title="预计发货日当天或已逾期仍未发货时，向建单人、负责人和指定管理员发送提醒" />
 
     <div class="page-container">
       <a-alert
@@ -10,7 +10,7 @@
         style="margin-bottom: 16px"
       />
 
-      <a-spin :spinning="shipmentReminderStore.loading || userStore.loading">
+      <a-spin :spinning="shipmentReminderStore.loading">
         <a-form layout="vertical" :model="formState" @finish="save">
           <a-card title="发送规则" style="margin-bottom: 16px">
             <a-row :gutter="16">
@@ -30,7 +30,7 @@
                 </a-form-item>
               </a-col>
             </a-row>
-            <a-alert type="info" show-icon message="仅针对预计发货日为当天、仍未登记出库的待处理租赁单；建单人、负责人和指定管理员按手机号去重。" />
+            <a-alert type="info" show-icon message="针对预计发货日为当天或已逾期、仍未登记出库的待处理租赁单；建单人、负责人和指定管理员按手机号去重。" />
           </a-card>
 
           <a-card title="短信（DYSMS）" style="margin-bottom: 16px">
@@ -168,10 +168,8 @@ import {
   type ShipmentReminderTemplateVariable,
   type ShipmentReminderTestResult,
 } from '../stores/shipmentReminderStore';
-import { useUserStore } from '../stores/userStore';
 
 const shipmentReminderStore = useShipmentReminderStore();
-const userStore = useUserStore();
 const templatesLoading = ref(false);
 const templatesLoaded = ref(false);
 const testSending = ref(false);
@@ -201,8 +199,7 @@ const formState = reactive<ShipmentReminderSettings>({
   aliyunCredentialsConfigured: false,
 });
 
-const activeUserOptions = computed(() => userStore.users
-  .filter(user => user.status === 'Active')
+const activeUserOptions = computed(() => shipmentReminderStore.recipients
   .map(user => ({ value: user.id, label: `${user.name}${user.mobile ? `（${user.mobile}）` : '（未维护手机号）'}` })));
 
 const matchingSmsTemplateOptions = computed(() => shipmentReminderStore.smsTemplates
@@ -228,7 +225,7 @@ const variableSourceOptions = [
   { value: 'OrderIdWithRenterName', label: '订单号 + 租客姓名' },
   { value: 'RentalNumber', label: '订单号' },
   { value: 'RenterName', label: '租客姓名' },
-  { value: 'RelativeExpectedShipDate', label: '相对预计发货日（今天/昨天）' },
+  { value: 'RelativeExpectedShipDate', label: '相对预计发货日（今天/昨天/N 天前）' },
   { value: 'ExpectedShipDate', label: '预计发货日（完整日期）' },
   { value: 'Creator', label: '建单人' },
   { value: 'Responsible', label: '负责人' },
@@ -271,7 +268,7 @@ async function load() {
   try {
     const [settings] = await Promise.all([
       shipmentReminderStore.fetchSettings(),
-      userStore.fetchUsers({ status: 'Active', limit: 300 }),
+      shipmentReminderStore.fetchRecipients(),
     ]);
     applySettings(settings);
   } catch (error) {
