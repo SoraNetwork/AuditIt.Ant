@@ -85,6 +85,7 @@ export const menuTree: MenuNode[] = [
     ],
   },
   { key: 'reminders', title: '提醒中心', icon: BellOutlined, to: '/reminders', permission: P.ReminderView },
+  { key: 'shipment-reminder-settings', title: '发货通知设置', icon: BellOutlined, to: '/shipment-reminder-settings', permission: P.ShipmentReminderManage },
   {
     key: 'admin',
     title: '权限管理',

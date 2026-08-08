@@ -56,6 +56,7 @@ const routes = [
       { path: 'finance-reports/settlement-settings', name: 'settlement-settings', component: () => import('../pages/SettlementSettings.vue'), meta: { title: '设置结算单', permissions: [PermissionCodes.FinanceReportView] } },
 
       { path: 'reminders', name: 'reminders', component: () => import('../pages/RemindersInbox.vue'), meta: { title: '提醒中心', permissions: [PermissionCodes.ReminderView] } },
+      { path: 'shipment-reminder-settings', name: 'shipment-reminder-settings', component: () => import('../pages/ShipmentReminderSettings.vue'), meta: { title: '发货通知设置', permissions: [PermissionCodes.ShipmentReminderManage] } },
 
       { path: 'users', name: 'users', component: () => import('../pages/UsersList.vue'), meta: { title: '用户管理', permissions: [PermissionCodes.UserView] } },
       { path: 'roles', name: 'roles', component: () => import('../pages/RolesList.vue'), meta: { title: '角色管理', permissions: [PermissionCodes.RoleManage] } },

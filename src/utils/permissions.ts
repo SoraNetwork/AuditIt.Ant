@@ -28,6 +28,7 @@
   ReminderView: 'reminder.view',
   ReminderCreate: 'reminder.create',
   ReminderDismissAny: 'reminder.dismiss.any',
+  ShipmentReminderManage: 'shipmentreminder.manage',
 
   FinanceReportView: 'finance.report.view',
 
