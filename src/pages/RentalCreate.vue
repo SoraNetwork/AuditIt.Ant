@@ -667,7 +667,7 @@ const quickForm = reactive({
 
 const form = reactive({
   shippingAddress: '',
-  expectedShipDate: dayjs().subtract(1, 'day') as Dayjs,
+  expectedShipDate: dayjs().subtract(3, 'day') as Dayjs,
   startDate: dayjs() as Dayjs,
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
   expectedReturnDate: dayjs().add(9, 'day') as Dayjs,
@@ -1265,9 +1265,9 @@ watch(
     if (!nextStart) return;
 
     const currentShipDate = form.expectedShipDate?.format('YYYY-MM-DD');
-    const previousDefaultShipDate = previousStart?.subtract(1, 'day').format('YYYY-MM-DD');
+    const previousDefaultShipDate = previousStart?.subtract(3, 'day').format('YYYY-MM-DD');
     if (!currentShipDate || currentShipDate === previousDefaultShipDate) {
-      form.expectedShipDate = nextStart.subtract(1, 'day');
+      form.expectedShipDate = nextStart.subtract(3, 'day');
     }
   }
 );

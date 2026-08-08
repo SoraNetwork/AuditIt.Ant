@@ -3,9 +3,17 @@
     <a-page-header title="归还操作" sub-title="将借出或疑似丢失的物品归还入库" />
     <div class="page-container">
       <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <div class="return-search">
+          <a-input-search
+            v-model:value="searchText"
+            allow-clear
+            placeholder="搜索物品 ID、序列号、名称、仓库或借出信息"
+          />
+        </div>
+
         <div v-if="isMobile" class="mobile-selection-toolbar">
           <div class="meta">
-            <div class="title">待归还物品 {{ tableData.length }} 件</div>
+            <div class="title">待归还物品 {{ filteredTableData.length }} 件</div>
             <div class="desc">
               {{ hasSelected ? `已勾选 ${selectedRowKeys.length} 件，底部可直接提交归还。` : '点卡片勾选要归还的物品。' }}
             </div>
@@ -19,10 +27,10 @@
         </a-space>
 
         <a-table
-          v-if="!itemStore.loading && tableData.length > 0 && !isMobile"
+          v-if="!itemStore.loading && filteredTableData.length > 0 && !isMobile"
           :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
           :columns="columns"
-          :data-source="tableData"
+          :data-source="filteredTableData"
           :loading="itemStore.loading"
           row-key="id"
         >
@@ -36,9 +44,9 @@
           </template>
         </a-table>
 
-        <div v-else-if="isMobile && tableData.length > 0" class="mobile-card-list">
+        <div v-else-if="isMobile && filteredTableData.length > 0" class="mobile-card-list">
           <MobileListCard
-            v-for="item in tableData"
+            v-for="item in filteredTableData"
             :key="item.id"
             clickable
             :active="selectedRowKeys.includes(item.id)"
@@ -62,8 +70,11 @@
           </MobileListCard>
         </div>
 
-        <a-empty v-if="!itemStore.loading && tableData.length === 0" description="当前没有已借出或疑似丢失的物品" />
-        <template v-if="isMobile && tableData.length > 0">
+        <a-empty
+          v-if="!itemStore.loading && filteredTableData.length === 0"
+          :description="searchText.trim() ? '没有找到匹配的待归还物品' : '当前没有已借出或疑似丢失的物品'"
+        />
+        <template v-if="isMobile && filteredTableData.length > 0">
           <div class="mobile-action-bar">
             <a-button
               type="primary"
@@ -97,6 +108,7 @@ const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
 
 const selectedRowKeys = ref<string[]>([]);
+const searchText = ref('');
 
 const itemDefMap = computed(() =>
   itemDefStore.itemDefinitions.reduce((map: Record<number, ItemDefinition>, def) => {
@@ -119,6 +131,19 @@ const tableData = computed(() =>
     warehouseName: warehouseMap.value[item.warehouseId]?.name || '未知仓库',
   }))
 );
+
+const filteredTableData = computed(() => {
+  const keyword = searchText.value.trim().toLocaleLowerCase();
+  if (!keyword) return tableData.value;
+
+  return tableData.value.filter(item => [
+    item.shortId,
+    item.serialNumber,
+    item.name,
+    item.warehouseName,
+    item.currentDestination,
+  ].some(value => value?.toLocaleLowerCase().includes(keyword)));
+});
 
 const columns = [
   { title: '可视化ID', dataIndex: 'shortId', key: 'shortId' },
@@ -214,7 +239,13 @@ onMounted(() => {
 <style scoped>
 .page-container { padding: 24px; }
 
+.return-search {
+  max-width: 440px;
+  margin-bottom: 16px;
+}
+
 @media (max-width: 767.98px) {
   .page-container { padding: 0; }
+  .return-search { max-width: none; margin-bottom: 12px; }
 }
 </style>

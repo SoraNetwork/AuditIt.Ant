@@ -140,6 +140,7 @@
                       <span v-if="latestPendingInboundShipment(item)" style="margin-left: 8px">
                         已寄回 {{ -daysUntil(latestPendingInboundShipment(item)!.shippedAt) }} 天
                       </span>
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -169,6 +170,7 @@
                       <span v-else style="color: #d48806; margin-left: 8px">
                         {{ daysUntil(item.expectedEndDate) }} 天后到期
                       </span>
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -190,6 +192,7 @@
                     <template #description>
                       <RenterLink :renter-id="item.renterId" :name="item.renter?.name" /> · ¥{{
                         Number(item.totalPrice).toFixed(1) }} · 创建于 {{ formatDate(item.createdAt) }}
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
                 </a-list-item>
@@ -215,6 +218,10 @@
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
                       <a-tag color="processing" style="margin-left: 8px">待归还</a-tag>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
                 </a-list-item>

@@ -16,7 +16,7 @@
           </div>
           <span class="month-title">{{ visibleMonth.format('YYYY年MM月') }}</span>
         </div>
-        <a-tag v-if="calendar?.item.status" :color="calendar.item.status === 'InStock' ? 'green' : 'blue'">
+        <a-tag v-if="calendar?.item.status" :color="calendar.item.status === 'InStock' ? 'green' : calendar.item.status === 'SuspectedMissing' ? 'purple' : 'blue'">
           {{ getItemStatusText(calendar.item.status) }}
         </a-tag>
       </div>
@@ -29,11 +29,14 @@
             :key="day.format('YYYY-MM-DD')"
             type="button"
             class="day-cell"
-            :class="{ muted: day.month() !== visibleMonth.month(), busy: busyForDate(day).length > 0 }"
+            :class="{ muted: day.month() !== visibleMonth.month(), busy: busyForDate(day).length > 0, missing: calendar?.item.status === 'SuspectedMissing' }"
             @click="selectDate(day)"
           >
             <span class="day-number">{{ day.date() }}</span>
-            <template v-if="busyForDate(day).length === 0">
+            <template v-if="calendar?.item.status === 'SuspectedMissing'">
+              <span class="missing-pill">疑似丢失</span>
+            </template>
+            <template v-else-if="busyForDate(day).length === 0">
               <span class="free-pill">空闲</span>
             </template>
             <template v-else>
@@ -234,13 +237,18 @@ onMounted(loadCalendar);
   background: #fff7e6;
 }
 
+.day-cell.missing {
+  background: #f9f0ff;
+}
+
 .day-number {
   font-size: 12px;
   font-weight: 600;
 }
 
 .free-pill,
-.busy-pill {
+.busy-pill,
+.missing-pill {
   overflow: hidden;
   padding: 1px 5px;
   border-radius: 4px;
@@ -253,6 +261,11 @@ onMounted(loadCalendar);
 .free-pill {
   color: #237804;
   background: #f6ffed;
+}
+
+.missing-pill {
+  color: #722ed1;
+  background: #efdbff;
 }
 
 .busy-pill {
