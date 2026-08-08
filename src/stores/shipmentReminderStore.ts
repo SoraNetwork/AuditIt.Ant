@@ -7,6 +7,8 @@ export interface ShipmentReminderSettings {
   voiceEnabled: boolean;
   sendHour: number;
   sendMinute: number;
+  voiceSendHour: number;
+  voiceSendMinute: number;
   templateVariables: ShipmentReminderTemplateVariable[];
   smsSignName?: string | null;
   smsTemplateCode?: string | null;
@@ -94,6 +96,8 @@ export const useShipmentReminderStore = defineStore('shipmentReminder', {
           voiceEnabled: payload.voiceEnabled,
           sendHour: Number(payload.sendHour),
           sendMinute: Number(payload.sendMinute),
+          voiceSendHour: Number(payload.voiceSendHour),
+          voiceSendMinute: Number(payload.voiceSendMinute),
           templateVariables: payload.templateVariables,
           smsTemplateCode: payload.smsTemplateCode || null,
           voiceTtsCode: payload.voiceTtsCode || null,

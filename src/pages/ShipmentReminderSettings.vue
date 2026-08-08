@@ -20,7 +20,7 @@
                 </a-form-item>
               </a-col>
               <a-col :xs="12" :md="4">
-                <a-form-item label="发送时（中国时区）">
+                <a-form-item label="短信发送时（中国时区）">
                   <a-input-number v-model:value="formState.sendHour" :min="0" :max="23" style="width: 100%" addon-after="时" />
                 </a-form-item>
               </a-col>
@@ -81,17 +81,28 @@
               <a-switch v-model:checked="formState.voiceEnabled" checked-children="语音已开启" un-checked-children="语音已关闭" />
               <a-alert type="info" show-icon message="阿里云语音服务不提供模板列表 API。请填入已审核且变量与上方设置一致的 TTS 模板 Code；可通过下方测试发送验证。" />
               <a-row :gutter="16">
-                <a-col :xs="24" :md="12">
+                <a-col :xs="12" :md="6">
+                  <a-form-item label="语音发送时">
+                    <a-input-number v-model:value="formState.voiceSendHour" :min="0" :max="23" :disabled="!formState.voiceEnabled" style="width: 100%" addon-after="时" />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="12" :md="6">
+                  <a-form-item label="语音发送分">
+                    <a-input-number v-model:value="formState.voiceSendMinute" :min="0" :max="59" :disabled="!formState.voiceEnabled" style="width: 100%" addon-after="分" />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :md="6">
                   <a-form-item label="语音 TTS Code" :required="formState.voiceEnabled">
                     <a-input v-model:value="formState.voiceTtsCode" placeholder="TTS_XXXXXXXX" :disabled="!formState.voiceEnabled" />
                   </a-form-item>
                 </a-col>
-                <a-col :xs="24" :md="12">
+                <a-col :xs="24" :md="6">
                   <a-form-item label="外呼号码" :required="formState.voiceEnabled">
                     <a-input v-model:value="formState.voiceCalledShowNumber" placeholder="公共模式可留空；专属模式填写已购号码" :disabled="!formState.voiceEnabled" />
                   </a-form-item>
                 </a-col>
               </a-row>
+              <a-alert type="info" show-icon :message="`短信在 ${smsScheduleText} 发送；语音在 ${voiceScheduleText} 独立发送。`" />
             </a-space>
           </a-card>
 
@@ -175,6 +186,8 @@ const formState = reactive<ShipmentReminderSettings>({
   voiceEnabled: false,
   sendHour: 12,
   sendMinute: 0,
+  voiceSendHour: 12,
+  voiceSendMinute: 30,
   templateVariables: [
     { name: 'order_id', source: 'OrderIdWithRenterName' },
     { name: 'time', source: 'RelativeExpectedShipDate' },
@@ -201,6 +214,15 @@ const matchingSmsTemplateOptions = computed(() => shipmentReminderStore.smsTempl
 
 const selectedSmsTemplate = computed(() => shipmentReminderStore.smsTemplates
   .find(template => template.templateCode === formState.smsTemplateCode));
+
+function formatSchedule(totalMinutes: number) {
+  const hour = Math.floor(totalMinutes / 60) % 24;
+  const minute = totalMinutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+const smsScheduleText = computed(() => formatSchedule(Number(formState.sendHour) * 60 + Number(formState.sendMinute)));
+const voiceScheduleText = computed(() => formatSchedule(Number(formState.voiceSendHour) * 60 + Number(formState.voiceSendMinute)));
 
 const variableSourceOptions = [
   { value: 'OrderIdWithRenterName', label: '订单号 + 租客姓名' },
