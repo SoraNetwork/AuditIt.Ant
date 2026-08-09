@@ -670,7 +670,7 @@ const form = reactive({
   expectedShipDate: dayjs().subtract(3, 'day') as Dayjs,
   startDate: dayjs() as Dayjs,
   expectedEndDate: dayjs().add(7, 'day') as Dayjs,
-  expectedReturnDate: dayjs().add(9, 'day') as Dayjs,
+  expectedReturnDate: dayjs().add(10, 'day') as Dayjs,
   hasRenewalIntent: false,
   renewalIntentEndDate: null as Dayjs | null,
   deposit: null as number | null,
@@ -1252,9 +1252,9 @@ watch(
     if (!nextEnd) return;
 
     const currentReturnDate = form.expectedReturnDate?.format('YYYY-MM-DD');
-    const previousDefaultReturnDate = previousEnd?.add(2, 'day').format('YYYY-MM-DD');
+    const previousDefaultReturnDate = previousEnd?.add(3, 'day').format('YYYY-MM-DD');
     if (!currentReturnDate || currentReturnDate === previousDefaultReturnDate) {
-      form.expectedReturnDate = nextEnd.add(2, 'day');
+      form.expectedReturnDate = nextEnd.add(3, 'day');
     }
   }
 );
