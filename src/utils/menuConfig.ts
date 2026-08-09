@@ -84,8 +84,16 @@ export const menuTree: MenuNode[] = [
       { key: 'rental-new', title: '新建租赁', icon: PlusOutlined, to: '/rentals/new', permission: P.RentalCreate },
     ],
   },
-  { key: 'reminders', title: '提醒中心', icon: BellOutlined, to: '/reminders', permission: P.ReminderView },
-  { key: 'shipment-reminder-settings', title: '发货通知设置', icon: BellOutlined, to: '/shipment-reminder-settings', permission: P.ShipmentReminderManage },
+  {
+    key: 'reminders',
+    title: '提醒中心',
+    icon: BellOutlined,
+    anyPermission: [P.ReminderView, P.ShipmentReminderManage],
+    children: [
+      { key: 'messages', title: '消息提醒', icon: BellOutlined, to: '/reminders', permission: P.ReminderView },
+      { key: 'shipment-reminder-settings', title: '发货通知设置', icon: BellOutlined, to: '/shipment-reminder-settings', permission: P.ShipmentReminderManage },
+    ],
+  },
   {
     key: 'admin',
     title: '权限管理',
