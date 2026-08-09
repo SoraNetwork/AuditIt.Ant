@@ -14,7 +14,7 @@
               <TeamOutlined />
               <span>租客与负责人</span>
             </div>
-            <div class="section-subtitle">手机号匹配、候选租客和负责人</div>
+            <div class="section-subtitle">租客信息模糊匹配、候选租客和负责人</div>
           </div>
           <a-button type="primary" ghost @click="openQuickCreate">
             <template #icon><UserAddOutlined /></template>
@@ -25,19 +25,19 @@
         <div class="tenant-layout">
           <div class="tenant-lookup-panel">
             <a-form-item
-              label="租客手机号"
+              label="租客信息"
               required
               :help="renterLookupHelp"
               :validate-status="renterValidateStatus"
             >
               <a-input-search
-                v-model:value="renterPhone"
-                placeholder="输入完整或部分手机号"
+                v-model:value="renterKeyword"
+                placeholder="姓名、手机号、身份证号、平台账号、地址或备注"
                 enter-button="搜索"
                 :loading="renterSearching"
                 allow-clear
-                @search="searchRenterByPhone"
-                @change="onPhoneInputChange"
+                @search="searchRenter"
+                @change="onRenterKeywordInput"
               />
             </a-form-item>
 
@@ -639,7 +639,7 @@ const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
 const router = useRouter();
 
-const renterPhone = ref('');
+const renterKeyword = ref('');
 const renterSearching = ref(false);
 const phoneSearched = ref(false);
 const matchedRenter = ref<Renter | null>(null);
@@ -730,21 +730,43 @@ const accountedAmount = computed(() =>
 
 const normalizePhone = (value?: string | null) => (value || '').replace(/\D/g, '');
 
-const normalizedRenterPhone = computed(() => normalizePhone(renterPhone.value));
+const normalizedRenterKeyword = computed(() => renterKeyword.value.trim().toLocaleLowerCase());
+
+const renterSearchFields = (renter: Renter) => [
+  renter.name,
+  renter.phone,
+  renter.idCardNo,
+  renter.xianyuId,
+  renter.taobaoId,
+  renter.xiaohongshuId,
+  renter.defaultAddress,
+  renter.notes,
+].filter((field): field is string => Boolean(field?.trim()));
+
+const isExactRenterMatch = (renter: Renter, keyword: string) => {
+  const normalizedPhoneKeyword = normalizePhone(keyword);
+  return renterSearchFields(renter).some(field => field.trim().toLocaleLowerCase() === keyword)
+    || (normalizedPhoneKeyword.length > 0 && normalizePhone(renter.phone) === normalizedPhoneKeyword);
+};
+
+const renterMatchesKeyword = (renter: Renter, keyword: string) => {
+  const normalizedPhoneKeyword = normalizePhone(keyword);
+  return renterSearchFields(renter).some(field => field.toLocaleLowerCase().includes(keyword))
+    || (normalizedPhoneKeyword.length > 0 && normalizePhone(renter.phone).includes(normalizedPhoneKeyword));
+};
 
 const exactRenterMatches = computed(() => {
-  const keyword = normalizedRenterPhone.value;
+  const keyword = normalizedRenterKeyword.value;
   if (!keyword) return [];
-  return renterStore.renters.filter(renter => normalizePhone(renter.phone) === keyword);
+  return renterStore.renters.filter(renter => isExactRenterMatch(renter, keyword));
 });
 
 const fuzzyRenterMatches = computed(() => {
-  const keyword = normalizedRenterPhone.value;
+  const keyword = normalizedRenterKeyword.value;
   if (!keyword) return [];
-  return renterStore.renters.filter(renter => {
-    const phone = normalizePhone(renter.phone);
-    return phone.includes(keyword) && phone !== keyword;
-  });
+  return renterStore.renters.filter(renter =>
+    renterMatchesKeyword(renter, keyword) && !isExactRenterMatch(renter, keyword)
+  );
 });
 
 const visibleRenterCandidates = computed(() => {
@@ -760,8 +782,8 @@ const renterMatchOptions = computed(() => [
 ]);
 
 const renterCandidateTitle = computed(() => {
-  if (renterMatchView.value === 'exact') return '手机号精准匹配';
-  if (renterMatchView.value === 'fuzzy') return '手机号模糊匹配';
+  if (renterMatchView.value === 'exact') return '租客信息精准匹配';
+  if (renterMatchView.value === 'fuzzy') return '租客信息模糊匹配';
   return '租客列表手动匹配';
 });
 
@@ -881,7 +903,7 @@ const userOptions = computed(() =>
 const renterLookupHelp = computed(() => {
   if (matchedRenter.value) return '已匹配租客，可继续填写租赁信息。';
   if (phoneSearched.value) return '可从候选列表选择，或快速建档。';
-  return '请输入手机号后搜索，支持完整号码和部分号码。';
+  return '请输入姓名、手机号、身份证号、平台账号、地址或备注进行模糊搜索。';
 });
 
 const renterValidateStatus = computed<'' | 'success' | 'warning'>(() => {
@@ -912,16 +934,15 @@ const cartColumns = [
 const getPlatformRemark = (record: Renter) => buildPlatformRemark(record);
 
 const getRenterMatchLabel = (renter: Renter) => {
-  const keyword = normalizedRenterPhone.value;
-  const phone = normalizePhone(renter.phone);
-  if (keyword && phone === keyword) return '手机号精准';
-  if (keyword && phone.includes(keyword)) return '手机号模糊';
+  const keyword = normalizedRenterKeyword.value;
+  if (keyword && isExactRenterMatch(renter, keyword)) return '精准匹配';
+  if (keyword && renterMatchesKeyword(renter, keyword)) return '模糊匹配';
   return '列表候选';
 };
 
 const selectRenter = (renter: Renter) => {
   matchedRenter.value = renter;
-  renterPhone.value = renter.phone || renterPhone.value;
+  renterKeyword.value = renter.phone || renterKeyword.value;
   phoneSearched.value = true;
 
   if (renter.defaultAddress && !form.shippingAddress) {
@@ -944,7 +965,7 @@ const toggleItemSelect = (id: string) => {
     : [...selectedItemIds.value, id];
 };
 
-const onPhoneInputChange = () => {
+const onRenterKeywordInput = () => {
   if (matchedRenter.value) {
     matchedRenter.value = null;
   }
@@ -954,20 +975,20 @@ const onPhoneInputChange = () => {
 const clearMatchedRenter = () => {
   matchedRenter.value = null;
   phoneSearched.value = false;
-  renterPhone.value = '';
+  renterKeyword.value = '';
   form.shippingAddress = '';
 };
 
-const searchRenterByPhone = async () => {
-  const phone = renterPhone.value.trim();
-  if (!phone) {
-    message.warning('请输入手机号');
+const searchRenter = async () => {
+  const keyword = renterKeyword.value.trim();
+  if (!keyword) {
+    message.warning('请输入租客信息');
     return;
   }
 
   renterSearching.value = true;
   try {
-    await renterStore.fetchRenters(phone, 50);
+    await renterStore.fetchRenters(keyword, 50);
     phoneSearched.value = true;
 
     if (exactRenterMatches.value.length === 1) {
@@ -992,7 +1013,7 @@ const searchRenterByPhone = async () => {
 const loadManualRenterList = async () => {
   renterSearching.value = true;
   try {
-    await renterStore.fetchRenters(renterPhone.value.trim(), 80);
+    await renterStore.fetchRenters(renterKeyword.value.trim(), 80);
     phoneSearched.value = true;
     matchedRenter.value = null;
     renterMatchView.value = 'manual';
@@ -1003,7 +1024,9 @@ const loadManualRenterList = async () => {
 
 const openQuickCreate = () => {
   quickForm.name = '';
-  quickForm.phone = renterPhone.value.trim();
+  quickForm.phone = /^[\d\s()+-]+$/.test(renterKeyword.value)
+    ? renterKeyword.value.trim()
+    : '';
   quickForm.idCardNo = '';
   quickForm.platformRemark = '';
   quickForm.defaultAddress = '';

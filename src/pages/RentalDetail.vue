@@ -694,7 +694,7 @@
           v-model:value="selectedRentalItemIds"
           mode="multiple"
           show-search
-          option-filter-prop="label"
+          option-filter-prop="searchText"
           :options="itemPickerOptions"
           :loading="itemStore.loading"
           placeholder="选择当前租赁中需要保留/新增的物品"
@@ -1065,6 +1065,16 @@ const renterOptions = computed(() =>
   renterStore.renters.map(renter => ({
     label: `${renter.name}${renter.phone ? ` / ${renter.phone}` : ''}`,
     value: renter.id,
+    searchText: [
+      renter.name,
+      renter.phone,
+      renter.idCardNo,
+      renter.xianyuId,
+      renter.taobaoId,
+      renter.xiaohongshuId,
+      renter.defaultAddress,
+      renter.notes,
+    ].filter(Boolean).join(' '),
   }))
 );
 
