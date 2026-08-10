@@ -506,8 +506,23 @@
           <div class="form-help-text">历史物流没有物品关联；本次不选择时也会按未指定物品保存。</div>
         </a-form-item>
       </template>
+      <template v-if="shipForm.direction === 'Outbound'">
+        <a-divider>本次发货商品</a-divider>
+        <a-form-item label="选择本次发货的物品" required>
+          <a-checkbox-group v-model:value="selectedOutboundRentalItemIds" class="shipment-item-checkboxes">
+            <a-checkbox
+              v-for="item in unshippedRentalItems"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.itemShortIdSnapshot || '待指定库存' }} - {{ item.itemNameSnapshot || '未命名物品' }}
+            </a-checkbox>
+          </a-checkbox-group>
+          <div class="form-help-text">可分多次登记发货；未勾选的物品会保持“未完全发货”，并继续按待发货处理。</div>
+        </a-form-item>
+      </template>
       <template v-if="shipForm.direction === 'Outbound' && uncertainRentalItems.length > 0">
-        <a-divider>确定发货商品（一物一码）</a-divider>
+        <a-divider>确定本次发货商品（一物一码）</a-divider>
         <div v-if="!shipForm.originWarehouseId" style="color: #ff4d4f; margin-bottom: 12px;">
           请先选择发货仓库以加载可选在库库存物品
         </div>
@@ -1014,11 +1029,23 @@ const routeRentalId = computed(() => {
   return Array.isArray(raw) ? raw[0] : String(raw || '');
 });
 const selectedShipItems = ref<Record<number, string>>({});
+const selectedOutboundRentalItemIds = ref<number[]>([]);
 const selectedInboundRentalItemIds = ref<number[]>([]);
 const returnItemConditions = ref<Record<number, ReturnCondition>>({});
+const shippedOutboundRentalItemIds = computed(() => {
+  const outboundShipments = rental.value?.shipments.filter(shipment => shipment.direction === 'Outbound') || [];
+  if (outboundShipments.some(shipment => !shipment.items?.length)) {
+    return new Set(rental.value?.items.map(item => item.id) || []);
+  }
+  return new Set(outboundShipments.flatMap(shipment => shipment.items?.map(item => item.rentalItemId) || []));
+});
+const unshippedRentalItems = computed(() =>
+  rental.value?.items.filter(item => !item.returnedAt && !shippedOutboundRentalItemIds.value.has(item.id)) || []
+);
 const uncertainRentalItems = computed(() => {
   if (shipForm.direction !== 'Outbound') return [];
-  return rental.value?.items.filter(item => !item.itemId) || [];
+  const selected = new Set(selectedOutboundRentalItemIds.value);
+  return unshippedRentalItems.value.filter(item => selected.has(item.id) && !item.itemId);
 });
 const activeRentalItems = computed(() =>
   rental.value?.items.filter(item => !item.returnedAt && item.itemId) || []
@@ -1356,14 +1383,10 @@ const isRentalClosed = computed(() =>
   !!rental.value && ['Returned', 'Cancelled', 'Renewed'].includes(rental.value.status)
 );
 
-const hasOutboundShipment = computed(() =>
-  !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound')
-);
-
 const isRenewal = computed(() => !!rental.value?.isRenewal);
 
 const hasRentalStarted = computed(() =>
-  isRenewal.value || hasOutboundShipment.value || rental.value?.status === 'Active' || rental.value?.status === 'Overdue'
+  isRenewal.value || rental.value?.status === 'Active' || rental.value?.status === 'Overdue'
 );
 
 const canUseDefinitionItemPicker = computed(() => !hasRentalStarted.value);
@@ -1407,11 +1430,15 @@ const hasDeliveredOutbound = computed(() =>
   !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound' && !!shipment.deliveredAt)
 );
 
-const canShip = computed(() => !!rental.value && !isRentalClosed.value && !isRenewal.value);
+const canShip = computed(() =>
+  !!rental.value && !isRentalClosed.value && !isRenewal.value && unshippedRentalItems.value.length > 0
+);
 const canManageShipments = computed(() =>
   authStore.hasPermission(PermissionCodes.RentalShip)
 );
-const canReceive = computed(() => !!rental.value && !isRentalClosed.value && (hasDeliveredOutbound.value || isRenewal.value));
+const canReceive = computed(() =>
+  !!rental.value && !isRentalClosed.value && hasRentalStarted.value && (hasDeliveredOutbound.value || isRenewal.value)
+);
 const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
@@ -1468,7 +1495,7 @@ const receiveDisabledReason = computed(() => {
 
 const returnDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记归还';
-  if (!hasOutboundShipment.value) return '租赁尚未发货，不能直接登记归还';
+  if (!hasRentalStarted.value) return '租赁尚未完全发货，不能直接登记归还';
   return '';
 });
 
@@ -1516,12 +1543,14 @@ const resetShipForm = (direction: ShipmentDirection) => {
   shipForm.trackingNumber = '';
   shipForm.shippingFee = null;
   shipForm.notes = '';
+  selectedOutboundRentalItemIds.value = [];
   selectedInboundRentalItemIds.value = [];
 };
 
 const openOutbound = async () => {
   resetShipForm('Outbound');
   selectedShipItems.value = {};
+  selectedOutboundRentalItemIds.value = unshippedRentalItems.value.map(item => item.id);
   shipVisible.value = true;
   await itemStore.fetchItems();
 };
@@ -1687,7 +1716,12 @@ const submitShip = async (allowOpenItemConflict = false) => {
     return;
   }
 
-  // Validate item mappings for outbound
+  if (shipForm.direction === 'Outbound' && selectedOutboundRentalItemIds.value.length === 0) {
+    message.error('请至少选择一件本次发货的物品');
+    return;
+  }
+
+  // Validate item mappings for the selected outbound items.
   if (shipForm.direction === 'Outbound' && uncertainRentalItems.value.length > 0) {
     for (const ri of uncertainRentalItems.value) {
       if (!selectedShipItems.value[ri.id]) {
@@ -1702,10 +1736,11 @@ const submitShip = async (allowOpenItemConflict = false) => {
         const itemId = rental.value?.items.find(item => item.id === rentalItemId)?.itemId;
         return itemId ? [{ rentalItemId, itemId }] : [];
       })
-    : Object.entries(selectedShipItems.value).map(([rentalItemId, itemId]) => ({
-        rentalItemId: Number(rentalItemId),
-        itemId,
-      }));
+    : selectedOutboundRentalItemIds.value.flatMap(rentalItemId => {
+        const rentalItem = rental.value?.items.find(item => item.id === rentalItemId);
+        const itemId = rentalItem?.itemId || selectedShipItems.value[rentalItemId];
+        return itemId ? [{ rentalItemId, itemId }] : [];
+      });
 
   try {
     await rentalStore.ship(rental.value.id, {
@@ -2868,6 +2903,12 @@ watch(
   color: #697386;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.shipment-item-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-help {

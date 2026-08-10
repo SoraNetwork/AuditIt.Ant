@@ -5,6 +5,8 @@ export const rentalStatusText = (status?: RentalStatus | string | null) => {
   switch (status) {
     case 'Pending':
       return '待发货';
+    case 'PartiallyShipped':
+      return '未完全发货';
     case 'Active':
       return '进行中';
     case 'Overdue':
@@ -22,6 +24,7 @@ export const rentalStatusText = (status?: RentalStatus | string | null) => {
 
 export const rentalStatusColor = (status?: RentalStatus | string | null) => {
   if (status === 'Pending') return 'default';
+  if (status === 'PartiallyShipped') return 'orange';
   if (status === 'Active') return 'blue';
   if (status === 'Overdue') return 'red';
   if (status === 'Returned') return 'green';

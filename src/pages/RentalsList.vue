@@ -173,7 +173,7 @@ const status = ref<RentalStatus | undefined>(undefined);
 const searchKeyword = ref('');
 const pendingSettlement = ref(false);
 const sfBulkRefreshing = ref(false);
-const rentalStatuses: RentalStatus[] = ['Pending', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
+const rentalStatuses: RentalStatus[] = ['Pending', 'PartiallyShipped', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
 

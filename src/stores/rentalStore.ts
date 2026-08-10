@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
-export type RentalStatus = 'Pending' | 'Active' | 'Overdue' | 'Returned' | 'Cancelled' | 'Renewed';
+export type RentalStatus = 'Pending' | 'PartiallyShipped' | 'Active' | 'Overdue' | 'Returned' | 'Cancelled' | 'Renewed';
 export type ShipmentDirection = 'Outbound' | 'Inbound';
 export type ReturnCondition = 'Good' | 'MinorDamage' | 'MajorDamage' | 'Lost';
 

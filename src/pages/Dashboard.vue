@@ -338,7 +338,9 @@ const formatMoney = (value?: number | null) => {
 };
 
 const activeRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Active').length);
-const pendingRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Pending').length);
+const pendingRentals = computed(() => rentalStore.rentals.filter(r =>
+  r.status === 'Pending' || r.status === 'PartiallyShipped'
+).length);
 const overdueRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Overdue').length);
 const returnedRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Returned').length);
 const cancelledRentals = computed(() => rentalStore.rentals.filter(r => r.status === 'Cancelled').length);
@@ -348,7 +350,7 @@ const pendingSettlementRentals = computed(() => rentalStore.rentals.filter(isPen
 
 const activeRevenue = computed(() =>
   rentalStore.rentals
-    .filter(r => r.status === 'Active' || r.status === 'Overdue' || r.status === 'Pending')
+    .filter(r => r.status === 'Active' || r.status === 'Overdue' || r.status === 'Pending' || r.status === 'PartiallyShipped')
     .reduce((sum, r) => sum + Number(r.totalPrice || 0), 0)
 );
 
@@ -357,7 +359,7 @@ const dueSoonList = computed(() =>
     .filter(r => {
       if (!r.expectedEndDate) return false;
       if (isUnreturnedOverdueRental(r)) return true;
-      return (r.status === 'Active' || r.status === 'Pending')
+      return (r.status === 'Active' || r.status === 'Pending' || r.status === 'PartiallyShipped')
         //&& daysUntil(r.expectedEndDate) >= 0
         && daysUntil(r.expectedEndDate) <= 7;
     })
@@ -373,7 +375,7 @@ const recentRentals = computed(() =>
 
 const pendingShipmentList = computed(() =>
   [...rentalStore.rentals]
-    .filter(r => r.status === 'Pending')
+    .filter(r => r.status === 'Pending' || r.status === 'PartiallyShipped')
     .sort((a, b) => new Date(a.expectedShipDate).getTime() - new Date(b.expectedShipDate).getTime())
     //.slice(0, 12)
 );
