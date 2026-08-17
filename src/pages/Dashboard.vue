@@ -364,7 +364,7 @@ const dueSoonList = computed(() =>
         && daysUntil(r.expectedEndDate) <= 7;
     })
     .sort((a, b) => new Date(a.expectedEndDate).getTime() - new Date(b.expectedEndDate).getTime())
-    .slice(0, 12)
+    //.slice(0, 12)
 );
 
 const recentRentals = computed(() =>
@@ -396,7 +396,7 @@ const returnInTransitList = computed(() =>
       new Date(latestPendingInboundShipment(right)!.shippedAt).getTime()
       - new Date(latestPendingInboundShipment(left)!.shippedAt).getTime()
     )
-    .slice(0, 12)
+    //.slice(0, 12)
 );
 
 const transReturnedButNotCheckList = computed(() =>
@@ -408,7 +408,7 @@ const transReturnedButNotCheckList = computed(() =>
     .sort((left, right) =>
       new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
     )
-    .slice(0, 12)
+    //.slice(0, 12)
 );
 
 const goToRentalsByStatus = (status: RentalStatus) => {
