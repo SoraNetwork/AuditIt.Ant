@@ -48,6 +48,15 @@
               :pagination="false"
               size="small"
             />
+
+            <a-divider orientation="left">按到账账户</a-divider>
+            <a-table
+              row-key="paymentAccount"
+              :columns="paymentAccountColumns"
+              :data-source="reportStore.summary?.paymentAccounts || []"
+              :pagination="false"
+              size="small"
+            />
           </a-tab-pane>
 
           <a-tab-pane key="detail" tab="详细">
@@ -120,6 +129,13 @@ const summaryColumns = [
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount' },
 ];
 
+const paymentAccountColumns = [
+  { title: '到账账户', dataIndex: 'paymentAccount', key: 'paymentAccount' },
+  { title: '单数', dataIndex: 'count', key: 'count' },
+  { title: '订单总额', dataIndex: 'totalOrderAmount', key: 'totalOrderAmount' },
+  { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount' },
+];
+
 const detailColumns = [
   { title: '租赁单号', dataIndex: 'rentalNumber', key: 'rentalNumber', width: 160, fixed: 'left' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
@@ -131,6 +147,7 @@ const detailColumns = [
   { title: '运费', dataIndex: 'totalShippingFee', key: 'totalShippingFee', width: 110 },
   { title: '其他费用', dataIndex: 'otherFee', key: 'otherFee', width: 110 },
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
+  { title: '到账账户', dataIndex: 'paymentAccount', key: 'paymentAccount', width: 150 },
   { title: '物品数', dataIndex: 'itemCount', key: 'itemCount', width: 90 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 150 },
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 160 },
@@ -185,6 +202,12 @@ const exportReport = async () => {
             订单总额: row.totalOrderAmount,
             核算金额: row.accountedAmount,
           })),
+          ...summary.paymentAccounts.map(row => ({
+            分类: `到账账户：${row.paymentAccount}`,
+            单数: row.count,
+            订单总额: row.totalOrderAmount,
+            核算金额: row.accountedAmount,
+          })),
         ]
       : [];
 
@@ -200,6 +223,7 @@ const exportReport = async () => {
       运费: row.totalShippingFee,
       其他费用: row.otherFee,
       核算金额: row.accountedAmount,
+      到账账户: row.paymentAccount || '未填写',
       物品数: row.itemCount,
       负责人: row.assignedTo || '',
       平台订单号: row.platformOrderNo || '',
@@ -258,6 +282,7 @@ const exportReport = async () => {
       状态: rentalStatusText(row.status),
       总价: row.totalPrice,
       核算金额: row.accountedAmount,
+      到账账户: row.paymentAccount || '未填写',
       建单人: row.creatorName || '',
       建单分账金额: row.creatorAmount,
       发货人分账明细: (row.shipperShares || []).map(s => `${s.shipperName || '未指定'}: ${s.amount.toFixed(1)}`).join('; '),

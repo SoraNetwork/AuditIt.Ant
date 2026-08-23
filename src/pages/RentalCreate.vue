@@ -177,6 +177,11 @@
               <a-input v-model:value="form.platformOrderNo" placeholder="可选" />
             </a-form-item>
           </a-col>
+          <a-col :xs="24" :span="6">
+            <a-form-item label="到账账户">
+              <a-input v-model:value="form.paymentAccount" placeholder="默认账户，可自定义" />
+            </a-form-item>
+          </a-col>
         </a-row>
 
         <a-row :gutter="16">
@@ -676,6 +681,7 @@ const form = reactive({
   deposit: null as number | null,
   otherFee: 0,
   platformOrderNo: '',
+  paymentAccount: '',
   notes: '',
 });
 
@@ -1132,6 +1138,7 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     otherFee: Number(form.otherFee || 0),
     shippingAddress: form.shippingAddress.trim() || undefined,
     platformOrderNo: form.platformOrderNo.trim() || undefined,
+    paymentAccount: form.paymentAccount.trim() || undefined,
     notes: form.notes.trim() || undefined,
     assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
     allowScheduleConflict,
@@ -1296,12 +1303,16 @@ watch(
 );
 
 onMounted(async () => {
-  await Promise.all([
+  const [, , , , defaultPaymentAccount] = await Promise.all([
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
     categoryStore.fetchCategories(),
     itemDefStore.fetchItemDefinitions(),
     loadSelectableItems(),
+    rentalStore.fetchDefaultPaymentAccount().catch(() => ''),
   ]);
+  if (defaultPaymentAccount && !form.paymentAccount) {
+    form.paymentAccount = defaultPaymentAccount;
+  }
 });
 </script>
 

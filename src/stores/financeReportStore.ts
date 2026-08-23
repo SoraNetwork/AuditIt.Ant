@@ -29,6 +29,14 @@ export interface FinanceReportSummary {
   accountedAmount: number;
   categories: FinanceReportCategorySummary[];
   statuses: FinanceReportStatusSummary[];
+  paymentAccounts: FinanceReportPaymentAccountSummary[];
+}
+
+export interface FinanceReportPaymentAccountSummary {
+  paymentAccount: string;
+  count: number;
+  totalOrderAmount: number;
+  accountedAmount: number;
 }
 
 export interface FinanceReportDetail {
@@ -48,6 +56,7 @@ export interface FinanceReportDetail {
   accountedAmount: number;
   itemCount: number;
   platformOrderNo?: string | null;
+  paymentAccount?: string | null;
 }
 
 interface FinanceReportState {

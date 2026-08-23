@@ -108,6 +108,7 @@ export interface Rental {
   accountedAmount: number;
   shippingAddress?: string | null;
   platformOrderNo?: string | null;
+  paymentAccount?: string | null;
   renewedFromRentalId?: string | null;
   renewedFromRentalNumber?: string | null;
   renewedToRentalId?: string | null;
@@ -154,6 +155,7 @@ export interface CreateRentalPayload {
   shippingAddress?: string;
   platformOrderNo?: string;
   notes?: string;
+  paymentAccount?: string;
   assignedTo?: string;
   allowScheduleConflict?: boolean;
 }
@@ -172,6 +174,7 @@ export interface UpdateRentalPayload {
   shippingAddress?: string;
   platformOrderNo?: string;
   notes?: string;
+  paymentAccount?: string;
   assignedTo?: string;
   createdBy?: string;
   senderName?: string;
@@ -185,6 +188,7 @@ export interface RenewRentalPayload {
   deposit?: number | null;
   otherFee?: number;
   notes?: string;
+  paymentAccount?: string;
   allowScheduleConflict?: boolean;
 }
 
@@ -211,6 +215,7 @@ export interface DeliverPayload {
 
 export interface UpdateShipmentPayload {
   shippingFee?: number | null;
+  itemSelections?: { rentalItemId: number; itemId: string }[];
 }
 
 export interface ReturnPayload {
@@ -253,6 +258,7 @@ export interface SettlementPreview {
   status: RentalStatus;
   totalPrice: number;
   accountedAmount: number;
+  paymentAccount?: string | null;
   technicianPercent: number;
   technicianAmount: number;
   creatorPercent: number;
@@ -294,6 +300,7 @@ export const useRentalStore = defineStore('rental', {
       startDateFrom?: string;
       startDateTo?: string;
       pendingSettlement?: boolean;
+      ownerScope?: 'mine' | 'all';
       page?: number;
       pageSize?: number;
     } = {}) {
@@ -308,6 +315,7 @@ export const useRentalStore = defineStore('rental', {
         if (filters.startDateFrom) params.append('startDateFrom', filters.startDateFrom);
         if (filters.startDateTo) params.append('startDateTo', filters.startDateTo);
         if (filters.pendingSettlement) params.append('pendingSettlement', 'true');
+        if (filters.ownerScope) params.append('ownerScope', filters.ownerScope);
         if (filters.page) params.append('page', String(filters.page));
         if (filters.pageSize) params.append('pageSize', String(filters.pageSize));
 
@@ -324,6 +332,11 @@ export const useRentalStore = defineStore('rental', {
     async getRental(id: string): Promise<Rental> {
       const response = await apiClient.get<Rental>(`/rentals/${id}`);
       return response.data;
+    },
+
+    async fetchDefaultPaymentAccount(): Promise<string> {
+      const response = await apiClient.get<{ defaultPaymentAccount?: string | null }>('/rentals/payment-account-default');
+      return response.data.defaultPaymentAccount || '';
     },
 
     async createRental(payload: CreateRentalPayload): Promise<Rental> {

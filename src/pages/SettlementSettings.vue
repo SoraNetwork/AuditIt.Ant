@@ -57,6 +57,14 @@
               </a-col>
             </a-row>
 
+            <a-form-item label="默认到账账户">
+              <a-input
+                v-model:value="formState.defaultPaymentAccount"
+                placeholder="建单时自动填写，可在租赁单中修改"
+                :maxlength="100"
+              />
+            </a-form-item>
+
             <a-alert
               v-if="totalPercent > 100"
               type="error"
@@ -95,7 +103,7 @@
 import { computed, onMounted, reactive } from 'vue';
 import { message } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
-import { useSettlementStore } from '../stores/settlementStore';
+import { useSettlementStore, type SettlementSettings } from '../stores/settlementStore';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const settlementStore = useSettlementStore();
@@ -105,6 +113,7 @@ const formState = reactive({
   creatorPercent: 30,
   shipperPercent: 10,
   itemOwnerPercent: 50,
+  defaultPaymentAccount: '',
 });
 
 const totalPercent = computed(() =>
@@ -116,11 +125,12 @@ const totalPercent = computed(() =>
 
 const previewAmount = (percent: number) => (175 * Number(percent || 0) / 100).toFixed(1);
 
-const applySettings = (settings: typeof formState) => {
+const applySettings = (settings: SettlementSettings) => {
   formState.technicianPercent = Number(settings.technicianPercent || 0);
   formState.creatorPercent = Number(settings.creatorPercent || 0);
   formState.shipperPercent = Number(settings.shipperPercent || 0);
   formState.itemOwnerPercent = Number(settings.itemOwnerPercent || 0);
+  formState.defaultPaymentAccount = settings.defaultPaymentAccount || '';
 };
 
 const load = async () => {

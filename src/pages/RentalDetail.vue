@@ -28,6 +28,7 @@
         <a-descriptions-item label="核算金额">{{ formatMoney(rental.accountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="日均核算">{{ formatMoney(dailyAccountedAmount) }}</a-descriptions-item>
         <a-descriptions-item label="平台订单号">{{ rental.platformOrderNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="到账账户">{{ rental.paymentAccount || '未填写' }}</a-descriptions-item>
         <a-descriptions-item v-if="rental.renewedFromRentalId" label="续租自">
           <router-link :to="`/rentals/${rental.renewedFromRentalId}`">{{ rental.renewedFromRentalNumber }}</router-link>
         </a-descriptions-item>
@@ -111,6 +112,7 @@
             <div><span>运费合计</span><strong>{{ formatMoney(rental.totalShippingFee) || '-' }}</strong></div>
             <div><span>其他费用</span><strong>{{ formatMoney(rental.otherFee) || '-' }}</strong></div>
             <div><span>平台订单号</span><strong>{{ rental.platformOrderNo || '-' }}</strong></div>
+            <div><span>到账账户</span><strong>{{ rental.paymentAccount || '未填写' }}</strong></div>
           </div>
         </section>
 
@@ -132,6 +134,7 @@
       <div v-if="isMobile" class="rental-mobile-actions">
         <div class="rental-primary-actions">
           <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
+          <a-button v-if="canRepairShipment" @click="openRepairShipment(unassignedOutboundShipments[0])">补录发货物品</a-button>
           <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
             <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
           </a-tooltip>
@@ -150,6 +153,7 @@
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
         <a-button v-if="canRenew" type="primary" ghost @click="openRenew">续租</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
+        <a-button v-if="canRepairShipment" @click="openRepairShipment(unassignedOutboundShipments[0])">补录发货物品</a-button>
         <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
           <a-button :disabled="!canReceive" @click="openInbound">登记回货物流</a-button>
         </a-tooltip>
@@ -196,6 +200,7 @@
             <a-descriptions v-if="settlementInfo && canShowSettlementDetails" bordered :column="isMobile ? 1 : 4" :size="isMobile ? 'small' : 'default'">
               <a-descriptions-item label="总价">{{ formatMoney(settlementInfo.totalPrice) }}</a-descriptions-item>
               <a-descriptions-item label="核算">{{ formatMoney(settlementInfo.accountedAmount) }}</a-descriptions-item>
+              <a-descriptions-item label="到账账户">{{ settlementInfo.paymentAccount || '未填写' }}</a-descriptions-item>
               <a-descriptions-item label="技术">
                 {{ formatMoney(settlementInfo.technicianAmount) }} / {{ settlementInfo.technicianPercent }}%
               </a-descriptions-item>
@@ -230,7 +235,6 @@
               </a-descriptions-item>
             </a-descriptions>
 
-            <pre v-if="settlementPreviewText && canShowSettlementDetails" class="settlement-preview">{{ settlementPreviewText }}</pre>
           </div>
         </a-spin>
       </template>
@@ -349,6 +353,13 @@
               </a-button>
               <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">标记签收</a-button>
               <a-button
+                v-if="record.direction === 'Outbound' && !record.items?.length"
+                type="link"
+                @click="openRepairShipment(record)"
+              >
+                补录物品
+              </a-button>
+              <a-button
                 v-if="canManageShipments"
                 type="link"
                 danger
@@ -386,6 +397,13 @@
                 {{ shipment.shippingFee === null || shipment.shippingFee === undefined ? '补录运费' : '修改运费' }}
               </a-button>
               <a-button v-if="!shipment.deliveredAt" size="small" type="primary" @click="deliver(shipment.id)">标记签收</a-button>
+              <a-button
+                v-if="shipment.direction === 'Outbound' && !shipment.items?.length"
+                size="small"
+                @click="openRepairShipment(shipment)"
+              >
+                补录物品
+              </a-button>
               <a-button
                 v-if="canManageShipments"
                 size="small"
@@ -594,6 +612,56 @@
     </a-form>
   </a-modal>
 
+  <a-modal
+    v-model:open="repairShipmentVisible"
+    title="补录发货物品"
+    ok-text="保存关联"
+    cancel-text="取消"
+    :confirm-loading="repairShipmentSaving"
+    @ok="submitRepairShipment"
+  >
+    <a-alert
+      type="warning"
+      show-icon
+      message="这条发货物流没有物品关联。补录后系统才能准确判断未完全发货状态，并恢复后续发货入口。"
+      style="margin-bottom: 12px"
+    />
+    <a-form layout="vertical">
+      <a-form-item label="物流对应物品" required>
+        <a-checkbox-group v-model:value="selectedRepairRentalItemIds" class="shipment-item-checkboxes">
+          <a-checkbox v-for="item in allOpenRentalItems" :key="item.id" :value="item.id">
+            {{ item.itemShortIdSnapshot || '待指定库存' }} - {{ item.itemNameSnapshot || '未命名物品' }}
+          </a-checkbox>
+        </a-checkbox-group>
+      </a-form-item>
+      <template v-if="repairUncertainRentalItems.length > 0">
+        <a-form-item
+          v-for="ri in repairUncertainRentalItems"
+          :key="ri.id"
+          :label="`对应库存：${ri.itemNameSnapshot || '未命名物品'} (项 ID: ${ri.id})`"
+          required
+        >
+          <a-select
+            v-model:value="selectedRepairItems[ri.id]"
+            placeholder="请选择具体物品"
+            :loading="itemStore.loading"
+            show-search
+            option-filter-prop="label"
+          >
+            <a-select-option
+              v-for="item in availableItemsForRepair(ri.itemDefinitionId)"
+              :key="item.id"
+              :value="item.id"
+              :label="item.shortId"
+            >
+              {{ item.shortId }} - {{ item.remarks || '无备注' }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+      </template>
+    </a-form>
+  </a-modal>
+
   <a-modal v-model:open="returnVisible" title="登记归还" ok-text="提交" cancel-text="取消" @ok="submitReturn">
     <a-form layout="vertical">
       <a-form-item label="归还物品">
@@ -768,6 +836,14 @@
             <div class="definition-picker-heading">
               <span class="definition-picker-name">{{ entry.label }}</span>
               <div class="definition-picker-actions">
+                <a-button
+                  :size="isMobile ? 'large' : 'middle'"
+                  class="definition-quantity-button"
+                  aria-label="减少数量"
+                  @click="adjustRentalDefinitionQuantity(entry.id, -1)"
+                >
+                  -
+                </a-button>
                 <a-input-number
                   :value="entry.quantity"
                   :min="0"
@@ -775,11 +851,19 @@
                   :size="isMobile ? 'large' : 'middle'"
                   @change="handleRentalDefinitionQuantityChange(entry.id, $event)"
                 />
-                <a-button :size="isMobile ? 'large' : 'middle'" type="link" danger @click="setRentalDefinitionQuantity(entry.id, 0)">移除</a-button>
+                <a-button
+                  :size="isMobile ? 'large' : 'middle'"
+                  class="definition-quantity-button"
+                  aria-label="增加数量"
+                  @click="adjustRentalDefinitionQuantity(entry.id, 1)"
+                >
+                  +
+                </a-button>
+                <a-button :size="isMobile ? 'large' : 'middle'" type="link" danger @click="removeRentalDefinition(entry.id)">移除</a-button>
               </div>
             </div>
             <div class="definition-price-list">
-              <label v-for="index in entry.quantity" :key="`${entry.id}-${index}`">
+              <label v-for="index in entry.quantity || 0" :key="`${entry.id}-${index}`">
                 <span>第 {{ index }} 件金额</span>
                 <a-input-number
                   :value="selectedRentalDefinitionPrices[entry.id]?.[index - 1] ?? 0"
@@ -918,6 +1002,9 @@
       <a-form-item label="平台订单号">
         <a-input v-model:value="editForm.platformOrderNo" :maxlength="100" />
       </a-form-item>
+      <a-form-item label="到账账户">
+        <a-input v-model:value="editForm.paymentAccount" :maxlength="100" placeholder="可自定义" />
+      </a-form-item>
       <a-form-item label="负责人">
         <a-select
           v-model:value="editForm.assignedUsers"
@@ -1031,6 +1118,11 @@ const routeRentalId = computed(() => {
 const selectedShipItems = ref<Record<number, string>>({});
 const selectedOutboundRentalItemIds = ref<number[]>([]);
 const selectedInboundRentalItemIds = ref<number[]>([]);
+const repairShipmentVisible = ref(false);
+const repairShipmentSaving = ref(false);
+const repairShipment = ref<RentalShipment | null>(null);
+const selectedRepairRentalItemIds = ref<number[]>([]);
+const selectedRepairItems = ref<Record<number, string>>({});
 const returnItemConditions = ref<Record<number, ReturnCondition>>({});
 const shippedOutboundRentalItemIds = computed(() => {
   const outboundShipments = rental.value?.shipments.filter(shipment => shipment.direction === 'Outbound') || [];
@@ -1050,6 +1142,24 @@ const uncertainRentalItems = computed(() => {
 const activeRentalItems = computed(() =>
   rental.value?.items.filter(item => !item.returnedAt && item.itemId) || []
 );
+const allOpenRentalItems = computed(() =>
+  rental.value?.items.filter(item => !item.returnedAt) || []
+);
+const unassignedOutboundShipments = computed(() =>
+  rental.value?.shipments.filter(shipment =>
+    shipment.direction === 'Outbound'
+    && (!shipment.items?.length || shipment.items.some(item => !item.itemId))
+  ) || []
+);
+const canRepairShipment = computed(() =>
+  !!rental.value && !isRentalClosed.value && !isRenewal.value && unassignedOutboundShipments.value.length > 0
+);
+const repairUncertainRentalItems = computed(() => {
+  const selected = new Set(selectedRepairRentalItemIds.value);
+  return (rental.value?.items || []).filter(item =>
+    selected.has(item.id) && !item.returnedAt && !item.itemId
+  );
+});
 const availableItemsForDefinition = (definitionId?: number | null) => {
   const warehouseId = shipForm.originWarehouseId;
   if (!warehouseId || !definitionId) return [];
@@ -1057,6 +1167,15 @@ const availableItemsForDefinition = (definitionId?: number | null) => {
     item.itemDefinitionId === definitionId &&
     item.status === 'InStock' &&
     item.warehouseId === warehouseId
+  );
+};
+const availableItemsForRepair = (definitionId?: number | null) => {
+  const warehouseId = repairShipment.value?.originWarehouseId;
+  if (!warehouseId || !definitionId) return [];
+  return itemStore.items.filter(item =>
+    item.itemDefinitionId === definitionId
+    && item.status === 'InStock'
+    && item.warehouseId === warehouseId
   );
 };
 const shipVisible = ref(false);
@@ -1072,7 +1191,7 @@ const itemPickerSaving = ref(false);
 const itemPickerMode = ref<'item' | 'definition'>('item');
 const selectedRentalItemIds = ref<string[]>([]);
 const selectedRentalItemPrices = reactive<Record<string, number | null>>({});
-const selectedRentalDefinitionQuantities = reactive<Record<number, number>>({});
+const selectedRentalDefinitionQuantities = reactive<Record<number, number | null>>({});
 const selectedRentalDefinitionPrices = reactive<Record<number, Array<number | null>>>({});
 const definitionToAdd = ref<number | undefined>(undefined);
 const deletingShipmentId = ref<number | null>(null);
@@ -1155,9 +1274,9 @@ const selectedRentalDefinitionEntries = computed(() =>
   Object.entries(selectedRentalDefinitionQuantities)
     .map(([id, quantity]) => ({
       id: Number(id),
-      quantity: Number(quantity || 0),
+      quantity: quantity === null ? null : Number(quantity || 0),
     }))
-    .filter(entry => entry.id > 0 && entry.quantity > 0)
+    .filter(entry => entry.id > 0 && (entry.quantity === null || entry.quantity >= 0))
     .map(entry => {
       const definition = itemDefinitionStore.itemDefinitions.find(item => item.id === entry.id);
       return {
@@ -1171,7 +1290,7 @@ const selectedRentalDefinitionEntries = computed(() =>
 
 const selectedRentalDefinitionIds = computed(() =>
   selectedRentalDefinitionEntries.value.flatMap(entry =>
-    Array.from({ length: entry.quantity }, () => entry.id)
+    Array.from({ length: entry.quantity || 0 }, () => entry.id)
   )
 );
 
@@ -1188,6 +1307,7 @@ const editForm = reactive({
   otherFee: 0,
   shippingAddress: '',
   platformOrderNo: '',
+  paymentAccount: '',
   assignedUsers: [] as string[],
   notes: '',
   createdBy: '' as string | null,
@@ -1386,7 +1506,11 @@ const isRentalClosed = computed(() =>
 const isRenewal = computed(() => !!rental.value?.isRenewal);
 
 const hasRentalStarted = computed(() =>
-  isRenewal.value || rental.value?.status === 'Active' || rental.value?.status === 'Overdue'
+  isRenewal.value
+  || rental.value?.status === 'Active'
+  || rental.value?.status === 'Overdue'
+  || rental.value?.status === 'PartiallyShipped'
+  || !!rental.value?.shipments?.some(shipment => shipment.direction === 'Outbound')
 );
 
 const canUseDefinitionItemPicker = computed(() => !hasRentalStarted.value);
@@ -1404,8 +1528,8 @@ const selectedRentalItemTotal = computed(() =>
 const selectedRentalItemPriceValues = computed<Array<number | null>>(() => {
   if (effectiveItemPickerMode.value === 'definition') {
     return selectedRentalDefinitionEntries.value.flatMap(entry =>
-      selectedRentalDefinitionPrices[entry.id]?.slice(0, entry.quantity)
-      ?? Array.from({ length: entry.quantity }, () => 0)
+      selectedRentalDefinitionPrices[entry.id]?.slice(0, entry.quantity || 0)
+      ?? Array.from({ length: entry.quantity || 0 }, () => 0)
     );
   }
 
@@ -1431,15 +1555,30 @@ const hasDeliveredOutbound = computed(() =>
 );
 
 const canShip = computed(() =>
-  !!rental.value && !isRentalClosed.value && !isRenewal.value && unshippedRentalItems.value.length > 0
+  !!rental.value
+  && !isRentalClosed.value
+  && !isRenewal.value
+  && unassignedOutboundShipments.value.length === 0
+  && unshippedRentalItems.value.length > 0
 );
 const canManageShipments = computed(() =>
   authStore.hasPermission(PermissionCodes.RentalShip)
 );
 const canReceive = computed(() =>
-  !!rental.value && !isRentalClosed.value && hasRentalStarted.value && (hasDeliveredOutbound.value || isRenewal.value)
+  !!rental.value
+  && !isRentalClosed.value
+  && hasRentalStarted.value
+  && unshippedRentalItems.value.length === 0
+  && unassignedOutboundShipments.value.length === 0
+  && (hasDeliveredOutbound.value || isRenewal.value)
 );
-const canReturn = computed(() => !!rental.value && !isRentalClosed.value && hasRentalStarted.value);
+const canReturn = computed(() =>
+  !!rental.value
+  && !isRentalClosed.value
+  && hasRentalStarted.value
+  && unshippedRentalItems.value.length === 0
+  && unassignedOutboundShipments.value.length === 0
+);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
 const canRenew = computed(() =>
@@ -1455,12 +1594,12 @@ const canShowSettlementPanel = computed(() =>
   !!rental.value && ['Returned', 'Overdue', 'Renewed'].includes(rental.value.status)
 );
 
+const canShowSettlementDetails = computed(() =>
+  !!settlementInfo.value
+);
+
 const canSendSettlement = computed(() =>
   !!settlementInfo.value?.canSend && authStore.hasPermission(PermissionCodes.RentalReturn)
-); 
-
-const canShowSettlementDetails = computed(() =>
-  !!settlementInfo.value?.canSend
 );
 
 const isRenewedSettlement = computed(() =>
@@ -1481,11 +1620,6 @@ const settlementShareLabel = (share: SettlementPreview['ownerShares'][number]) =
 const settlementShipperShareLabel = (share: SettlementPreview['shipperShares'][number]) =>
   share.shipperName ? `发货人（${share.shipperName}）` : '发货人';
 
-const settlementPreviewText = computed(() => {
-  const text = settlementInfo.value?.markdownText?.trim();
-  if (!text) return '';
-  return text.replace(/^```(?:text)?\s*/i, '').replace(/\s*```$/, '');
-});
 
 const receiveDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记回货物流';
@@ -1495,7 +1629,9 @@ const receiveDisabledReason = computed(() => {
 
 const returnDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记归还';
-  if (!hasRentalStarted.value) return '租赁尚未完全发货，不能直接登记归还';
+  if (!hasRentalStarted.value || unshippedRentalItems.value.length > 0 || unassignedOutboundShipments.value.length > 0) {
+    return '租赁尚未完全发货，不能直接登记归还';
+  }
   return '';
 });
 
@@ -1576,6 +1712,15 @@ const openShipmentFee = (shipment: RentalShipment) => {
   shipmentFeeVisible.value = true;
 };
 
+const openRepairShipment = async (shipment?: RentalShipment) => {
+  if (!shipment) return;
+  repairShipment.value = shipment;
+  selectedRepairRentalItemIds.value = allOpenRentalItems.value.map(item => item.id);
+  selectedRepairItems.value = {};
+  repairShipmentVisible.value = true;
+  await itemStore.fetchItems();
+};
+
 const openRenew = () => {
   if (!rental.value) return;
   const startDate = toPickerDate(rental.value.expectedEndDate)?.add(1, 'day') || dayjs();
@@ -1634,7 +1779,6 @@ const sendSettlement = async () => {
     settlementSending.value = false;
   }
 };
-
 
 const load = async (id = routeRentalId.value) => {
   if (!id) return;
@@ -1798,6 +1942,42 @@ const submitShipmentFee = async () => {
   }
 };
 
+const submitRepairShipment = async () => {
+  if (!rental.value || !repairShipment.value) return;
+  if (selectedRepairRentalItemIds.value.length === 0) {
+    message.error('至少选择一件物流对应物品');
+    return;
+  }
+
+  const itemSelections: { rentalItemId: number; itemId: string }[] = [];
+  for (const rentalItemId of selectedRepairRentalItemIds.value) {
+    const rentalItem = rental.value.items.find(item => item.id === rentalItemId);
+    if (!rentalItem) continue;
+    const itemId = rentalItem.itemId || selectedRepairItems.value[rentalItemId];
+    if (!itemId) {
+      message.error(`请为“${rentalItem.itemNameSnapshot || '未命名物品'}”选择具体库存物品`);
+      return;
+    }
+    itemSelections.push({ rentalItemId, itemId });
+  }
+
+  repairShipmentSaving.value = true;
+  try {
+    await rentalStore.updateShipment(rental.value.id, repairShipment.value.id, {
+      shippingFee: repairShipment.value.shippingFee,
+      itemSelections,
+    });
+    repairShipmentVisible.value = false;
+    repairShipment.value = null;
+    message.success('发货物品关联已保存');
+    await load();
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '补录物品失败');
+  } finally {
+    repairShipmentSaving.value = false;
+  }
+};
+
 const deleteShipment = async (shipment: RentalShipment) => {
   if (!rental.value) return;
 
@@ -1897,14 +2077,20 @@ const resetSelectedRentalDefinitions = (counts: Record<number, number>) => {
   });
 };
 
-const setRentalDefinitionQuantity = (definitionId: number, quantity: number) => {
-  const next = Math.max(0, Math.floor(Number(quantity || 0)));
-  if (next <= 0) {
-    delete selectedRentalDefinitionQuantities[definitionId];
-    delete selectedRentalDefinitionPrices[definitionId];
+const setRentalDefinitionQuantity = (
+  definitionId: number,
+  quantity: number | string | null
+) => {
+  if (quantity === null || quantity === '') {
+    // Keep the row while a mobile input is temporarily empty between digits.
+    selectedRentalDefinitionQuantities[definitionId] = null;
     return;
   }
 
+  const numericQuantity = Number(quantity);
+  if (!Number.isFinite(numericQuantity)) return;
+
+  const next = Math.max(0, Math.floor(numericQuantity));
   const prices = selectedRentalDefinitionPrices[definitionId] || [];
   selectedRentalDefinitionPrices[definitionId] = Array.from(
     { length: next },
@@ -1913,11 +2099,21 @@ const setRentalDefinitionQuantity = (definitionId: number, quantity: number) => 
   selectedRentalDefinitionQuantities[definitionId] = next;
 };
 
+const adjustRentalDefinitionQuantity = (definitionId: number, delta: number) => {
+  const current = Number(selectedRentalDefinitionQuantities[definitionId] ?? 0);
+  setRentalDefinitionQuantity(definitionId, Math.max(0, current + delta));
+};
+
+const removeRentalDefinition = (definitionId: number) => {
+  delete selectedRentalDefinitionQuantities[definitionId];
+  delete selectedRentalDefinitionPrices[definitionId];
+};
+
 const handleRentalDefinitionQuantityChange = (
   definitionId: number,
   value: number | string | null
 ) => {
-  setRentalDefinitionQuantity(definitionId, Number(value || 0));
+  setRentalDefinitionQuantity(definitionId, value);
 };
 
 const addRentalDefinition = (definitionId: number) => {
@@ -2131,6 +2327,17 @@ const submitRenew = async (allowScheduleConflict: boolean) => {
 
 const submitItemPicker = async (allowScheduleConflict: boolean) => {
   if (!rental.value) return;
+  const useDefinitionMode = effectiveItemPickerMode.value === 'definition';
+
+  if (useDefinitionMode) {
+    const invalidDefinitionQuantity = Object.values(selectedRentalDefinitionQuantities)
+      .some(quantity => quantity === null || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0);
+    if (invalidDefinitionQuantity) {
+      message.error('每个物品定义的数量必须大于 0；不需要的物品请点击“移除”');
+      return;
+    }
+  }
+
   if (selectedRentalItemTotal.value === 0) {
     message.error('至少保留一件租赁物品');
     return;
@@ -2143,11 +2350,10 @@ const submitItemPicker = async (allowScheduleConflict: boolean) => {
 
   itemPickerSaving.value = true;
   try {
-    const useDefinitionMode = effectiveItemPickerMode.value === 'definition';
     const itemPrices = useDefinitionMode
       ? selectedRentalDefinitionEntries.value.flatMap(entry =>
           (selectedRentalDefinitionPrices[entry.id] || [])
-            .slice(0, entry.quantity)
+            .slice(0, entry.quantity || 0)
             .map(perItemPrice => ({
               itemDefinitionId: entry.id,
               perItemPrice: Number(perItemPrice ?? 0),
@@ -2195,6 +2401,7 @@ const openEdit = () => {
   editForm.otherFee = rental.value.otherFee ?? 0;
   editForm.shippingAddress = rental.value.shippingAddress || '';
   editForm.platformOrderNo = rental.value.platformOrderNo || '';
+  editForm.paymentAccount = rental.value.paymentAccount || '';
   editForm.assignedUsers = (rental.value.assignedTo || '')
     .split(/[,;，；]/)
     .map(value => value.trim())
@@ -2247,6 +2454,7 @@ const submitEdit = async (allowScheduleConflict = false) => {
       otherFee: editForm.otherFee,
       shippingAddress: editForm.shippingAddress.trim(),
       platformOrderNo: editForm.platformOrderNo.trim(),
+      paymentAccount: editForm.paymentAccount.trim(),
       notes: editForm.notes.trim(),
       assignedTo: editForm.assignedUsers.join(','),
       createdBy: editForm.createdBy || undefined,
@@ -3117,6 +3325,12 @@ watch(
   .definition-picker-actions :deep(.ant-input-number) {
     flex: 1;
     width: 100%;
+  }
+
+  .definition-picker-actions :deep(.definition-quantity-button) {
+    flex: 0 0 44px;
+    width: 44px;
+    padding-inline: 0;
   }
 
   .definition-price-list {

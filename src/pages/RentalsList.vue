@@ -16,6 +16,14 @@
               {{ item.label }}
             </a-select-option>
           </a-select>
+          <a-select
+            v-model:value="ownerScope"
+            :style="isMobile ? { width: '100%' } : { width: '180px' }"
+            @change="search"
+          >
+            <a-select-option value="mine">我的单子</a-select-option>
+            <a-select-option value="all">全部单子</a-select-option>
+          </a-select>
           <a-input
             v-model:value="searchKeyword"
             placeholder="搜索租客 / 单号 / 物品"
@@ -92,6 +100,9 @@
           <template v-else-if="column.key === 'dailyPrice'">
             {{ formatMoney(dailyAccountedAmount(record)) }}
           </template>
+          <template v-else-if="column.key === 'paymentAccount'">
+            {{ record.paymentAccount || '未填写' }}
+          </template>
         </template>
       </a-table>
 
@@ -134,6 +145,7 @@
               <div>续租意愿：{{ renewalIntentText(record) }}</div>
               <div>物品：{{ itemSummary(record) }}</div>
               <div>平台订单号：{{ record.platformOrderNo || '-' }}</div>
+              <div>到账账户：{{ record.paymentAccount || '未填写' }}</div>
               <div class="mobile-money-row">
                 <span><em>总价</em><strong>{{ formatMoney(record.totalPrice) }}</strong></span>
                 <span><em>核算</em><strong>{{ formatMoney(record.accountedAmount) }}</strong></span>
@@ -172,6 +184,7 @@ const router = useRouter();
 const status = ref<RentalStatus | undefined>(undefined);
 const searchKeyword = ref('');
 const pendingSettlement = ref(false);
+const ownerScope = ref<'mine' | 'all'>('mine');
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'PartiallyShipped', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
@@ -250,6 +263,7 @@ const columns = computed(() => [
   { title: '平台订单号', dataIndex: 'platformOrderNo', key: 'platformOrderNo', width: 180 },
   { title: '总价', dataIndex: 'totalPrice', key: 'totalPrice', width: 120 },
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
+  { title: '到账账户', dataIndex: 'paymentAccount', key: 'paymentAccount', width: 150 },
   { title: '日均', key: 'dailyPrice', width: 110 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
 ]);
@@ -297,6 +311,8 @@ const applyQueryFilters = () => {
   status.value = readQueryStatus(route.query.status);
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
   pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
+  const nextOwnerScope = readQueryString(route.query.ownerScope);
+  ownerScope.value = nextOwnerScope === 'all' ? 'all' : 'mine';
   sortField.value = readQuerySortField(route.query.sortField);
   sortOrder.value = sortField.value ? readQuerySortOrder(route.query.sortOrder) || 'ascend' : undefined;
 };
@@ -306,6 +322,7 @@ const fetchList = async () => {
     status: status.value,
     search: searchKeyword.value.trim() || undefined,
     pendingSettlement: pendingSettlement.value,
+    ownerScope: ownerScope.value,
     page: 1,
     pageSize: 100,
   });
@@ -372,6 +389,7 @@ const exportRentalsXlsx = () => {
     续租意愿: renewalIntentText(record),
     物品信息: itemSummary(record),
     平台订单号: record.platformOrderNo || '',
+    到账账户: record.paymentAccount || '未填写',
     总价: record.totalPrice ?? 0,
     押金: record.deposit ?? 0,
     运费: record.totalShippingFee ?? 0,
@@ -392,6 +410,7 @@ const search = async () => {
       status: status.value,
       search: searchKeyword.value.trim() || undefined,
       pendingSettlement: pendingSettlement.value ? 'true' : undefined,
+      ownerScope: ownerScope.value,
       sortField: sortField.value,
       sortOrder: sortField.value ? sortOrder.value : undefined,
     },
@@ -447,6 +466,7 @@ watch(
     route.query.search,
     route.query.rentalNumber,
     route.query.pendingSettlement,
+    route.query.ownerScope,
     route.query.sortField,
     route.query.sortOrder,
   ],
