@@ -264,7 +264,7 @@
               <div class="delivery-estimate-title">
                 <EnvironmentOutlined />
                 <span>顺丰时效与价格查询</span>
-                <a-tag color="blue">按 2.5kg</a-tag>
+                <a-tag color="blue">按 {{ deliveryEstimateWeight ?? 2.5 }}kg</a-tag>
               </div>
               <div class="section-subtitle">
                 自动识别省市；具体物品按所属仓库分组，物品定义可手动选择来源仓库。
@@ -282,7 +282,7 @@
           </div>
 
           <a-row :gutter="12" class="delivery-estimate-tools">
-            <a-col :xs="24" :md="12">
+            <a-col :xs="24" :md="10">
               <a-form-item label="查询来源仓库">
                 <a-select
                   v-model:value="deliveryManualWarehouseIds"
@@ -295,7 +295,21 @@
                 />
               </a-form-item>
             </a-col>
-            <a-col :xs="24" :md="12">
+            <a-col :xs="24" :md="5">
+              <a-form-item label="测算重量">
+                <div class="delivery-weight-control">
+                  <a-input-number
+                    v-model:value="deliveryEstimateWeight"
+                    :min="0.1"
+                    :step="0.1"
+                    :precision="1"
+                    style="width: 100%"
+                  />
+                  <span>KG</span>
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :md="9">
               <div class="delivery-estimate-hint">
                 <span v-if="deliveryEstimateResult?.destination">
                   地址识别：{{ formatParsedAddress(deliveryEstimateResult.destination) }}
@@ -352,7 +366,10 @@
                     <div class="delivery-product-code">{{ record.businessType || '-' }}</div>
                   </template>
                   <template v-else-if="column.key === 'deliveryDays'">
-                    {{ record.deliveryDays ? record.deliveryDays + '天' : '未返回时效' }}
+                    <div>{{ record.deliveryDays ? record.deliveryDays + '天' : '未返回时效' }}</div>
+                    <div class="delivery-original-time">
+                      到达：{{ record.deliverTime || formatEstimateDate(record.deliveryTime) || '-' }}
+                    </div>
                   </template>
                   <template v-else-if="column.key === 'fee'">
                     <a-tag v-if="record.fee !== null && record.fee !== undefined" color="gold">
@@ -797,6 +814,7 @@ const itemKeyword = ref('');
 const itemCategoryFilter = ref<number | undefined>();
 const paymentAccountPresets = ref<string[]>([]);
 const deliveryManualWarehouseIds = ref<number[]>([]);
+const deliveryEstimateWeight = ref(2.5);
 const deliveryEstimateLoading = ref(false);
 const deliveryEstimateResult = ref<SfDeliveryEstimateResult | null>(null);
 const deliveryEstimateError = ref('');
@@ -1302,7 +1320,7 @@ const queryDeliveryEstimates = async (notify = false) => {
       sourceWarehouseIds,
       itemIds: selectionMode.value === 'item' ? selectedItemIds.value : [],
       startDate: form.startDate?.format('YYYY-MM-DD'),
-      weight: 2.5,
+      weight: deliveryEstimateWeight.value ?? 2.5,
     });
     if (requestId !== deliveryEstimateRequestId) return;
     deliveryEstimateResult.value = result;
@@ -1324,6 +1342,7 @@ const deliveryEstimateWatchKey = computed(() => [
   selectionMode.value,
   selectedItemIds.value.join(','),
   deliveryManualWarehouseIds.value.join(','),
+  deliveryEstimateWeight.value ?? 2.5,
 ].join('|'));
 
 watch(deliveryEstimateWatchKey, () => {
@@ -1884,6 +1903,18 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 
+.delivery-weight-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.delivery-weight-control > span {
+  flex: 0 0 auto;
+  color: #475467;
+  font-size: 12px;
+}
+
 .delivery-estimate-hint {
   display: flex;
   flex-wrap: wrap;
@@ -1929,6 +1960,14 @@ onMounted(async () => {
   margin-top: 2px;
   color: #98a2b3;
   font-size: 11px;
+}
+
+.delivery-original-time {
+  margin-top: 3px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .delivery-estimate-footnote {
