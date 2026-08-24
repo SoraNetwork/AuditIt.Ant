@@ -23,17 +23,7 @@
           >
             <a-select-option value="mine">我的单子</a-select-option>
             <a-select-option value="all">全部单子</a-select-option>
-            <a-select-option value="person">指定人员的单子</a-select-option>
-          </a-select>
-          <a-select
-            v-if="ownerScope === 'person'"
-            v-model:value="ownerRole"
-            :style="isMobile ? { width: '100%' } : { width: '170px' }"
-            @change="handleOwnerRoleChange"
-          >
-            <a-select-option value="either">创建人或负责人</a-select-option>
-            <a-select-option value="creator">仅创建人</a-select-option>
-            <a-select-option value="assignee">仅负责人</a-select-option>
+            <a-select-option value="person">其他员工的单子</a-select-option>
           </a-select>
           <a-select
             v-if="ownerScope === 'person'"
@@ -43,7 +33,7 @@
             :loading="ownerOptionsLoading"
             :options="filteredOwnerOptions"
             :style="isMobile ? { width: '100%' } : { width: '160px' }"
-            placeholder="选择人员"
+            placeholder="选择其他员工"
             @change="handleOwnerNameChange"
           </a-select>
           <a-input
@@ -208,25 +198,19 @@ const status = ref<RentalStatus | undefined>(undefined);
 const searchKeyword = ref('');
 const pendingSettlement = ref(false);
 type OwnerScope = 'mine' | 'all' | 'person';
-type OwnerRole = 'either' | 'creator' | 'assignee';
 const ownerScope = ref<OwnerScope>('mine');
-const ownerRole = ref<OwnerRole>('either');
 const ownerName = ref<string>();
 const ownerOptionsLoading = ref(false);
-const creatorOptions = ref<string[]>([]);
-const assigneeOptions = ref<string[]>([]);
+const employeeOptions = ref<string[]>([]);
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'PartiallyShipped', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
-const filteredOwnerOptions = computed(() => {
-  const names = ownerRole.value === 'creator'
-    ? creatorOptions.value
-    : ownerRole.value === 'assignee'
-      ? assigneeOptions.value
-      : Array.from(new Set([...creatorOptions.value, ...assigneeOptions.value])).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  return names.map(name => ({ label: name, value: name }));
-});
+const filteredOwnerOptions = computed(() =>
+  employeeOptions.value
+    .filter(name => name.trim().toLocaleLowerCase() !== authStore.user?.name?.trim().toLocaleLowerCase())
+    .map(name => ({ label: name, value: name }))
+);
 
 type RentalDateSortField = 'expectedShipDate' | 'startDate' | 'expectedEndDate' | 'expectedReturnDate';
 type RentalSortOrder = 'ascend' | 'descend';
@@ -351,15 +335,14 @@ const applyQueryFilters = () => {
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
   pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
   const nextOwnerScope = readQueryString(route.query.ownerScope);
-  const nextOwnerRole = readQueryString(route.query.ownerRole);
   const nextOwnerName = readQueryString(route.query.ownerName).trim();
+  const currentEmployeeName = authStore.user?.name?.trim().toLocaleLowerCase();
   const hasPersonFilter = nextOwnerScope === 'person'
-    && (nextOwnerRole === 'either' || nextOwnerRole === 'creator' || nextOwnerRole === 'assignee')
-    && Boolean(nextOwnerName);
+    && Boolean(nextOwnerName)
+    && nextOwnerName.toLocaleLowerCase() !== currentEmployeeName;
   ownerScope.value = hasPersonFilter
     ? 'person'
-    : (searchKeyword.value.trim() || nextOwnerScope === 'all' ? 'all' : 'mine');
-  ownerRole.value = nextOwnerRole === 'creator' || nextOwnerRole === 'assignee' ? nextOwnerRole : 'either';
+    : (nextOwnerScope === 'all' ? 'all' : 'mine');
   ownerName.value = hasPersonFilter ? nextOwnerName : undefined;
   sortField.value = readQuerySortField(route.query.sortField);
   sortOrder.value = sortField.value ? readQuerySortOrder(route.query.sortOrder) || 'ascend' : undefined;
@@ -371,9 +354,7 @@ const fetchList = async () => {
     search: searchKeyword.value.trim() || undefined,
     pendingSettlement: pendingSettlement.value,
     ownerScope: ownerScope.value === 'mine' ? 'mine' : 'all',
-    ownerName: ownerScope.value === 'person' && ownerRole.value === 'either' ? ownerName.value : undefined,
-    createdBy: ownerScope.value === 'person' && ownerRole.value === 'creator' ? ownerName.value : undefined,
-    assignedTo: ownerScope.value === 'person' && ownerRole.value === 'assignee' ? ownerName.value : undefined,
+    ownerName: ownerScope.value === 'person' ? ownerName.value : undefined,
     page: 1,
     pageSize: 100,
   });
@@ -416,6 +397,31 @@ const exportItemSummary = (record: Rental) => {
   return items.join('；');
 };
 
+const toCurrencyCents = (value?: number | null) => {
+  const amount = Number(value ?? 0);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+};
+
+const allocateExportItemAmounts = (record: Rental, items: Rental['items']) => {
+  if (items.length === 0) return [];
+
+  const deductionCents = toCurrencyCents(record.totalShippingFee) + toCurrencyCents(record.otherFee);
+  const deductionPerItem = Math.floor(deductionCents / items.length);
+  const deductionRemainder = deductionCents % items.length;
+  const amounts = items.map((item, index) =>
+    toCurrencyCents(item.perItemPrice)
+      - deductionPerItem
+      - (index < deductionRemainder ? 1 : 0)
+  );
+
+  // 用最后一件承担分币及历史数据差额，保证明细合计严格等于后端核算金额。
+  const targetCents = toCurrencyCents(record.accountedAmount);
+  const allocatedCents = amounts.reduce((sum, amount) => sum + amount, 0);
+  amounts[amounts.length - 1] += targetCents - allocatedCents;
+
+  return amounts.map(amount => amount / 100);
+};
+
 const refreshPendingSfRoutes = async () => {
   sfBulkRefreshing.value = true;
   try {
@@ -443,11 +449,12 @@ const exportRentalsXlsx = () => {
   const maxItemCount = Math.max(0, ...sortedRentals.value.map(record => pricedExportItems(record).length));
   const rows = sortedRentals.value.map(record => {
     const items = pricedExportItems(record);
+    const itemAmounts = allocateExportItemAmounts(record, items);
     const itemDetails: Record<string, string | number> = {};
     for (let index = 0; index < maxItemCount; index += 1) {
       const item = items[index];
       itemDetails[`物品信息${index + 1}`] = item ? exportItemLabel(item) : '';
-      itemDetails[`金额${index + 1}`] = item ? Number(item.perItemPrice) : '';
+      itemDetails[`金额${index + 1}`] = item ? itemAmounts[index] : '';
     }
 
     return {
@@ -466,7 +473,7 @@ const exportRentalsXlsx = () => {
       押金: record.deposit ?? 0,
       运费: record.totalShippingFee ?? 0,
       其他费用: record.otherFee ?? 0,
-      核算金额: record.accountedAmount ?? 0,
+      核算金额: toCurrencyCents(record.accountedAmount) / 100,
       日均价格: dailyAccountedAmount(record),
       负责人: record.assignedTo || '',
       创建人: record.createdBy || '',
@@ -480,11 +487,11 @@ const exportRentalsXlsx = () => {
 
 const search = async () => {
   if (ownerScope.value === 'person' && !ownerName.value) {
-    message.warning('请先选择要查看的创建人或负责人');
+    message.warning('请先选择要查看的公司员工');
     return;
   }
   const searchText = searchKeyword.value.trim();
-  const nextOwnerScope = searchText && ownerScope.value === 'mine' ? 'all' : ownerScope.value;
+  const nextOwnerScope = ownerScope.value;
   await router.push({
     path: '/rentals',
     query: {
@@ -492,7 +499,6 @@ const search = async () => {
       search: searchText || undefined,
       pendingSettlement: pendingSettlement.value ? 'true' : undefined,
       ownerScope: nextOwnerScope,
-      ownerRole: nextOwnerScope === 'person' ? ownerRole.value : undefined,
       ownerName: nextOwnerScope === 'person' ? ownerName.value : undefined,
       sortField: sortField.value,
       sortOrder: sortField.value ? sortOrder.value : undefined,
@@ -505,10 +511,6 @@ const handleOwnerScopeChange = async (value: OwnerScope) => {
   if (value !== 'person') await search();
 };
 
-const handleOwnerRoleChange = () => {
-  ownerName.value = undefined;
-};
-
 const handleOwnerNameChange = async (value?: string) => {
   if (value) await search();
 };
@@ -517,8 +519,7 @@ onMounted(async () => {
   ownerOptionsLoading.value = true;
   try {
     const options = await rentalStore.fetchOwnerOptions();
-    creatorOptions.value = options.creators;
-    assigneeOptions.value = options.assignees;
+    employeeOptions.value = options.employees;
   } catch (err: any) {
     message.error(err?.response?.data || err?.message || '获取租赁人员选项失败');
   } finally {
@@ -576,7 +577,6 @@ watch(
     route.query.rentalNumber,
     route.query.pendingSettlement,
     route.query.ownerScope,
-    route.query.ownerRole,
     route.query.ownerName,
     route.query.sortField,
     route.query.sortOrder,

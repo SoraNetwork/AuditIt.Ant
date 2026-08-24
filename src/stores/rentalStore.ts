@@ -290,8 +290,7 @@ export interface SfParsedAddress {
 }
 
 export interface RentalOwnerOptions {
-  creators: string[];
-  assignees: string[];
+  employees: string[];
 }
 
 export interface SfDeliveryProduct {
@@ -351,8 +350,6 @@ export const useRentalStore = defineStore('rental', {
       pendingSettlement?: boolean;
       ownerScope?: 'mine' | 'all';
       ownerName?: string;
-      createdBy?: string;
-      assignedTo?: string;
       page?: number;
       pageSize?: number;
     } = {}) {
@@ -369,8 +366,6 @@ export const useRentalStore = defineStore('rental', {
         if (filters.pendingSettlement) params.append('pendingSettlement', 'true');
         if (filters.ownerScope) params.append('ownerScope', filters.ownerScope);
         if (filters.ownerName) params.append('ownerName', filters.ownerName);
-        if (filters.createdBy) params.append('createdBy', filters.createdBy);
-        if (filters.assignedTo) params.append('assignedTo', filters.assignedTo);
         if (filters.page) params.append('page', String(filters.page));
         if (filters.pageSize) params.append('pageSize', String(filters.pageSize));
 
@@ -387,8 +382,7 @@ export const useRentalStore = defineStore('rental', {
     async fetchOwnerOptions(): Promise<RentalOwnerOptions> {
       const response = await apiClient.get<RentalOwnerOptions>('/rentals/owner-options');
       return {
-        creators: response.data.creators || [],
-        assignees: response.data.assignees || [],
+        employees: response.data.employees || [],
       };
     },
 
