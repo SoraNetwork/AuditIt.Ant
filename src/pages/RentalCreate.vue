@@ -291,6 +291,8 @@
                   show-search
                   option-filter-prop="label"
                   :options="warehouseOptions"
+                  :max-tag-count="isMobile ? 1 : 'responsive'"
+                  :max-tag-text-length="isMobile ? 16 : 40"
                   placeholder="物品定义模式请选择仓库；具体物品会自动合并所属仓库"
                 />
               </a-form-item>
@@ -352,7 +354,7 @@
               </div>
               <a-alert v-if="warehouse.error" type="warning" show-icon :message="warehouse.error" />
               <a-table
-                v-else
+                v-else-if="!isMobile"
                 size="small"
                 row-key="businessType"
                 :pagination="false"
@@ -391,9 +393,49 @@
                   </template>
                 </template>
               </a-table>
+              <div v-else class="delivery-mobile-product-list">
+                <a-empty v-if="warehouse.products.length === 0" description="顺丰未返回可用产品" />
+                <article
+                  v-for="record in warehouse.products"
+                  :key="record.businessType"
+                  class="delivery-mobile-product-card"
+                >
+                  <div class="delivery-mobile-product-header">
+                    <div>
+                      <strong>{{ record.businessTypeDesc || record.businessType || '顺丰产品' }}</strong>
+                      <div class="delivery-product-code">{{ record.businessType || '-' }}</div>
+                    </div>
+                    <a-button
+                      v-if="record.latestShipTime && record.plannedDeliveryTime"
+                      size="small"
+                      type="link"
+                      title="点击填入预计发货日期"
+                      @click="applyDeliveryProduct(record)"
+                    >
+                      {{ formatEstimateDate(record.latestShipTime, 'MM-DD') }}
+                    </a-button>
+                    <span v-else class="delivery-mobile-unavailable">无法计算</span>
+                  </div>
+                  <div class="delivery-mobile-product-grid">
+                    <div>
+                      <span>承诺时效</span>
+                      <strong>{{ record.deliveryDays ? record.deliveryDays + '天' : '未返回时效' }}</strong>
+                      <small>到达：{{ record.deliverTime || formatEstimateDate(record.deliveryTime) || '-' }}</small>
+                    </div>
+                    <div>
+                      <span>可能运费</span>
+                      <a-tag v-if="record.fee !== null && record.fee !== undefined" color="gold">
+                        {{ formatMoney(record.fee) }}
+                      </a-tag>
+                      <strong v-else>未返回价格</strong>
+                    </div>
+                  </div>
+                  <div class="delivery-mobile-ship-label">最晚发货日期（点击填入）</div>
+                </article>
+              </div>
             </div>
             <div class="delivery-estimate-footnote">
-              计划到达时间严格按租期开始前一天计算；揽收时间按 05:00 至 19:00 计算；点击最晚发货日期即可填入预计发货日期。
+              按候选揽收时间遍历查询，选择到达租期开始前一天的最晚发货方案；揽收时间按 05:00 至 19:00 计算；点击最晚发货日期即可填入预计发货日期。
             </div>
           </div>
         </div>
@@ -1590,6 +1632,39 @@ onMounted(async () => {
 <style scoped>
 .rental-create-page {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.rental-create-form,
+.rental-section,
+.rental-create-form :deep(.ant-row),
+.rental-create-form :deep(.ant-col),
+.rental-create-form :deep(.ant-form-item),
+.rental-create-form :deep(.ant-form-item-control),
+.rental-create-form :deep(.ant-form-item-control-input),
+.rental-create-form :deep(.ant-form-item-control-input-content) {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.rental-create-form :deep(.ant-input),
+.rental-create-form :deep(.ant-input-affix-wrapper),
+.rental-create-form :deep(.ant-input-number),
+.rental-create-form :deep(.ant-input-number-affix-wrapper),
+.rental-create-form :deep(.ant-picker),
+.rental-create-form :deep(.ant-select),
+.rental-create-form :deep(.ant-select-selector),
+.rental-create-form :deep(.ant-auto-complete) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.rental-create-form :deep(.ant-form-item-label > label) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .rental-create-form {
@@ -1903,10 +1978,54 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 
+.delivery-estimate-tools :deep(.ant-form-item-control),
+.delivery-estimate-tools :deep(.ant-form-item-control-input),
+.delivery-estimate-tools :deep(.ant-form-item-control-input-content),
+.delivery-estimate-tools :deep(.ant-select) {
+  min-width: 0;
+  width: 100%;
+}
+
+.delivery-estimate-tools :deep(.ant-select-selector) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.delivery-estimate-tools :deep(.ant-select-selection-overflow) {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.delivery-estimate-tools :deep(.ant-select-selection-item) {
+  min-width: 0;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-estimate-tools :deep(.ant-select-selection-item-content),
+.delivery-estimate-tools :deep(.ant-select-selection-placeholder) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .delivery-weight-control {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.delivery-weight-control :deep(.ant-input-number) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
 }
 
 .delivery-weight-control > span {
@@ -1924,6 +2043,12 @@ onMounted(async () => {
   padding: 8px 0;
   color: #475467;
   font-size: 12px;
+}
+
+.delivery-estimate-hint > span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .delivery-estimate-alert {
@@ -1952,8 +2077,22 @@ onMounted(async () => {
 }
 
 .delivery-source-heading span {
+  min-width: 0;
+  max-width: 100%;
   color: #667085;
   word-break: break-word;
+}
+
+.delivery-source-heading strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.delivery-source-heading :deep(.ant-tag) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .delivery-product-code {
@@ -1968,6 +2107,80 @@ onMounted(async () => {
   font-size: 12px;
   line-height: 1.5;
   word-break: break-word;
+}
+
+.delivery-mobile-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.delivery-mobile-product-card {
+  padding: 12px;
+  border: 1px solid #e5edf7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.delivery-mobile-product-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.delivery-mobile-product-header > div {
+  min-width: 0;
+}
+
+.delivery-mobile-product-header strong {
+  display: block;
+  color: #344054;
+  word-break: break-word;
+}
+
+.delivery-mobile-unavailable {
+  flex: 0 0 auto;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.delivery-mobile-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.delivery-mobile-product-grid > div {
+  min-width: 0;
+}
+
+.delivery-mobile-product-grid span,
+.delivery-mobile-product-grid small {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+}
+
+.delivery-mobile-product-grid strong {
+  display: block;
+  margin-top: 2px;
+  color: #344054;
+  font-size: 14px;
+}
+
+.delivery-mobile-product-grid small {
+  margin-top: 3px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.delivery-mobile-ship-label {
+  margin-top: 8px;
+  color: #1677ff;
+  font-size: 12px;
+  text-align: right;
 }
 
 .delivery-estimate-footnote {
@@ -2014,13 +2227,39 @@ onMounted(async () => {
 }
 
 @media (max-width: 767.98px) {
+  .rental-create-page,
+  .rental-create-form,
+  .rental-section {
+    width: 100%;
+    min-width: 0;
+  }
+
   .rental-create-form {
     gap: 12px;
   }
 
   .rental-section {
-    padding: 14px;
+    padding: 12px;
     border-radius: 8px;
+  }
+
+  .section-heading > div:first-child,
+  .section-title,
+  .section-subtitle,
+  .item-heading > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .section-title {
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .section-subtitle {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .section-heading {
@@ -2040,6 +2279,32 @@ onMounted(async () => {
 
   .lookup-actions .ant-btn {
     min-width: 0;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .tenant-lookup-panel,
+  .matched-renter-panel,
+  .candidate-panel {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .matched-renter-top,
+  .candidate-header {
+    min-width: 0;
+  }
+
+  .matched-renter-top {
+    align-items: flex-start;
+  }
+
+  .candidate-header {
+    align-items: flex-start;
+  }
+
+  .candidate-header > div:first-child {
+    min-width: 0;
   }
 
   .renter-candidate-item {
@@ -2055,8 +2320,34 @@ onMounted(async () => {
     align-items: stretch;
   }
 
+  .item-heading .section-subtitle :deep(.ant-radio-group) {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .item-heading .section-subtitle :deep(.ant-radio-button-wrapper) {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .item-summary {
     justify-content: flex-start;
+  }
+
+  .item-toolbar {
+    width: 100%;
+  }
+
+  .item-toolbar > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .rental-price-heading,
@@ -2079,15 +2370,59 @@ onMounted(async () => {
     width: 100%;
   }
 
+  .delivery-estimate-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .delivery-estimate-title > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .delivery-estimate-panel,
+  .delivery-estimate-tools,
+  .delivery-estimate-results,
+  .delivery-source-block,
+  .delivery-mobile-product-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .delivery-estimate-hint {
     min-height: auto;
     padding-top: 0;
+    align-items: flex-start;
   }
 
   .delivery-source-heading {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .delivery-mobile-product-header {
+    flex-wrap: wrap;
+  }
+
+  .delivery-mobile-product-header > :last-child {
+    margin-left: auto;
+  }
+
+  .delivery-mobile-product-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-mobile-ship-label,
+  .delivery-estimate-footnote {
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-cart-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 }
 </style>
