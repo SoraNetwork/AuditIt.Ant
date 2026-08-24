@@ -913,6 +913,7 @@
           :options="renterOptions"
           :loading="renterStore.loading"
           placeholder="选择租客"
+          @change="onEditRenterChange"
         />
       </a-form-item>
       <section class="rental-edit-section">
@@ -2421,6 +2422,12 @@ const openEdit = () => {
   editForm.createdBy = rental.value.createdBy || '';
   editForm.senderName = rental.value.senderName || '';
   editVisible.value = true;
+};
+
+const onEditRenterChange = (renterId?: string) => {
+  if (!rental.value || renterId === rental.value.renterId) return;
+  const renter = renterStore.renters.find(item => item.id === renterId);
+  editForm.shippingAddress = renter?.defaultAddress || '';
 };
 
 const submitEdit = async (allowScheduleConflict = false) => {

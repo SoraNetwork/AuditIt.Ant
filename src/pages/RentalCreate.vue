@@ -291,8 +291,8 @@
                   show-search
                   option-filter-prop="label"
                   :options="warehouseOptions"
-                  :max-tag-count="isMobile ? 1 : 'responsive'"
-                  :max-tag-text-length="isMobile ? 16 : 40"
+                  :max-tag-count="1"
+                  :max-tag-text-length="isMobile ? 16 : 28"
                   placeholder="物品定义模式请选择仓库；具体物品会自动合并所属仓库"
                 />
               </a-form-item>
@@ -1181,13 +1181,12 @@ const getRenterMatchLabel = (renter: Renter) => {
 };
 
 const selectRenter = (renter: Renter) => {
+  if (matchedRenter.value?.id !== renter.id) {
+    form.shippingAddress = renter.defaultAddress || '';
+  }
   matchedRenter.value = renter;
   renterKeyword.value = renter.phone || renterKeyword.value;
   phoneSearched.value = true;
-
-  if (renter.defaultAddress && !form.shippingAddress) {
-    form.shippingAddress = renter.defaultAddress;
-  }
 };
 
 const loadSelectableItems = async () => {
@@ -1208,6 +1207,7 @@ const toggleItemSelect = (id: string) => {
 const onRenterKeywordInput = () => {
   if (matchedRenter.value) {
     matchedRenter.value = null;
+    form.shippingAddress = '';
   }
   phoneSearched.value = false;
 };
@@ -1255,6 +1255,9 @@ const loadManualRenterList = async () => {
   try {
     await renterStore.fetchRenters(renterKeyword.value.trim(), 80);
     phoneSearched.value = true;
+    if (matchedRenter.value) {
+      form.shippingAddress = '';
+    }
     matchedRenter.value = null;
     renterMatchView.value = 'manual';
   } finally {
@@ -2000,10 +2003,7 @@ onMounted(async () => {
 
 .delivery-estimate-tools :deep(.ant-select-selection-item) {
   min-width: 0;
-  max-width: calc(100% - 24px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 .delivery-estimate-tools :deep(.ant-select-selection-item-content),
@@ -2273,14 +2273,14 @@ onMounted(async () => {
   }
 
   .lookup-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
   }
 
   .lookup-actions .ant-btn {
     min-width: 0;
     width: 100%;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .tenant-lookup-panel,
