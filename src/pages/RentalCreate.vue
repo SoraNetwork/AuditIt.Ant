@@ -178,8 +178,13 @@
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
-            <a-form-item label="到账账户">
-              <a-input v-model:value="form.paymentAccount" placeholder="默认账户，可自定义" />
+            <a-form-item label="到账账户（可选）">
+              <a-auto-complete
+                v-model:value="form.paymentAccount"
+                :options="paymentAccountPresetOptions"
+                placeholder="可选择预制账户，也可自定义或留空"
+                allow-clear
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -252,6 +257,133 @@
             </a-form-item>
           </a-col>
         </a-row>
+
+        <div class="delivery-estimate-panel">
+          <div class="delivery-estimate-heading">
+            <div>
+              <div class="delivery-estimate-title">
+                <EnvironmentOutlined />
+                <span>顺丰时效与价格查询</span>
+                <a-tag color="blue">按 2.5kg</a-tag>
+              </div>
+              <div class="section-subtitle">
+                自动识别省市；具体物品按所属仓库分组，物品定义可手动选择来源仓库。
+              </div>
+            </div>
+            <a-button
+              size="small"
+              :loading="deliveryEstimateLoading"
+              :disabled="!form.shippingAddress.trim() || deliveryEstimateSourceIds.length === 0"
+              @click="queryDeliveryEstimates(true)"
+            >
+              <template #icon><SearchOutlined /></template>
+              查询
+            </a-button>
+          </div>
+
+          <a-row :gutter="12" class="delivery-estimate-tools">
+            <a-col :xs="24" :md="12">
+              <a-form-item label="查询来源仓库">
+                <a-select
+                  v-model:value="deliveryManualWarehouseIds"
+                  mode="multiple"
+                  allow-clear
+                  show-search
+                  option-filter-prop="label"
+                  :options="warehouseOptions"
+                  placeholder="物品定义模式请选择仓库；具体物品会自动合并所属仓库"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :md="12">
+              <div class="delivery-estimate-hint">
+                <span v-if="deliveryEstimateResult?.destination">
+                  地址识别：{{ formatParsedAddress(deliveryEstimateResult.destination) }}
+                </span>
+                <span v-else>填写收货地址并选择物品或仓库后自动查询</span>
+                <span v-if="deliveryEstimateResult">
+                  最晚到达目标：{{ formatEstimateDate(deliveryEstimateResult.targetDeliveryTime) }}
+                </span>
+              </div>
+            </a-col>
+          </a-row>
+
+          <a-alert
+            v-if="deliveryEstimateError"
+            type="warning"
+            show-icon
+            :message="deliveryEstimateError"
+            class="delivery-estimate-alert"
+          />
+          <a-alert
+            v-else-if="form.shippingAddress.trim() && deliveryEstimateSourceIds.length === 0"
+            type="info"
+            show-icon
+            message="请选择具体物品，或在上方选择查询来源仓库。"
+            class="delivery-estimate-alert"
+          />
+
+          <div v-if="deliveryEstimateResult" class="delivery-estimate-results">
+            <div
+              v-for="warehouse in deliveryEstimateResult.warehouses"
+              :key="warehouse.warehouseId"
+              class="delivery-source-block"
+            >
+              <div class="delivery-source-heading">
+                <strong>{{ warehouse.warehouseName }}</strong>
+                <span>{{ warehouse.address || '未填写仓库地址' }}</span>
+                <a-tag v-if="warehouse.source.province || warehouse.source.city" color="green">
+                  {{ formatParsedAddress(warehouse.source) }}
+                </a-tag>
+              </div>
+              <a-alert v-if="warehouse.error" type="warning" show-icon :message="warehouse.error" />
+              <a-table
+                v-else
+                size="small"
+                row-key="businessType"
+                :pagination="false"
+                :columns="deliveryProductColumns"
+                :data-source="warehouse.products"
+                :locale="{ emptyText: '顺丰未返回可用产品' }"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'product'">
+                    <div>{{ record.businessTypeDesc || record.businessType || '顺丰产品' }}</div>
+                    <div class="delivery-product-code">{{ record.businessType || '-' }}</div>
+                  </template>
+                  <template v-else-if="column.key === 'deliveryTime'">
+                    <div>接口承诺：{{ record.deliverTime || formatEstimateDate(record.deliveryTime) || '-' }}</div>
+                    <div class="delivery-planned-time">
+                      计划到达：{{ formatEstimateDate(record.plannedDeliveryTime) || '无法计算' }}
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'fee'">
+                    <a-tag v-if="record.fee !== null && record.fee !== undefined" color="gold">
+                      可能运费 {{ formatMoney(record.fee) }}
+                    </a-tag>
+                    <span v-else>未返回价格</span>
+                  </template>
+                  <template v-else-if="column.key === 'latestShipTime'">
+                    {{ formatEstimateDate(record.latestShipTime) || '接口未返回日期' }}
+                  </template>
+                  <template v-else-if="column.key === 'action'">
+                    <a-button
+                      size="small"
+                      type="link"
+                      :disabled="!record.latestShipTime || !record.plannedDeliveryTime"
+                      @click="applyDeliveryProduct(record)"
+                    >
+                      使用此产品
+                    </a-button>
+                  </template>
+                </template>
+              </a-table>
+            </div>
+            <div class="delivery-estimate-footnote">
+              计划到达时间严格按租期开始前一天计算；价格为顺丰接口按 2.5kg 返回的参考值，实际金额以发货时为准；选择产品会填入预计发货日期，运费可在发货弹窗的运费栏补录。
+            </div>
+          </div>
+        </div>
 
         <a-form-item label="备注">
           <a-textarea v-model:value="form.notes" :rows="2" />
@@ -577,6 +709,7 @@ import {
   CheckCircleOutlined,
   DeleteOutlined,
   DollarOutlined,
+  EnvironmentOutlined,
   ReloadOutlined,
   SearchOutlined,
   ShoppingOutlined,
@@ -584,13 +717,20 @@ import {
   TeamOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
-import { useRentalStore, type CreateRentalPayload } from '../stores/rentalStore';
+import {
+  useRentalStore,
+  type CreateRentalPayload,
+  type SfDeliveryProduct,
+  type SfDeliveryEstimateResult,
+  type SfParsedAddress,
+} from '../stores/rentalStore';
 import { useRenterStore, type Renter } from '../stores/renterStore';
 import RenterLink from '../components/RenterLink.vue';
 import { useItemStore, getStatusText, type Item, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
+import { useWarehouseStore } from '../stores/warehouseStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { formatDateTime } from '../utils/formatters';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
@@ -642,6 +782,7 @@ const itemStore = useItemStore();
 const userStore = useUserStore();
 const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
+const warehouseStore = useWarehouseStore();
 const router = useRouter();
 
 const renterKeyword = ref('');
@@ -658,6 +799,12 @@ const submitting = ref(false);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
 const itemCategoryFilter = ref<number | undefined>();
+const paymentAccountPresets = ref<string[]>([]);
+const deliveryManualWarehouseIds = ref<number[]>([]);
+const deliveryEstimateLoading = ref(false);
+const deliveryEstimateResult = ref<SfDeliveryEstimateResult | null>(null);
+const deliveryEstimateError = ref('');
+let deliveryEstimateTimer: ReturnType<typeof setTimeout> | undefined;
 
 const quickCreateVisible = ref(false);
 const quickCreating = ref(false);
@@ -684,6 +831,34 @@ const form = reactive({
   paymentAccount: '',
   notes: '',
 });
+
+const warehouseOptions = computed(() =>
+  warehouseStore.warehouses.map(warehouse => ({
+    value: warehouse.id,
+    label: warehouse.location ? `${warehouse.name} · ${warehouse.location}` : warehouse.name,
+  }))
+);
+
+const selectedItemWarehouseIds = computed(() =>
+  selectionMode.value === 'item'
+    ? selectedItemIds.value
+      .map(itemId => itemStore.items.find(item => item.id === itemId)?.warehouseId || 0)
+      .filter(warehouseId => warehouseId > 0)
+    : []
+);
+
+const deliveryEstimateSourceIds = computed(() => Array.from(new Set([
+  ...selectedItemWarehouseIds.value,
+  ...deliveryManualWarehouseIds.value,
+])));
+
+const deliveryProductColumns = [
+  { title: '产品', key: 'product', width: 150 },
+  { title: '承诺时效', key: 'deliveryTime', width: 220 },
+  { title: '价格', key: 'fee', width: 150 },
+  { title: '最晚发货', key: 'latestShipTime', width: 150 },
+  { title: '操作', key: 'action', width: 110 },
+];
 
 const selectedRentalPriceEntries = computed<RentalPriceEntry[]>(() => {
   if (selectionMode.value === 'item') {
@@ -766,6 +941,10 @@ const exactRenterMatches = computed(() => {
   if (!keyword) return [];
   return renterStore.renters.filter(renter => isExactRenterMatch(renter, keyword));
 });
+
+const paymentAccountPresetOptions = computed(() =>
+  paymentAccountPresets.value.map(value => ({ value, label: value }))
+);
 
 const fuzzyRenterMatches = computed(() => {
   const keyword = normalizedRenterKeyword.value;
@@ -1089,6 +1268,82 @@ const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '￥0.0';
   return `￥${Number(value).toFixed(1)}`;
 };
+const formatEstimateDate = (value?: string | null) => {
+  if (!value) return '';
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : value;
+};
+const formatParsedAddress = (address?: SfParsedAddress | null) => {
+  if (!address) return '未识别省市';
+  return [address.province, address.city, address.district].filter(Boolean).join(' ') || '未识别省市';
+};
+
+const applyDeliveryProduct = (product: SfDeliveryProduct) => {
+  const shipTime = product.latestShipTime || product.consignedTime;
+  if (shipTime && dayjs(shipTime).isValid()) {
+    form.expectedShipDate = dayjs(shipTime);
+  }
+  const shipDate = formatEstimateDate(shipTime);
+  const feeText = product.fee === null || product.fee === undefined ? '未返回价格' : formatMoney(product.fee);
+  message.success(`已使用 ${product.businessTypeDesc || product.businessType || '顺丰产品'}，预计发货 ${shipDate || '-'}；参考运费 ${feeText}`);
+};
+
+let deliveryEstimateRequestId = 0;
+const queryDeliveryEstimates = async (notify = false) => {
+  const destinationAddress = form.shippingAddress.trim();
+  const sourceWarehouseIds = deliveryEstimateSourceIds.value;
+  if (!destinationAddress || sourceWarehouseIds.length === 0) {
+    deliveryEstimateResult.value = null;
+    deliveryEstimateError.value = '';
+    return;
+  }
+
+  const requestId = ++deliveryEstimateRequestId;
+  deliveryEstimateLoading.value = true;
+  deliveryEstimateError.value = '';
+  try {
+    const result = await rentalStore.querySfDeliveryEstimates({
+      destinationAddress,
+      sourceWarehouseIds,
+      itemIds: selectionMode.value === 'item' ? selectedItemIds.value : [],
+      startDate: form.startDate?.format('YYYY-MM-DD'),
+      weight: 2.5,
+    });
+    if (requestId !== deliveryEstimateRequestId) return;
+    deliveryEstimateResult.value = result;
+    const errors = result.warehouses.filter(warehouse => warehouse.error).map(warehouse => `${warehouse.warehouseName}：${warehouse.error}`);
+    deliveryEstimateError.value = errors.join('；');
+    if (notify && !deliveryEstimateError.value) message.success('顺丰时效与价格已更新');
+  } catch (err: any) {
+    if (requestId !== deliveryEstimateRequestId) return;
+    deliveryEstimateResult.value = null;
+    deliveryEstimateError.value = err?.response?.data || err?.message || '顺丰时效查询失败';
+  } finally {
+    if (requestId === deliveryEstimateRequestId) deliveryEstimateLoading.value = false;
+  }
+};
+
+const deliveryEstimateWatchKey = computed(() => [
+  form.shippingAddress.trim(),
+  form.startDate?.format('YYYY-MM-DD') || '',
+  selectionMode.value,
+  selectedItemIds.value.join(','),
+  deliveryManualWarehouseIds.value.join(','),
+].join('|'));
+
+watch(deliveryEstimateWatchKey, () => {
+  if (deliveryEstimateTimer) clearTimeout(deliveryEstimateTimer);
+  if (!form.shippingAddress.trim() || deliveryEstimateSourceIds.value.length === 0) {
+    deliveryEstimateRequestId += 1;
+    deliveryEstimateLoading.value = false;
+    deliveryEstimateResult.value = null;
+    deliveryEstimateError.value = '';
+    return;
+  }
+  deliveryEstimateTimer = setTimeout(() => {
+    void queryDeliveryEstimates();
+  }, 700);
+});
 const conflictEndText = (conflict: RentalScheduleConflict) => {
   const end = formatDate(conflict.expectedEndDate);
   if (conflict.hasRenewalIntent && conflict.renewalIntentEndDate) {
@@ -1303,15 +1558,17 @@ watch(
 );
 
 onMounted(async () => {
-  const [, , , , defaultPaymentAccount] = await Promise.all([
+  const [, , , , , paymentAccountSettings] = await Promise.all([
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
     categoryStore.fetchCategories(),
     itemDefStore.fetchItemDefinitions(),
     loadSelectableItems(),
-    rentalStore.fetchDefaultPaymentAccount().catch(() => ''),
+    warehouseStore.fetchWarehouses(),
+    rentalStore.fetchPaymentAccountSettings().catch(() => ({ defaultPaymentAccount: '', paymentAccountPresets: [] })),
   ]);
-  if (defaultPaymentAccount && !form.paymentAccount) {
-    form.paymentAccount = defaultPaymentAccount;
+  paymentAccountPresets.value = paymentAccountSettings.paymentAccountPresets || [];
+  if (paymentAccountSettings.defaultPaymentAccount && !form.paymentAccount) {
+    form.paymentAccount = paymentAccountSettings.defaultPaymentAccount;
   }
 });
 </script>
@@ -1596,6 +1853,101 @@ onMounted(async () => {
   font-size: 12px;
 }
 
+.delivery-estimate-panel {
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid #dbe7f5;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.delivery-estimate-heading,
+.delivery-source-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delivery-estimate-heading {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.delivery-estimate-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.delivery-estimate-title .anticon {
+  color: #1677ff;
+}
+
+.delivery-estimate-tools :deep(.ant-form-item) {
+  margin-bottom: 8px;
+}
+
+.delivery-estimate-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  min-height: 64px;
+  padding: 8px 0;
+  color: #475467;
+  font-size: 12px;
+}
+
+.delivery-estimate-alert {
+  margin-top: 8px;
+}
+
+.delivery-estimate-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.delivery-source-block {
+  padding: 10px;
+  border: 1px solid #e5edf7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.delivery-source-heading {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  color: #344054;
+  font-size: 12px;
+}
+
+.delivery-source-heading span {
+  color: #667085;
+  word-break: break-word;
+}
+
+.delivery-product-code {
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.delivery-planned-time {
+  margin-top: 3px;
+  color: #1677ff;
+  font-size: 12px;
+}
+
+.delivery-estimate-footnote {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .desktop-action-bar {
   position: sticky;
   bottom: 0;
@@ -1688,6 +2040,26 @@ onMounted(async () => {
 
   .rental-price-entry .ant-input-number {
     width: 100% !important;
+  }
+
+  .delivery-estimate-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .delivery-estimate-heading > .ant-btn {
+    width: 100%;
+  }
+
+  .delivery-estimate-hint {
+    min-height: auto;
+    padding-top: 0;
+  }
+
+  .delivery-source-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }
 </style>

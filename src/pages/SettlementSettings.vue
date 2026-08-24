@@ -58,11 +58,14 @@
             </a-row>
 
             <a-form-item label="默认到账账户">
-              <a-input
-                v-model:value="formState.defaultPaymentAccount"
-                placeholder="建单时自动填写，可在租赁单中修改"
-                :maxlength="100"
-              />
+              <a-space-compact block>
+                <a-input
+                  v-model:value="formState.defaultPaymentAccount"
+                  placeholder="建单时自动填写，可留空或修改"
+                  :maxlength="100"
+                />
+                <a-button @click="openPresetEditor">设置预制选项</a-button>
+              </a-space-compact>
             </a-form-item>
 
             <a-alert
@@ -96,11 +99,38 @@
         </a-spin>
       </a-card>
     </div>
+
+    <a-modal
+      v-model:open="presetEditorVisible"
+      title="到账账户预制选项"
+      ok-text="保存"
+      cancel-text="取消"
+      :confirm-loading="settlementStore.loading"
+      @ok="savePresets"
+    >
+      <a-alert
+        type="info"
+        show-icon
+        message="预制账户用于租赁建单和编辑时快速选择；也可以直接输入未预制的自定义账户。"
+        style="margin-bottom: 16px"
+      />
+      <div class="preset-list">
+        <div v-for="(_, index) in presetDrafts" :key="index" class="preset-row">
+          <a-input
+            v-model:value="presetDrafts[index]"
+            :maxlength="100"
+            placeholder="例如：公司对公账户"
+          />
+          <a-button danger @click="removePreset(index)">移除</a-button>
+        </div>
+      </div>
+      <a-button type="dashed" block @click="addPreset">新增预制账户</a-button>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { useSettlementStore, type SettlementSettings } from '../stores/settlementStore';
@@ -114,7 +144,11 @@ const formState = reactive({
   shipperPercent: 10,
   itemOwnerPercent: 50,
   defaultPaymentAccount: '',
+  paymentAccountPresets: [] as string[],
 });
+
+const presetEditorVisible = ref(false);
+const presetDrafts = ref<string[]>([]);
 
 const totalPercent = computed(() =>
   Number(formState.technicianPercent || 0)
@@ -131,7 +165,24 @@ const applySettings = (settings: SettlementSettings) => {
   formState.shipperPercent = Number(settings.shipperPercent || 0);
   formState.itemOwnerPercent = Number(settings.itemOwnerPercent || 0);
   formState.defaultPaymentAccount = settings.defaultPaymentAccount || '';
+  formState.paymentAccountPresets = [...(settings.paymentAccountPresets || [])];
 };
+
+const openPresetEditor = () => {
+  presetDrafts.value = [...formState.paymentAccountPresets];
+  presetEditorVisible.value = true;
+};
+
+const addPreset = () => {
+  presetDrafts.value.push('');
+};
+
+const removePreset = (index: number) => {
+  presetDrafts.value.splice(index, 1);
+};
+
+const normalizePresets = (values: string[]) =>
+  [...new Set(values.map(value => value.trim()).filter(Boolean))].slice(0, 30);
 
 const load = async () => {
   try {
@@ -157,6 +208,23 @@ const save = async () => {
   }
 };
 
+const savePresets = async () => {
+  if (totalPercent.value > 100) {
+    message.error('比例合计不能超过 100%');
+    return;
+  }
+
+  formState.paymentAccountPresets = normalizePresets(presetDrafts.value);
+  try {
+    const settings = await settlementStore.updateSettings(formState);
+    applySettings(settings);
+    presetEditorVisible.value = false;
+    message.success('到账账户预制选项已保存');
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '保存到账账户预制选项失败');
+  }
+};
+
 onMounted(load);
 </script>
 
@@ -175,6 +243,23 @@ onMounted(load);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   line-height: 1.8;
   white-space: pre-line;
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-row :deep(.ant-input) {
+  min-width: 0;
+  flex: 1;
 }
 
 @media (max-width: 767.98px) {

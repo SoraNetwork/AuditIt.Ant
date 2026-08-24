@@ -1002,8 +1002,14 @@
       <a-form-item label="平台订单号">
         <a-input v-model:value="editForm.platformOrderNo" :maxlength="100" />
       </a-form-item>
-      <a-form-item label="到账账户">
-        <a-input v-model:value="editForm.paymentAccount" :maxlength="100" placeholder="可自定义" />
+      <a-form-item label="到账账户（可选）">
+        <a-auto-complete
+          v-model:value="editForm.paymentAccount"
+          :options="paymentAccountPresetOptions"
+          :maxlength="100"
+          placeholder="可选择预制账户，也可自定义或留空"
+          allow-clear
+        />
       </a-form-item>
       <a-form-item label="负责人">
         <a-select
@@ -1051,7 +1057,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useRentalStore, type BulkUpdateRentalItemPayload, type Rental, type RentalItem, type RentalShipment, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
+import { useRentalStore, type BulkUpdateRentalItemPayload, type PaymentAccountSettings, type Rental, type RentalItem, type RentalShipment, type ReturnCondition, type SettlementPreview, type SfShipmentRoute, type ShipmentDirection } from '../stores/rentalStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useUserStore } from '../stores/userStore';
 import { useRenterStore } from '../stores/renterStore';
@@ -1634,6 +1640,11 @@ const returnDisabledReason = computed(() => {
   }
   return '';
 });
+
+const paymentAccountPresets = ref<string[]>([]);
+const paymentAccountPresetOptions = computed(() =>
+  paymentAccountPresets.value.map(value => ({ value, label: value }))
+);
 
 const shipModalTitle = computed(() =>
   shipForm.direction === 'Outbound' ? '登记发货' : '登记回货物流'
@@ -2555,12 +2566,14 @@ const importItemsXlsx = async (file: File) => {
 };
 
 onMounted(async () => {
-  await Promise.all([
+  const [, , , , paymentAccountSettings] = await Promise.all([
     warehouseStore.fetchWarehouses(),
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
     renterStore.fetchRenters('', 300),
     itemDefinitionStore.fetchItemDefinitions(),
+    rentalStore.fetchPaymentAccountSettings().catch<PaymentAccountSettings>(() => ({ defaultPaymentAccount: '', paymentAccountPresets: [] })),
   ]);
+  paymentAccountPresets.value = paymentAccountSettings.paymentAccountPresets || [];
 });
 
 watch(

@@ -312,7 +312,9 @@ const applyQueryFilters = () => {
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
   pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
   const nextOwnerScope = readQueryString(route.query.ownerScope);
-  ownerScope.value = nextOwnerScope === 'all' ? 'all' : 'mine';
+  ownerScope.value = searchKeyword.value.trim()
+    ? 'all'
+    : nextOwnerScope === 'all' ? 'all' : 'mine';
   sortField.value = readQuerySortField(route.query.sortField);
   sortOrder.value = sortField.value ? readQuerySortOrder(route.query.sortOrder) || 'ascend' : undefined;
 };
@@ -404,13 +406,14 @@ const exportRentalsXlsx = () => {
 };
 
 const search = async () => {
+  const searchText = searchKeyword.value.trim();
   await router.push({
     path: '/rentals',
     query: {
       status: status.value,
-      search: searchKeyword.value.trim() || undefined,
+      search: searchText || undefined,
       pendingSettlement: pendingSettlement.value ? 'true' : undefined,
-      ownerScope: ownerScope.value,
+      ownerScope: searchText ? 'all' : ownerScope.value,
       sortField: sortField.value,
       sortOrder: sortField.value ? sortOrder.value : undefined,
     },

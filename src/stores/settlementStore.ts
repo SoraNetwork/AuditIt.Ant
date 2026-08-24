@@ -7,6 +7,7 @@ export interface SettlementSettings {
   shipperPercent: number;
   itemOwnerPercent: number;
   defaultPaymentAccount?: string | null;
+  paymentAccountPresets?: string[];
   updatedAt?: string;
   updatedBy?: string | null;
 }
@@ -49,6 +50,9 @@ export const useSettlementStore = defineStore('settlement', {
           shipperPercent: Number(payload.shipperPercent || 0),
           itemOwnerPercent: Number(payload.itemOwnerPercent || 0),
           defaultPaymentAccount: payload.defaultPaymentAccount?.trim() || null,
+          paymentAccountPresets: (payload.paymentAccountPresets || [])
+            .map(value => value.trim())
+            .filter(Boolean),
         });
         this.settings = response.data;
         return response.data;

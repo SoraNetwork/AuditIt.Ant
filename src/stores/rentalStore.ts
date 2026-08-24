@@ -277,6 +277,48 @@ export interface SettlementPreview {
   settlementNotifiedStatus?: RentalStatus | string | null;
 }
 
+export interface PaymentAccountSettings {
+  defaultPaymentAccount?: string | null;
+  paymentAccountPresets?: string[];
+}
+
+export interface SfParsedAddress {
+  province?: string | null;
+  city?: string | null;
+  district?: string | null;
+}
+
+export interface SfDeliveryProduct {
+  businessType: string;
+  businessTypeDesc: string;
+  deliverTime?: string | null;
+  fee?: number | null;
+  searchPrice?: string | null;
+  closeTime?: string | null;
+  deliveryTime?: string | null;
+  plannedDeliveryTime?: string | null;
+  latestShipTime?: string | null;
+  consignedTime: string;
+}
+
+export interface SfDeliveryWarehouseEstimate {
+  warehouseId: number;
+  warehouseName: string;
+  address: string;
+  source: SfParsedAddress;
+  error?: string | null;
+  products: SfDeliveryProduct[];
+}
+
+export interface SfDeliveryEstimateResult {
+  destinationAddress: string;
+  destination: SfParsedAddress;
+  weight: number;
+  consignedTime: string;
+  targetDeliveryTime: string;
+  warehouses: SfDeliveryWarehouseEstimate[];
+}
+
 interface RentalState {
   rentals: Rental[];
   total: number;
@@ -334,9 +376,31 @@ export const useRentalStore = defineStore('rental', {
       return response.data;
     },
 
+    async fetchPaymentAccountSettings(): Promise<PaymentAccountSettings> {
+      const response = await apiClient.get<PaymentAccountSettings>('/rentals/payment-account-default');
+      return {
+        defaultPaymentAccount: response.data.defaultPaymentAccount || '',
+        paymentAccountPresets: response.data.paymentAccountPresets || [],
+      };
+    },
+
     async fetchDefaultPaymentAccount(): Promise<string> {
-      const response = await apiClient.get<{ defaultPaymentAccount?: string | null }>('/rentals/payment-account-default');
-      return response.data.defaultPaymentAccount || '';
+      const settings = await this.fetchPaymentAccountSettings();
+      return settings.defaultPaymentAccount || '';
+    },
+
+    async querySfDeliveryEstimates(payload: {
+      destinationAddress: string;
+      sourceWarehouseIds?: number[];
+      itemIds?: string[];
+      startDate?: string;
+      weight?: number;
+    }): Promise<SfDeliveryEstimateResult> {
+      const response = await apiClient.post<SfDeliveryEstimateResult>('/rentals/delivery-estimates', {
+        ...payload,
+        weight: payload.weight ?? 2.5,
+      });
+      return response.data;
     },
 
     async createRental(payload: CreateRentalPayload): Promise<Rental> {
