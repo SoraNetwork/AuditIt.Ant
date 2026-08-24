@@ -405,6 +405,17 @@ const itemSummary = (record: Rental) => {
   return items.length <= 3 ? items.join('；') : `${items.slice(0, 3).join('；')} 等 ${items.length} 件`;
 };
 
+const pricedExportItems = (record: Rental) =>
+  (record.items || []).filter(item => Number(item.perItemPrice ?? 0) > 0);
+
+const exportItemLabel = (item: Rental['items'][number]) =>
+  [item.itemShortIdSnapshot, item.itemNameSnapshot].filter(Boolean).join(' / ') || '-';
+
+const exportItemSummary = (record: Rental) => {
+  const items = pricedExportItems(record).map(exportItemLabel);
+  return items.join('；');
+};
+
 const refreshPendingSfRoutes = async () => {
   sfBulkRefreshing.value = true;
   try {
@@ -429,28 +440,40 @@ const refreshPendingSfRoutes = async () => {
 };
 
 const exportRentalsXlsx = () => {
-  const rows = sortedRentals.value.map(record => ({
-    租赁单号: record.rentalNumber,
-    状态: rentalDisplayStatusText(record),
-    租客: record.renter?.name || '',
-    预计发货: formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '',
-    开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',
-    预计结束: formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '',
-    预计回货: formatDateTime(record.expectedReturnDate, 'YYYY-MM-DD') || '',
-    续租意愿: renewalIntentText(record),
-    物品信息: itemSummary(record),
-    平台订单号: record.platformOrderNo || '',
-    到账账户: record.paymentAccount || '未填写',
-    总价: record.totalPrice ?? 0,
-    押金: record.deposit ?? 0,
-    运费: record.totalShippingFee ?? 0,
-    其他费用: record.otherFee ?? 0,
-    核算金额: record.accountedAmount ?? 0,
-    日均价格: dailyAccountedAmount(record),
-    负责人: record.assignedTo || '',
-    创建人: record.createdBy || '',
-    创建时间: formatDateTime(record.createdAt) || '',
-  }));
+  const maxItemCount = Math.max(0, ...sortedRentals.value.map(record => pricedExportItems(record).length));
+  const rows = sortedRentals.value.map(record => {
+    const items = pricedExportItems(record);
+    const itemDetails: Record<string, string | number> = {};
+    for (let index = 0; index < maxItemCount; index += 1) {
+      const item = items[index];
+      itemDetails[`物品信息${index + 1}`] = item ? exportItemLabel(item) : '';
+      itemDetails[`金额${index + 1}`] = item ? Number(item.perItemPrice) : '';
+    }
+
+    return {
+      租赁单号: record.rentalNumber,
+      状态: rentalDisplayStatusText(record),
+      租客: record.renter?.name || '',
+      预计发货: formatDateTime(record.expectedShipDate, 'YYYY-MM-DD') || '',
+      开始日期: formatDateTime(record.startDate, 'YYYY-MM-DD') || '',
+      预计结束: formatDateTime(record.expectedEndDate, 'YYYY-MM-DD') || '',
+      预计回货: formatDateTime(record.expectedReturnDate, 'YYYY-MM-DD') || '',
+      续租意愿: renewalIntentText(record),
+      物品信息: exportItemSummary(record),
+      平台订单号: record.platformOrderNo || '',
+      到账账户: record.paymentAccount || '未填写',
+      总价: record.totalPrice ?? 0,
+      押金: record.deposit ?? 0,
+      运费: record.totalShippingFee ?? 0,
+      其他费用: record.otherFee ?? 0,
+      核算金额: record.accountedAmount ?? 0,
+      日均价格: dailyAccountedAmount(record),
+      负责人: record.assignedTo || '',
+      创建人: record.createdBy || '',
+      创建时间: formatDateTime(record.createdAt) || '',
+      ...itemDetails,
+    };
+  });
 
   exportToXlsx(rows, `租赁单批量导出-${new Date().toISOString().slice(0, 10)}.xlsx`, '租赁单');
 };
