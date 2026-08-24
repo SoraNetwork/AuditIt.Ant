@@ -95,6 +95,9 @@
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>·
                       <a-tag :color="rentalDisplayStatusColor(item)" style="margin-left: 8px">{{
                         rentalDisplayStatusText(item) }}</a-tag>
+                      <a-tooltip v-if="shippingRegionLabel(item)" :title="item.shippingAddress || undefined">
+                        <a-tag color="cyan">收货：{{ shippingRegionLabel(item) }}</a-tag>
+                      </a-tooltip>
                     </template>
                     <template #description>
                       <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
@@ -379,6 +382,13 @@ const pendingShipmentList = computed(() =>
     .sort((a, b) => new Date(a.expectedShipDate).getTime() - new Date(b.expectedShipDate).getTime())
     //.slice(0, 12)
 );
+
+const shippingRegionLabel = (rental: Rental) => {
+  const province = rental.parsedShippingAddress?.province?.trim();
+  const city = rental.parsedShippingAddress?.city?.trim();
+  if (!province && !city) return '';
+  return province && city && province !== city ? `${province} / ${city}` : province || city || '';
+};
 
 const latestPendingInboundShipment = (rental: Rental) =>
   [...(rental.shipments || [])]

@@ -107,6 +107,7 @@ export interface Rental {
   totalShippingFee: number;
   accountedAmount: number;
   shippingAddress?: string | null;
+  parsedShippingAddress?: SfParsedAddress | null;
   platformOrderNo?: string | null;
   paymentAccount?: string | null;
   renewedFromRentalId?: string | null;
@@ -288,6 +289,11 @@ export interface SfParsedAddress {
   district?: string | null;
 }
 
+export interface RentalOwnerOptions {
+  creators: string[];
+  assignees: string[];
+}
+
 export interface SfDeliveryProduct {
   businessType: string;
   businessTypeDesc: string;
@@ -344,6 +350,9 @@ export const useRentalStore = defineStore('rental', {
       startDateTo?: string;
       pendingSettlement?: boolean;
       ownerScope?: 'mine' | 'all';
+      ownerName?: string;
+      createdBy?: string;
+      assignedTo?: string;
       page?: number;
       pageSize?: number;
     } = {}) {
@@ -359,6 +368,9 @@ export const useRentalStore = defineStore('rental', {
         if (filters.startDateTo) params.append('startDateTo', filters.startDateTo);
         if (filters.pendingSettlement) params.append('pendingSettlement', 'true');
         if (filters.ownerScope) params.append('ownerScope', filters.ownerScope);
+        if (filters.ownerName) params.append('ownerName', filters.ownerName);
+        if (filters.createdBy) params.append('createdBy', filters.createdBy);
+        if (filters.assignedTo) params.append('assignedTo', filters.assignedTo);
         if (filters.page) params.append('page', String(filters.page));
         if (filters.pageSize) params.append('pageSize', String(filters.pageSize));
 
@@ -370,6 +382,14 @@ export const useRentalStore = defineStore('rental', {
       } finally {
         this.loading = false;
       }
+    },
+
+    async fetchOwnerOptions(): Promise<RentalOwnerOptions> {
+      const response = await apiClient.get<RentalOwnerOptions>('/rentals/owner-options');
+      return {
+        creators: response.data.creators || [],
+        assignees: response.data.assignees || [],
+      };
     },
 
     async getRental(id: string): Promise<Rental> {

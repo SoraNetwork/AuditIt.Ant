@@ -4,7 +4,7 @@
 
     <a-card :body-style="{ padding: isMobile ? '12px' : '24px' }">
       <div class="toolbar">
-        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+        <a-space wrap :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
           <a-select
             v-model:value="status"
             allow-clear
@@ -19,10 +19,32 @@
           <a-select
             v-model:value="ownerScope"
             :style="isMobile ? { width: '100%' } : { width: '180px' }"
-            @change="search"
+            @change="handleOwnerScopeChange"
           >
             <a-select-option value="mine">我的单子</a-select-option>
             <a-select-option value="all">全部单子</a-select-option>
+            <a-select-option value="person">指定人员的单子</a-select-option>
+          </a-select>
+          <a-select
+            v-if="ownerScope === 'person'"
+            v-model:value="ownerRole"
+            :style="isMobile ? { width: '100%' } : { width: '170px' }"
+            @change="handleOwnerRoleChange"
+          >
+            <a-select-option value="either">创建人或负责人</a-select-option>
+            <a-select-option value="creator">仅创建人</a-select-option>
+            <a-select-option value="assignee">仅负责人</a-select-option>
+          </a-select>
+          <a-select
+            v-if="ownerScope === 'person'"
+            v-model:value="ownerName"
+            show-search
+            allow-clear
+            :loading="ownerOptionsLoading"
+            :options="filteredOwnerOptions"
+            :style="isMobile ? { width: '100%' } : { width: '160px' }"
+            placeholder="选择人员"
+            @change="handleOwnerNameChange"
           </a-select>
           <a-input
             v-model:value="searchKeyword"
@@ -152,6 +174,7 @@
                 <span><em>日均</em><strong>{{ formatMoney(dailyAccountedAmount(record)) }}</strong></span>
               </div>
               <div v-if="record.assignedTo">负责人：{{ record.assignedTo }}</div>
+              <div>创建人：{{ record.createdBy || '-' }}</div>
             </template>
           </MobileListCard>
           <a-empty v-if="sortedRentals.length === 0 && !rentalStore.loading" description="暂无租赁记录" />
@@ -162,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { useRentalStore, type Rental, type RentalStatus } from '../stores/rentalStore';
@@ -184,11 +207,26 @@ const router = useRouter();
 const status = ref<RentalStatus | undefined>(undefined);
 const searchKeyword = ref('');
 const pendingSettlement = ref(false);
-const ownerScope = ref<'mine' | 'all'>('mine');
+type OwnerScope = 'mine' | 'all' | 'person';
+type OwnerRole = 'either' | 'creator' | 'assignee';
+const ownerScope = ref<OwnerScope>('mine');
+const ownerRole = ref<OwnerRole>('either');
+const ownerName = ref<string>();
+const ownerOptionsLoading = ref(false);
+const creatorOptions = ref<string[]>([]);
+const assigneeOptions = ref<string[]>([]);
 const sfBulkRefreshing = ref(false);
 const rentalStatuses: RentalStatus[] = ['Pending', 'PartiallyShipped', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
+const filteredOwnerOptions = computed(() => {
+  const names = ownerRole.value === 'creator'
+    ? creatorOptions.value
+    : ownerRole.value === 'assignee'
+      ? assigneeOptions.value
+      : Array.from(new Set([...creatorOptions.value, ...assigneeOptions.value])).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  return names.map(name => ({ label: name, value: name }));
+});
 
 type RentalDateSortField = 'expectedShipDate' | 'startDate' | 'expectedEndDate' | 'expectedReturnDate';
 type RentalSortOrder = 'ascend' | 'descend';
@@ -265,6 +303,7 @@ const columns = computed(() => [
   { title: '核算金额', dataIndex: 'accountedAmount', key: 'accountedAmount', width: 120 },
   { title: '到账账户', dataIndex: 'paymentAccount', key: 'paymentAccount', width: 150 },
   { title: '日均', key: 'dailyPrice', width: 110 },
+  { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 140 },
   { title: '负责人', dataIndex: 'assignedTo', key: 'assignedTo', width: 160 },
 ]);
 
@@ -312,9 +351,16 @@ const applyQueryFilters = () => {
   searchKeyword.value = readQueryString(route.query.search || route.query.rentalNumber);
   pendingSettlement.value = readQueryString(route.query.pendingSettlement).toLowerCase() === 'true';
   const nextOwnerScope = readQueryString(route.query.ownerScope);
-  ownerScope.value = searchKeyword.value.trim()
-    ? 'all'
-    : nextOwnerScope === 'all' ? 'all' : 'mine';
+  const nextOwnerRole = readQueryString(route.query.ownerRole);
+  const nextOwnerName = readQueryString(route.query.ownerName).trim();
+  const hasPersonFilter = nextOwnerScope === 'person'
+    && (nextOwnerRole === 'either' || nextOwnerRole === 'creator' || nextOwnerRole === 'assignee')
+    && Boolean(nextOwnerName);
+  ownerScope.value = hasPersonFilter
+    ? 'person'
+    : (searchKeyword.value.trim() || nextOwnerScope === 'all' ? 'all' : 'mine');
+  ownerRole.value = nextOwnerRole === 'creator' || nextOwnerRole === 'assignee' ? nextOwnerRole : 'either';
+  ownerName.value = hasPersonFilter ? nextOwnerName : undefined;
   sortField.value = readQuerySortField(route.query.sortField);
   sortOrder.value = sortField.value ? readQuerySortOrder(route.query.sortOrder) || 'ascend' : undefined;
 };
@@ -324,7 +370,10 @@ const fetchList = async () => {
     status: status.value,
     search: searchKeyword.value.trim() || undefined,
     pendingSettlement: pendingSettlement.value,
-    ownerScope: ownerScope.value,
+    ownerScope: ownerScope.value === 'mine' ? 'mine' : 'all',
+    ownerName: ownerScope.value === 'person' && ownerRole.value === 'either' ? ownerName.value : undefined,
+    createdBy: ownerScope.value === 'person' && ownerRole.value === 'creator' ? ownerName.value : undefined,
+    assignedTo: ownerScope.value === 'person' && ownerRole.value === 'assignee' ? ownerName.value : undefined,
     page: 1,
     pageSize: 100,
   });
@@ -399,6 +448,7 @@ const exportRentalsXlsx = () => {
     核算金额: record.accountedAmount ?? 0,
     日均价格: dailyAccountedAmount(record),
     负责人: record.assignedTo || '',
+    创建人: record.createdBy || '',
     创建时间: formatDateTime(record.createdAt) || '',
   }));
 
@@ -406,19 +456,52 @@ const exportRentalsXlsx = () => {
 };
 
 const search = async () => {
+  if (ownerScope.value === 'person' && !ownerName.value) {
+    message.warning('请先选择要查看的创建人或负责人');
+    return;
+  }
   const searchText = searchKeyword.value.trim();
+  const nextOwnerScope = searchText && ownerScope.value === 'mine' ? 'all' : ownerScope.value;
   await router.push({
     path: '/rentals',
     query: {
       status: status.value,
       search: searchText || undefined,
       pendingSettlement: pendingSettlement.value ? 'true' : undefined,
-      ownerScope: searchText ? 'all' : ownerScope.value,
+      ownerScope: nextOwnerScope,
+      ownerRole: nextOwnerScope === 'person' ? ownerRole.value : undefined,
+      ownerName: nextOwnerScope === 'person' ? ownerName.value : undefined,
       sortField: sortField.value,
       sortOrder: sortField.value ? sortOrder.value : undefined,
     },
   });
 };
+
+const handleOwnerScopeChange = async (value: OwnerScope) => {
+  ownerName.value = undefined;
+  if (value !== 'person') await search();
+};
+
+const handleOwnerRoleChange = () => {
+  ownerName.value = undefined;
+};
+
+const handleOwnerNameChange = async (value?: string) => {
+  if (value) await search();
+};
+
+onMounted(async () => {
+  ownerOptionsLoading.value = true;
+  try {
+    const options = await rentalStore.fetchOwnerOptions();
+    creatorOptions.value = options.creators;
+    assigneeOptions.value = options.assignees;
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '获取租赁人员选项失败');
+  } finally {
+    ownerOptionsLoading.value = false;
+  }
+});
 
 const updateSortQuery = async (field?: RentalDateSortField, order?: RentalSortOrder) => {
   await router.push({
@@ -470,6 +553,8 @@ watch(
     route.query.rentalNumber,
     route.query.pendingSettlement,
     route.query.ownerScope,
+    route.query.ownerRole,
+    route.query.ownerName,
     route.query.sortField,
     route.query.sortOrder,
   ],
