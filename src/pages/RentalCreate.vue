@@ -351,11 +351,8 @@
                     <div>{{ record.businessTypeDesc || record.businessType || '顺丰产品' }}</div>
                     <div class="delivery-product-code">{{ record.businessType || '-' }}</div>
                   </template>
-                  <template v-else-if="column.key === 'deliveryTime'">
-                    <div>接口承诺：{{ record.deliverTime || formatEstimateDate(record.deliveryTime) || '-' }}</div>
-                    <div class="delivery-planned-time">
-                      计划到达：{{ formatEstimateDate(record.plannedDeliveryTime) || '无法计算' }}
-                    </div>
+                  <template v-else-if="column.key === 'deliveryDays'">
+                    {{ record.deliveryDays ? record.deliveryDays + '天' : '未返回时效' }}
                   </template>
                   <template v-else-if="column.key === 'fee'">
                     <a-tag v-if="record.fee !== null && record.fee !== undefined" color="gold">
@@ -364,23 +361,22 @@
                     <span v-else>未返回价格</span>
                   </template>
                   <template v-else-if="column.key === 'latestShipTime'">
-                    {{ formatEstimateDate(record.latestShipTime) || '接口未返回日期' }}
-                  </template>
-                  <template v-else-if="column.key === 'action'">
                     <a-button
+                      v-if="record.latestShipTime && record.plannedDeliveryTime"
                       size="small"
                       type="link"
-                      :disabled="!record.latestShipTime || !record.plannedDeliveryTime"
+                      title="点击填入预计发货日期"
                       @click="applyDeliveryProduct(record)"
                     >
-                      使用此产品
+                      {{ formatEstimateDate(record.latestShipTime, 'MM-DD') }}
                     </a-button>
+                    <span v-else>无法计算</span>
                   </template>
                 </template>
               </a-table>
             </div>
             <div class="delivery-estimate-footnote">
-              计划到达时间严格按租期开始前一天计算；价格为顺丰接口按 2.5kg 返回的参考值，实际金额以发货时为准；选择产品会填入预计发货日期，运费可在发货弹窗的运费栏补录。
+              计划到达时间严格按租期开始前一天计算；揽收时间按 05:00 至 19:00 计算；点击最晚发货日期即可填入预计发货日期。
             </div>
           </div>
         </div>
@@ -854,10 +850,9 @@ const deliveryEstimateSourceIds = computed(() => Array.from(new Set([
 
 const deliveryProductColumns = [
   { title: '产品', key: 'product', width: 150 },
-  { title: '承诺时效', key: 'deliveryTime', width: 220 },
+  { title: '承诺时效（天数）', key: 'deliveryDays', width: 150 },
   { title: '价格', key: 'fee', width: 150 },
-  { title: '最晚发货', key: 'latestShipTime', width: 150 },
-  { title: '操作', key: 'action', width: 110 },
+  { title: '最晚发货日期（点击填入）', key: 'latestShipTime', width: 210 },
 ];
 
 const selectedRentalPriceEntries = computed<RentalPriceEntry[]>(() => {
@@ -1268,10 +1263,10 @@ const formatMoney = (value?: number | null) => {
   if (value === null || value === undefined) return '￥0.0';
   return `￥${Number(value).toFixed(1)}`;
 };
-const formatEstimateDate = (value?: string | null) => {
+const formatEstimateDate = (value?: string | null, format = 'YYYY-MM-DD HH:mm') => {
   if (!value) return '';
   const parsed = dayjs(value);
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : value;
+  return parsed.isValid() ? parsed.format(format) : value;
 };
 const formatParsedAddress = (address?: SfParsedAddress | null) => {
   if (!address) return '未识别省市';
@@ -1934,12 +1929,6 @@ onMounted(async () => {
   margin-top: 2px;
   color: #98a2b3;
   font-size: 11px;
-}
-
-.delivery-planned-time {
-  margin-top: 3px;
-  color: #1677ff;
-  font-size: 12px;
 }
 
 .delivery-estimate-footnote {

@@ -296,6 +296,7 @@ export interface SfDeliveryProduct {
   searchPrice?: string | null;
   closeTime?: string | null;
   deliveryTime?: string | null;
+  deliveryDays?: number | null;
   plannedDeliveryTime?: string | null;
   latestShipTime?: string | null;
   consignedTime: string;
