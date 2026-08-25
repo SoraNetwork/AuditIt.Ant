@@ -46,6 +46,15 @@
         </a-space>
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%', marginTop: '8px' } : {}">
           <a-button
+            v-if="canBatchSettle"
+            :block="isMobile"
+            :disabled="selectedRentalIds.length === 0"
+            :loading="batchSettlementSending"
+            @click="confirmBatchSettlement"
+          >
+            批量发送结算{{ selectedRentalIds.length ? ` (${selectedRentalIds.length})` : '' }}
+          </a-button>
+          <a-button
             v-if="canRefreshSfRoutes"
             :block="isMobile"
             :loading="sfBulkRefreshing"
@@ -67,6 +76,7 @@
         :columns="columns"
         :data-source="sortedRentals"
         :pagination="false"
+        :row-selection="tableRowSelection"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
@@ -119,6 +129,16 @@
       </a-table>
 
       <div v-else class="mobile-card-list">
+        <div v-if="canBatchSettle && selectableRentalIds.length" class="mobile-selection-toolbar">
+          <a-checkbox
+            :checked="allSelectableSelected"
+            :indeterminate="someSelectableSelected"
+            @change="toggleAllSettlementSelections"
+          >
+            选择本页可结算单
+          </a-checkbox>
+          <span>已选 {{ selectedRentalIds.length }} 单</span>
+        </div>
         <div class="mobile-sort-toolbar">
           <span class="mobile-sort-label">排序</span>
           <a-space wrap>
@@ -146,6 +166,16 @@
           >
             <template #title>{{ record.rentalNumber }}</template>
             <template #tags>
+              <span
+                v-if="canBatchSettle && isSettlementCandidate(record)"
+                class="mobile-settlement-checkbox"
+                @click.stop
+              >
+                <a-checkbox
+                  :checked="selectedRentalIds.includes(record.id)"
+                  @change="toggleSettlementSelection(record.id)"
+                />
+              </span>
               <a-tag :color="rentalDisplayStatusColor(record)">{{ rentalDisplayStatusText(record) }}</a-tag>
             </template>
             <template #meta>
@@ -177,7 +207,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { message } from 'ant-design-vue';
+import { message, Modal } from 'ant-design-vue';
 import { useRentalStore, type Rental, type RentalStatus } from '../stores/rentalStore';
 import { formatDateTime } from '../utils/formatters';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -203,9 +233,12 @@ const ownerName = ref<string>();
 const ownerOptionsLoading = ref(false);
 const employeeOptions = ref<string[]>([]);
 const sfBulkRefreshing = ref(false);
+const batchSettlementSending = ref(false);
+const selectedRentalIds = ref<string[]>([]);
 const rentalStatuses: RentalStatus[] = ['Pending', 'PartiallyShipped', 'Active', 'Overdue', 'Returned', 'Cancelled', 'Renewed'];
 const rentalStatusOptions = rentalStatuses.map(value => ({ value, label: rentalStatusText(value) }));
 const canRefreshSfRoutes = computed(() => authStore.hasPermission(PermissionCodes.RentalShip));
+const canBatchSettle = computed(() => authStore.hasPermission(PermissionCodes.RentalReturn));
 const filteredOwnerOptions = computed(() =>
   employeeOptions.value
     .filter(name => name.trim().toLocaleLowerCase() !== authStore.user?.name?.trim().toLocaleLowerCase())
@@ -308,6 +341,55 @@ const sortedRentals = computed(() => {
   });
 });
 
+const isSettlementCandidate = (record: Rental) =>
+  ['Returned', 'Overdue', 'Renewed'].includes(record.status);
+
+const selectableRentalIds = computed(() =>
+  sortedRentals.value.filter(isSettlementCandidate).map(record => record.id)
+);
+
+const allSelectableSelected = computed(() =>
+  selectableRentalIds.value.length > 0
+  && selectableRentalIds.value.every(id => selectedRentalIds.value.includes(id))
+);
+
+const someSelectableSelected = computed(() =>
+  !allSelectableSelected.value
+  && selectableRentalIds.value.some(id => selectedRentalIds.value.includes(id))
+);
+
+const tableRowSelection = computed(() => canBatchSettle.value
+  ? {
+      selectedRowKeys: selectedRentalIds.value,
+      onChange: (keys: Array<string | number>) => {
+        selectedRentalIds.value = keys.map(String);
+      },
+      getCheckboxProps: (record: Rental) => ({
+        disabled: !isSettlementCandidate(record),
+      }),
+    }
+  : undefined
+);
+
+const toggleSettlementSelection = (rentalId: string) => {
+  selectedRentalIds.value = selectedRentalIds.value.includes(rentalId)
+    ? selectedRentalIds.value.filter(id => id !== rentalId)
+    : [...selectedRentalIds.value, rentalId];
+};
+
+const toggleAllSettlementSelections = () => {
+  const selectable = new Set(selectableRentalIds.value);
+  if (allSelectableSelected.value) {
+    selectedRentalIds.value = selectedRentalIds.value.filter(id => !selectable.has(id));
+    return;
+  }
+
+  selectedRentalIds.value = Array.from(new Set([
+    ...selectedRentalIds.value,
+    ...selectableRentalIds.value,
+  ]));
+};
+
 const readQueryString = (value: unknown) => {
   if (Array.isArray(value)) {
     return value[0] || '';
@@ -358,6 +440,10 @@ const fetchList = async () => {
     page: 1,
     pageSize: 100,
   });
+  const visibleSelectableIds = new Set(
+    rentalStore.rentals.filter(isSettlementCandidate).map(record => record.id)
+  );
+  selectedRentalIds.value = selectedRentalIds.value.filter(id => visibleSelectableIds.has(id));
 };
 
 const formatMoney = (value?: number | null) => {
@@ -443,6 +529,49 @@ const refreshPendingSfRoutes = async () => {
   } finally {
     sfBulkRefreshing.value = false;
   }
+};
+
+const sendBatchSettlements = async () => {
+  if (selectedRentalIds.value.length === 0) return;
+
+  batchSettlementSending.value = true;
+  try {
+    const result = await rentalStore.sendSettlements([...selectedRentalIds.value]);
+    selectedRentalIds.value = [];
+    await fetchList();
+
+    if (result.failed === 0) {
+      message.success(`已成功发送 ${result.succeeded} 份结算信息`);
+      return;
+    }
+
+    const failedSummary = result.results
+      .filter(item => !item.success)
+      .slice(0, 3)
+      .map(item => `${item.rentalNumber || item.rentalId}：${item.error || '发送失败'}`)
+      .join('；');
+    message.warning(`成功 ${result.succeeded} 份，失败 ${result.failed} 份${failedSummary ? `；${failedSummary}` : ''}`);
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '批量发送结算信息失败');
+  } finally {
+    batchSettlementSending.value = false;
+  }
+};
+
+const confirmBatchSettlement = () => {
+  const selectedRecords = rentalStore.rentals.filter(record => selectedRentalIds.value.includes(record.id));
+  const alreadySentCount = selectedRecords.filter(record => !!record.settlementNotifiedAt).length;
+  Modal.confirm({
+    title: `确认批量发送 ${selectedRentalIds.value.length} 份结算信息？`,
+    content: alreadySentCount > 0
+      ? `其中 ${alreadySentCount} 份已经发送过，本次会重新发送。`
+      : '系统会逐份发送结算信息，并在完成后汇总成功与失败结果。',
+    okText: '确认发送',
+    cancelText: '取消',
+    async onOk() {
+      await sendBatchSettlements();
+    },
+  });
 };
 
 const exportRentalsXlsx = () => {
@@ -652,6 +781,25 @@ watch(
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.mobile-selection-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  color: #475569;
+  background: #eff6ff;
+  font-size: 12px;
+}
+
+.mobile-settlement-checkbox {
+  display: inline-flex;
+  align-items: center;
 }
 
 .mobile-sort-label {

@@ -1143,7 +1143,7 @@ const unshippedRentalItems = computed(() =>
 );
 const uncertainRentalItems = computed(() => {
   if (shipForm.direction !== 'Outbound') return [];
-  const selected = new Set(selectedOutboundRentalItemIds.value);
+  const selected = new Set(selectedOutboundRentalItemIds.value.map(Number));
   return unshippedRentalItems.value.filter(item => selected.has(item.id) && !item.itemId);
 });
 const activeRentalItems = computed(() =>
@@ -1872,8 +1872,18 @@ const submitShip = async (allowOpenItemConflict = false) => {
     return;
   }
 
-  if (shipForm.direction === 'Outbound' && selectedOutboundRentalItemIds.value.length === 0) {
+  const outboundRentalItemIds = selectedOutboundRentalItemIds.value
+    .map(Number)
+    .filter(id => Number.isInteger(id) && id > 0);
+
+  if (shipForm.direction === 'Outbound' && outboundRentalItemIds.length === 0) {
     message.error('请至少选择一件本次发货的物品');
+    return;
+  }
+
+  if (shipForm.direction === 'Outbound'
+    && outboundRentalItemIds.length !== selectedOutboundRentalItemIds.value.length) {
+    message.error('本次发货物品选择无效，请重新勾选');
     return;
   }
 
@@ -1892,7 +1902,7 @@ const submitShip = async (allowOpenItemConflict = false) => {
         const itemId = rental.value?.items.find(item => item.id === rentalItemId)?.itemId;
         return itemId ? [{ rentalItemId, itemId }] : [];
       })
-    : selectedOutboundRentalItemIds.value.flatMap(rentalItemId => {
+    : outboundRentalItemIds.flatMap(rentalItemId => {
         const rentalItem = rental.value?.items.find(item => item.id === rentalItemId);
         const itemId = rentalItem?.itemId || selectedShipItems.value[rentalItemId];
         return itemId ? [{ rentalItemId, itemId }] : [];
@@ -1907,6 +1917,9 @@ const submitShip = async (allowOpenItemConflict = false) => {
       shippingFee: shipForm.shippingFee,
       notes: shipForm.notes.trim() || undefined,
       allowOpenItemConflict,
+      rentalItemIds: shipForm.direction === 'Outbound'
+        ? outboundRentalItemIds
+        : undefined,
       itemSelections,
     });
     shipVisible.value = false;

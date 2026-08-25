@@ -207,6 +207,7 @@ export interface ShipPayload {
   shippingFee?: number | null;
   notes?: string;
   allowOpenItemConflict?: boolean;
+  rentalItemIds?: number[];
   itemSelections?: { rentalItemId: number; itemId: string }[];
 }
 
@@ -276,6 +277,20 @@ export interface SettlementPreview {
   ineligibleReason?: string | null;
   settlementNotifiedAt?: string | null;
   settlementNotifiedStatus?: RentalStatus | string | null;
+}
+
+export interface BatchSendSettlementItemResult {
+  rentalId: string;
+  rentalNumber?: string | null;
+  success: boolean;
+  error?: string | null;
+}
+
+export interface BatchSendSettlementsResult {
+  requested: number;
+  succeeded: number;
+  failed: number;
+  results: BatchSendSettlementItemResult[];
 }
 
 export interface PaymentAccountSettings {
@@ -485,6 +500,11 @@ export const useRentalStore = defineStore('rental', {
 
     async sendSettlement(id: string): Promise<SettlementPreview> {
       const response = await apiClient.post<SettlementPreview>(`/rentals/${id}/settlement/send`);
+      return response.data;
+    },
+
+    async sendSettlements(rentalIds: string[]): Promise<BatchSendSettlementsResult> {
+      const response = await apiClient.post<BatchSendSettlementsResult>('/rentals/settlements/send', { rentalIds });
       return response.data;
     },
 
