@@ -29,6 +29,11 @@ export interface Item {
   name?: string;
 }
 
+export interface CheckAnalysisResult {
+  checkedItems: Item[];
+  uncheckedItems: Item[];
+}
+
 interface CreateItemPayload {
   itemDefinitionId: number;
   warehouseId: number;
@@ -150,6 +155,39 @@ export const useItemStore = defineStore('item', {
         this.items = response.data.map(normalizeItem);
       } catch (err: any) {
         this.error = '获取库存失败: ' + (err.response?.data?.message || err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchCheckAnalysis(filters: {
+      warehouseId: number;
+      categoryId?: number;
+      startAt: string;
+      endAt: string;
+    }): Promise<CheckAnalysisResult> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const params = new URLSearchParams({
+          warehouseId: String(filters.warehouseId),
+          startAt: filters.startAt,
+          endAt: filters.endAt,
+        });
+        if (filters.categoryId) params.append('categoryId', String(filters.categoryId));
+
+        const response = await apiClient.get<{
+          checkedItems: unknown[];
+          uncheckedItems: unknown[];
+        }>(`/items/check-analysis?${params.toString()}`);
+
+        return {
+          checkedItems: (response.data.checkedItems || []).map(normalizeItem),
+          uncheckedItems: (response.data.uncheckedItems || []).map(normalizeItem),
+        };
+      } catch (err: any) {
+        this.error = '获取盘点分析失败: ' + (err.response?.data?.message || err.response?.data || err.message);
+        throw err;
       } finally {
         this.loading = false;
       }

@@ -31,6 +31,25 @@
               </a-select-option>
             </a-select>
           </a-form-item>
+          <a-form-item label="物品分类">
+            <a-select
+              v-model:value="filterState.categoryId"
+              show-search
+              option-filter-prop="label"
+              placeholder="所有分类"
+              :style="isMobile ? { width: '100%' } : { width: '200px' }"
+              allow-clear
+            >
+              <a-select-option
+                v-for="category in categoryStore.categories"
+                :key="category.id"
+                :value="category.id"
+                :label="category.name"
+              >
+                {{ category.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
           <a-form-item label="盘点时间范围">
             <a-range-picker
               v-model:value="filterState.dateRange"
@@ -195,21 +214,23 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
-import { useAuditLogStore } from '../stores/auditLogStore';
 import { useItemStore, type Item } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
+import { useCategoryStore } from '../stores/categoryStore';
 import { formatDateTime } from '../utils/formatters';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const warehouseStore = useWarehouseStore();
+const categoryStore = useCategoryStore();
 const itemStore = useItemStore();
-const auditLogStore = useAuditLogStore();
 
 const filterState = reactive<{
   warehouseId: number | undefined;
+  categoryId: number | undefined;
   dateRange: [Dayjs, Dayjs];
 }>({
   warehouseId: undefined,
+  categoryId: undefined,
   dateRange: [dayjs().subtract(1, 'day'), dayjs()],
 });
 
@@ -242,10 +263,11 @@ const toggleSelected = (id: string) => {
 
 onMounted(() => {
   warehouseStore.fetchWarehouses();
+  categoryStore.fetchCategories();
 });
 
 watch(
-  () => filterState.warehouseId,
+  () => [filterState.warehouseId, filterState.categoryId],
   () => {
     analysisRan.value = false;
     checkedItems.value = [];
@@ -271,34 +293,14 @@ const runAnalysis = async () => {
   clearSelection();
 
   try {
-    await itemStore.fetchItems({
+    const result = await itemStore.fetchCheckAnalysis({
       warehouseId: filterState.warehouseId,
-      status: 'InStock',
+      categoryId: filterState.categoryId,
+      startAt: filterState.dateRange[0].toISOString(),
+      endAt: filterState.dateRange[1].toISOString(),
     });
-    const allItemsInStock = [...itemStore.items];
-
-    await auditLogStore.fetchLogs();
-    const startDate = filterState.dateRange[0].subtract(8, 'hour').toDate();
-    const endDate = filterState.dateRange[1].subtract(8, 'hour').toDate();
-
-    const checkedItemIdsInDateRange = new Set(
-      auditLogStore.logs
-        .filter(
-          log =>
-            log.action === 'Check' &&
-            log.warehouseId === filterState.warehouseId &&
-            new Date(log.timestamp) >= startDate &&
-            new Date(log.timestamp) <= endDate
-        )
-        .map(log => log.itemId)
-    );
-
-    checkedItems.value = allItemsInStock.filter(item =>
-      checkedItemIdsInDateRange.has(item.id)
-    );
-    unCheckedItems.value = allItemsInStock.filter(
-      item => !checkedItemIdsInDateRange.has(item.id)
-    );
+    checkedItems.value = result.checkedItems;
+    unCheckedItems.value = result.uncheckedItems;
     analysisRan.value = true;
   } catch (error: any) {
     message.error('分析失败: ' + (error.message || error));
