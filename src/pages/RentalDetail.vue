@@ -662,16 +662,40 @@
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="returnVisible" title="登记归还" ok-text="提交" cancel-text="取消" @ok="submitReturn">
+  <a-modal
+    v-model:open="returnVisible"
+    title="登记归还"
+    ok-text="提交"
+    cancel-text="取消"
+    :confirm-loading="returnSaving"
+    wrap-class-name="rental-return-modal"
+    @ok="submitReturn"
+  >
     <a-form layout="vertical">
       <a-form-item label="归还物品">
+        <div class="return-selection-toolbar">
+          <span>已选择 {{ selectedReturnRentalItemIds.length }} / {{ activeRentalItems.length }} 件</span>
+          <a-space size="small">
+            <a-button type="link" size="small" :disabled="selectedReturnRentalItemIds.length === activeRentalItems.length" @click="selectAllReturnItems">
+              全选
+            </a-button>
+            <a-button type="link" size="small" :disabled="selectedReturnRentalItemIds.length === 0" @click="clearReturnItems">
+              清空
+            </a-button>
+          </a-space>
+        </div>
+        <div class="form-help">只提交勾选的物品；未勾选的物品会继续保留在租赁单中，之后可以再次登记归还。</div>
         <div class="return-item-list">
           <div v-for="item in activeRentalItems" :key="item.id" class="return-item-row">
+            <a-checkbox
+              :checked="selectedReturnRentalItemIds.includes(item.id)"
+              @change="toggleReturnItem(item.id)"
+            />
             <div class="return-item-info">
               <strong>{{ item.itemShortIdSnapshot || '-' }}</strong>
               <span>{{ item.itemNameSnapshot || '-' }}</span>
             </div>
-            <a-select v-model:value="returnItemConditions[item.id]" class="return-item-condition">
+            <a-select v-model:value="returnItemConditions[item.id]" class="return-item-condition" :disabled="!selectedReturnRentalItemIds.includes(item.id)">
               <a-select-option value="Good">良好</a-select-option>
               <a-select-option value="MinorDamage">轻微损坏</a-select-option>
               <a-select-option value="MajorDamage">严重损坏</a-select-option>
@@ -1131,6 +1155,7 @@ const repairShipment = ref<RentalShipment | null>(null);
 const selectedRepairRentalItemIds = ref<number[]>([]);
 const selectedRepairItems = ref<Record<number, string>>({});
 const returnItemConditions = ref<Record<number, ReturnCondition>>({});
+const selectedReturnRentalItemIds = ref<number[]>([]);
 const shippedOutboundRentalItemIds = computed(() => {
   const outboundShipments = rental.value?.shipments.filter(shipment => shipment.direction === 'Outbound') || [];
   if (outboundShipments.some(shipment => !shipment.items?.length)) {
@@ -1192,6 +1217,7 @@ const cancelVisible = ref(false);
 const editVisible = ref(false);
 const saving = ref(false);
 const shipmentFeeSaving = ref(false);
+const returnSaving = ref(false);
 const importing = ref(false);
 const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
@@ -1369,6 +1395,7 @@ const returnForm = reactive({
 
 const hasDamageReturn = computed(() =>
   activeRentalItems.value.some(item => {
+    if (!selectedReturnRentalItemIds.value.includes(item.id)) return false;
     const condition = returnItemConditions.value[item.id];
     return condition === 'MinorDamage' || condition === 'MajorDamage';
   })
@@ -1712,10 +1739,28 @@ const openReturn = () => {
   returnItemConditions.value = Object.fromEntries(
     activeRentalItems.value.map(item => [item.id, 'Good' as ReturnCondition])
   );
+  selectedReturnRentalItemIds.value = activeRentalItems.value.map(item => item.id);
   returnForm.notes = '';
   returnForm.repairOccupancy = false;
   returnForm.repairExpectedReturnDate = null;
   returnVisible.value = true;
+};
+
+const toggleReturnItem = (rentalItemId: number) => {
+  if (selectedReturnRentalItemIds.value.includes(rentalItemId)) {
+    selectedReturnRentalItemIds.value = selectedReturnRentalItemIds.value.filter(id => id !== rentalItemId);
+    return;
+  }
+
+  selectedReturnRentalItemIds.value = [...selectedReturnRentalItemIds.value, rentalItemId];
+};
+
+const selectAllReturnItems = () => {
+  selectedReturnRentalItemIds.value = activeRentalItems.value.map(item => item.id);
+};
+
+const clearReturnItems = () => {
+  selectedReturnRentalItemIds.value = [];
 };
 
 const openShipmentFee = (shipment: RentalShipment) => {
@@ -2043,12 +2088,15 @@ const confirmDeleteShipment = (shipment: RentalShipment) => {
 const submitReturn = async () => {
   if (!rental.value) return;
 
-  const items = activeRentalItems.value.map(item => ({
+  const selectedIds = new Set(selectedReturnRentalItemIds.value);
+  const items = activeRentalItems.value
+    .filter(item => selectedIds.has(item.id))
+    .map(item => ({
     rentalItemId: item.id,
     condition: returnItemConditions.value[item.id] || 'Good' as ReturnCondition,
-  }));
+    }));
   if (items.length === 0) {
-    message.error('没有可归还的商品');
+    message.error('请至少选择一件要归还的商品');
     return;
   }
 
@@ -2057,6 +2105,7 @@ const submitReturn = async () => {
     return;
   }
 
+  returnSaving.value = true;
   try {
     await rentalStore.returnRental(rental.value.id, {
       items,
@@ -2069,6 +2118,8 @@ const submitReturn = async () => {
     await load();
   } catch (err: any) {
     message.error(err?.response?.data || err?.message || '归还失败');
+  } finally {
+    returnSaving.value = false;
   }
 };
 
@@ -3165,6 +3216,16 @@ watch(
   gap: 8px;
 }
 
+.return-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: #374151;
+  font-size: 13px;
+}
+
 .return-item-row {
   display: flex;
   align-items: center;
@@ -3267,37 +3328,54 @@ watch(
 
 @media (max-width: 767.98px) {
   :global(.rental-edit-modal .ant-modal),
-  :global(.rental-item-picker-modal .ant-modal) {
+  :global(.rental-item-picker-modal .ant-modal),
+  :global(.rental-return-modal .ant-modal) {
     max-width: calc(100vw - 16px);
     margin: 0 auto;
   }
 
   :global(.rental-edit-modal .ant-modal-content),
-  :global(.rental-item-picker-modal .ant-modal-content) {
+  :global(.rental-item-picker-modal .ant-modal-content),
+  :global(.rental-return-modal .ant-modal-content) {
     display: flex;
     max-height: calc(100vh - 16px);
     flex-direction: column;
   }
 
   :global(.rental-edit-modal .ant-modal-body),
-  :global(.rental-item-picker-modal .ant-modal-body) {
+  :global(.rental-item-picker-modal .ant-modal-body),
+  :global(.rental-return-modal .ant-modal-body) {
     max-height: calc(100vh - 170px);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
   :global(.rental-edit-modal .ant-modal-footer),
-  :global(.rental-item-picker-modal .ant-modal-footer) {
+  :global(.rental-item-picker-modal .ant-modal-footer),
+  :global(.rental-return-modal .ant-modal-footer) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
   :global(.rental-edit-modal .ant-modal-footer .ant-btn),
-  :global(.rental-item-picker-modal .ant-modal-footer .ant-btn) {
+  :global(.rental-item-picker-modal .ant-modal-footer .ant-btn),
+  :global(.rental-return-modal .ant-modal-footer .ant-btn) {
     width: 100%;
     min-height: 40px;
     margin: 0;
+  }
+
+  .return-item-row {
+    align-items: flex-start;
+  }
+
+  .return-item-row :deep(.ant-checkbox) {
+    margin-top: 3px;
+  }
+
+  .return-item-condition {
+    width: 128px;
   }
 
   .item-picker-mode {

@@ -37,10 +37,27 @@ export const isReturnUnsignedRental = (rental?: Pick<Rental, 'status' | 'shipmen
   && !!rental.shipments?.some(shipment => shipment.direction === 'Inbound')
   && !rental.shipments?.some(shipment => shipment.direction === 'Inbound' && !!shipment.deliveredAt);
 
-export const rentalDisplayStatusText = (rental?: Pick<Rental, 'status' | 'shipments'> | null) =>
-  isReturnUnsignedRental(rental) ? '待回货签收' : rentalStatusText(rental?.status);
+export const isPartiallyReturnedRental = (
+  rental?: Pick<Rental, 'status' | 'items'> | null,
+) => {
+  if (!rental || !['Active', 'Overdue'].includes(rental.status)) return false;
+  const items = rental.items || [];
+  return items.some(item => !!item.returnedAt) && items.some(item => !item.returnedAt);
+};
 
-export const rentalDisplayStatusColor = (rental?: Pick<Rental, 'status' | 'shipments'> | null) =>
+export const rentalDisplayStatusText = (
+  rental?: Pick<Rental, 'status' | 'shipments' | 'items'> | null,
+) => {
+  if (isReturnUnsignedRental(rental)) return '待回货签收';
+  if (isPartiallyReturnedRental(rental)) {
+    return rental?.status === 'Overdue' ? '部分归还（逾期）' : '部分归还';
+  }
+  return rentalStatusText(rental?.status);
+};
+
+export const rentalDisplayStatusColor = (
+  rental?: Pick<Rental, 'status' | 'shipments' | 'items'> | null,
+) =>
   isReturnUnsignedRental(rental) ? 'orange' : rentalStatusColor(rental?.status);
 
 export const shipmentDirectionText = (direction?: ShipmentDirection | string | null) => {
