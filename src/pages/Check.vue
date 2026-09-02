@@ -61,6 +61,14 @@
                       {{ warehouse.name }}
                     </a-select-option>
                   </a-select>
+                  <a-input-search
+                    v-model:value="candidateFilters.search"
+                    placeholder="模糊搜索短 ID、SN 或名称"
+                    allow-clear
+                    enter-button
+                    style="margin-top: 8px"
+                    @search="loadCandidateItems"
+                  />
                 </a-form-item>
               </a-form>
 
@@ -107,8 +115,8 @@
                 分类候选（{{ candidateItems.length }}）
               </a-divider>
               <a-empty
-                v-if="!candidateFilters.categoryId"
-                description="选择物品分类后显示在库候选"
+                v-if="!candidateFilters.categoryId && !candidateFilters.search.trim()"
+                description="选择物品分类或输入关键词后显示在库候选"
                 :image-style="{ height: '48px' }"
               />
               <a-list
@@ -250,9 +258,11 @@ const candidateItems = ref<Item[]>([]);
 const candidateFilters = reactive<{
   categoryId: number | undefined;
   warehouseId: number | undefined;
+  search: string;
 }>({
   categoryId: undefined,
   warehouseId: undefined,
+  search: '',
 });
 let candidateLoadRequest = 0;
 
@@ -349,7 +359,8 @@ const checkResolvedItem = async (item: Item, shortId: string) => {
 
 const loadCandidateItems = async () => {
   const requestId = ++candidateLoadRequest;
-  if (!candidateFilters.categoryId) {
+  const search = candidateFilters.search.trim();
+  if (!candidateFilters.categoryId && !search) {
     candidateItems.value = [];
     return;
   }
@@ -360,6 +371,7 @@ const loadCandidateItems = async () => {
       categoryId: candidateFilters.categoryId,
       warehouseId: candidateFilters.warehouseId,
       status: 'InStock',
+      search: search || undefined,
     });
     if (itemStore.error) {
       throw new Error(itemStore.error);
@@ -381,7 +393,7 @@ const loadCandidateItems = async () => {
 
 const handleCandidateScopeChange = () => {
   candidateItems.value = [];
-  if (!candidateFilters.categoryId) {
+  if (!candidateFilters.categoryId && !candidateFilters.search.trim()) {
     candidateLoadRequest += 1;
     return;
   }
@@ -437,11 +449,32 @@ const handleSingleCheck = async () => {
   }
 
   try {
-    await itemStore.fetchItems({ shortId: shortIdValue });
+    await itemStore.fetchItems({
+      shortId: shortIdValue,
+      categoryId: candidateFilters.categoryId,
+      warehouseId: candidateFilters.warehouseId,
+    });
     if (itemStore.error) {
       throw new Error(itemStore.error);
     }
-    const item = itemStore.items.find(i => i.shortId === shortIdValue);
+    let item = itemStore.items.find(i => i.shortId === shortIdValue);
+
+    if (!item) {
+      await itemStore.fetchItems({
+        search: shortIdValue,
+        categoryId: candidateFilters.categoryId,
+        warehouseId: candidateFilters.warehouseId,
+      });
+      if (itemStore.error) {
+        throw new Error(itemStore.error);
+      }
+
+      if (itemStore.items.length === 1) {
+        item = itemStore.items[0];
+      } else if (itemStore.items.length > 1) {
+        throw new Error(`模糊搜索找到 ${itemStore.items.length} 件物品，请缩小关键词或使用完整短 ID。`);
+      }
+    }
 
     if (!item) {
       throw new Error('物品未在系统中找到。');

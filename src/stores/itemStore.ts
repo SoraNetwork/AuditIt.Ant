@@ -163,6 +163,7 @@ export const useItemStore = defineStore('item', {
     async fetchCheckAnalysis(filters: {
       warehouseId: number;
       categoryId?: number;
+      search?: string;
       startAt: string;
       endAt: string;
     }): Promise<CheckAnalysisResult> {
@@ -175,6 +176,7 @@ export const useItemStore = defineStore('item', {
           endAt: filters.endAt,
         });
         if (filters.categoryId) params.append('categoryId', String(filters.categoryId));
+        if (filters.search?.trim()) params.append('search', filters.search.trim());
 
         const response = await apiClient.get<{
           checkedItems: unknown[];

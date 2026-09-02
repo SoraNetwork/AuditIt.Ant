@@ -229,14 +229,15 @@ const tableData = computed(() =>
 );
 
 const filteredData = computed(() => {
-  if (!filters.searchTerm) {
+  const searchTermLower = filters.searchTerm?.trim().toLowerCase() || '';
+  if (!searchTermLower) {
     return tableData.value;
   }
-  const searchTermLower = filters.searchTerm.toLowerCase();
   return tableData.value.filter(item => 
     item.shortId.toLowerCase().includes(searchTermLower) ||
     item.name.toLowerCase().includes(searchTermLower) ||
-    item.categoryName.toLowerCase().includes(searchTermLower)
+    item.categoryName.toLowerCase().includes(searchTermLower) ||
+    (item.serialNumber || '').toLowerCase().includes(searchTermLower)
   );
 });
 
@@ -272,7 +273,7 @@ const columns = [
 ];
 
 const itemServerFilters = () => {
-  const queryFilters: { warehouseId?: number; categoryId?: number; status?: ItemStatus } = {};
+  const queryFilters: { warehouseId?: number; categoryId?: number; status?: ItemStatus; search?: string } = {};
   if (filters.warehouseId) {
     queryFilters.warehouseId = Number(filters.warehouseId);
   }
@@ -281,6 +282,9 @@ const itemServerFilters = () => {
   }
   if (filters.status) {
     queryFilters.status = filters.status;
+  }
+  if (filters.searchTerm?.trim()) {
+    queryFilters.search = filters.searchTerm.trim();
   }
   return queryFilters;
 };
@@ -305,7 +309,6 @@ onMounted(() => {
 });
 
 const applyFilters = async () => {
-  // Text search is applied client-side; the other filters are sent to the API.
   await syncInventoryQuery();
   itemStore.fetchItems(itemServerFilters());
 };

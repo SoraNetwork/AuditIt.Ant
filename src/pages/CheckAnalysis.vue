@@ -50,6 +50,14 @@
               </a-select-option>
             </a-select>
           </a-form-item>
+          <a-form-item label="模糊搜索">
+            <a-input
+              v-model:value="filterState.search"
+              placeholder="短 ID、SN、名称或分类"
+              allow-clear
+              :style="isMobile ? { width: '100%' } : { width: '220px' }"
+            />
+          </a-form-item>
           <a-form-item label="盘点时间范围">
             <a-range-picker
               v-model:value="filterState.dateRange"
@@ -227,10 +235,12 @@ const itemStore = useItemStore();
 const filterState = reactive<{
   warehouseId: number | undefined;
   categoryId: number | undefined;
+  search: string;
   dateRange: [Dayjs, Dayjs];
 }>({
   warehouseId: undefined,
   categoryId: undefined,
+  search: '',
   dateRange: [dayjs().subtract(1, 'day'), dayjs()],
 });
 
@@ -296,6 +306,7 @@ const runAnalysis = async () => {
     const result = await itemStore.fetchCheckAnalysis({
       warehouseId: filterState.warehouseId,
       categoryId: filterState.categoryId,
+      search: filterState.search,
       startAt: filterState.dateRange[0].toISOString(),
       endAt: filterState.dateRange[1].toISOString(),
     });
