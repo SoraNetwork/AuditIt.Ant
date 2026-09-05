@@ -42,25 +42,50 @@
             </div>
 
             <a-table
+              v-if="!isMobile"
               row-key="category"
               :columns="summaryColumns"
               :data-source="reportStore.summary?.categories || []"
               :pagination="false"
               size="small"
             />
+            <div v-else class="report-card-list">
+              <MobileListCard v-for="row in reportStore.summary?.categories || []" :key="row.category">
+                <template #title>{{ row.category }}</template>
+                <template #meta>
+                  <div>租赁单数：{{ row.count }}</div>
+                  <div>订单总额：{{ formatMoney(row.totalOrderAmount) }}</div>
+                  <div>核算金额：{{ formatMoney(row.accountedAmount) }}</div>
+                </template>
+              </MobileListCard>
+              <a-empty v-if="(reportStore.summary?.categories || []).length === 0" description="暂无分类汇总" />
+            </div>
 
             <a-divider orientation="left">按到账账户</a-divider>
             <a-table
+              v-if="!isMobile"
               row-key="paymentAccount"
               :columns="paymentAccountColumns"
               :data-source="reportStore.summary?.paymentAccounts || []"
               :pagination="false"
               size="small"
             />
+            <div v-else class="report-card-list">
+              <MobileListCard v-for="row in reportStore.summary?.paymentAccounts || []" :key="row.paymentAccount">
+                <template #title>{{ row.paymentAccount || '未填写账户' }}</template>
+                <template #meta>
+                  <div>租赁单数：{{ row.count }}</div>
+                  <div>订单总额：{{ formatMoney(row.totalOrderAmount) }}</div>
+                  <div>核算金额：{{ formatMoney(row.accountedAmount) }}</div>
+                </template>
+              </MobileListCard>
+              <a-empty v-if="(reportStore.summary?.paymentAccounts || []).length === 0" description="暂无账户汇总" />
+            </div>
           </a-tab-pane>
 
           <a-tab-pane key="detail" tab="详细">
             <a-table
+              v-if="!isMobile"
               row-key="rentalId"
               :columns="detailColumns"
               :data-source="reportStore.details"
@@ -89,6 +114,32 @@
                 </template>
               </template>
             </a-table>
+            <div v-else class="mobile-card-list">
+              <MobileListCard
+                v-for="record in reportStore.details"
+                :key="record.rentalId"
+                clickable
+                @click="router.push(`/rentals/${record.rentalId}`)"
+              >
+                <template #title>{{ record.rentalNumber }}</template>
+                <template #tags>
+                  <a-tag>{{ rentalStatusText(record.status) }}</a-tag>
+                </template>
+                <template #meta>
+                  <div>租客：<RenterLink :renter-id="record.renterId" :name="record.renterName" /></div>
+                  <div>租期：{{ formatDate(record.startDate) }} ~ {{ formatDate(record.expectedEndDate) }}</div>
+                  <div>创建时间：{{ formatDate(record.createdAt) }}</div>
+                  <div>到账账户：{{ record.paymentAccount || '未填写' }}</div>
+                  <div>物品数：{{ record.itemCount }}</div>
+                  <div class="mobile-money-row">
+                    <span><em>总价</em><strong>{{ formatMoney(record.totalPrice) }}</strong></span>
+                    <span><em>押金</em><strong>{{ formatMoney(record.deposit) }}</strong></span>
+                    <span><em>核算</em><strong>{{ formatMoney(record.accountedAmount) }}</strong></span>
+                  </div>
+                </template>
+              </MobileListCard>
+              <a-empty v-if="reportStore.details.length === 0" description="暂无明细" />
+            </div>
           </a-tab-pane>
         </a-tabs>
       </a-spin>
@@ -108,6 +159,7 @@ import { exportMultiSheetXlsx } from '../utils/xlsx';
 import { rentalStatusText } from '../utils/rentalDisplay';
 import { readQueryDay, readQueryString } from '../utils/routeQuery';
 import RenterLink from '../components/RenterLink.vue';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -339,6 +391,36 @@ onMounted(loadReports);
   margin-bottom: 16px;
 }
 
+.report-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-money-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mobile-money-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-money-row em {
+  color: #667085;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.mobile-money-row strong {
+  color: #111827;
+  font-size: 13px;
+}
+
 .metric {
   padding: 14px;
   border: 1px solid #edf0f5;
@@ -366,7 +448,15 @@ onMounted(loadReports);
   }
 
   .summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric {
+    padding: 12px;
+  }
+
+  .metric strong {
+    font-size: 18px;
   }
 }
 </style>

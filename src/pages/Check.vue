@@ -8,10 +8,14 @@
       <a-card class="check-shell" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-row :gutter="isMobile ? [0, 12] : 24">
           <a-col :xs="24" :span="8">
-            <div :class="['check-controls', { 'mobile-sticky-controls': isMobile }]">
+            <div class="check-controls">
               <a-form layout="vertical" class="check-form">
-                <a-form-item label="扫描或输入物品短 ID" :style="isMobile ? { marginBottom: '10px' } : {}">
-                  <a-space-compact block style="width: 100%">
+                <a-form-item
+                  label="扫描或输入物品短 ID"
+                  class="scan-form-item"
+                  :style="isMobile ? { marginBottom: '10px' } : {}"
+                >
+                  <a-space-compact v-if="!isMobile" block style="width: 100%">
                     <MobileScanInput
                       ref="scanInputRef"
                       v-model="currentShortId"
@@ -23,6 +27,18 @@
                     />
                     <a-button type="primary" size="large" @click="handleSingleCheck">盘点</a-button>
                   </a-space-compact>
+                  <div v-else class="mobile-scan-entry">
+                    <MobileScanInput
+                      ref="scanInputRef"
+                      v-model="currentShortId"
+                      placeholder="在这里扫码或输入短 ID"
+                      size="large"
+                      autofocus
+                      @pressEnter="handleSingleCheck"
+                      @scan-success="handleSingleCheck"
+                    />
+                    <a-button type="primary" size="large" block @click="handleSingleCheck">盘点</a-button>
+                  </div>
                 </a-form-item>
                 <a-form-item label="分类候选范围" :style="isMobile ? { marginBottom: '10px' } : {}">
                   <a-select
@@ -527,10 +543,19 @@ const clearResults = () => {
 
 .check-shell {
   overflow: visible;
+  min-width: 0;
 }
 
 .check-controls {
   position: relative;
+  min-width: 0;
+}
+
+.mobile-scan-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
 
 .item-name {
@@ -572,6 +597,7 @@ const clearResults = () => {
 
 .candidate-panel {
   margin-top: 8px;
+  min-width: 0;
 }
 
 .candidate-list {
@@ -579,21 +605,40 @@ const clearResults = () => {
   overflow-y: auto;
 }
 
+.candidate-list :deep(.ant-list-item-meta) {
+  min-width: 0;
+}
+
+.candidate-list :deep(.ant-list-item-meta-title),
+.candidate-list :deep(.ant-list-item-meta-description) {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 767.98px) {
   .page-container {
     padding: 0;
   }
 
-  .mobile-sticky-controls {
-    position: sticky;
-    top: 56px;
-    z-index: 10;
-    background: #fff;
-    padding-bottom: 8px;
+  .check-form {
+    min-width: 0;
   }
 
   .check-empty {
     margin-top: 12px;
+  }
+
+  .candidate-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .candidate-list :deep(.ant-list-item) {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .candidate-list :deep(.ant-list-item-action) {
+    margin-left: 0;
   }
 }
 </style>

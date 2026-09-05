@@ -115,7 +115,7 @@
         </div>
       </a-card>
 
-      <a-card class="lifecycle-card" title="生命周期日志" style="margin-top: 16px">
+      <a-card class="lifecycle-card" title="生命周期日志" style="margin-top: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-timeline>
           <a-timeline-item v-for="log in auditLogStore.logs" :key="log.id">
             <p><strong>{{ log.action }}</strong> - {{ formatDateTime(log.timestamp) }}</p>

@@ -298,7 +298,7 @@ GHI789"
               </a-card>
 
               <!-- 导入结果 -->
-              <a-card v-if="importResult" title="导入结果" style="margin-top: 16px">
+              <a-card v-if="importResult" title="导入结果" style="margin-top: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <a-result
                   :status="importResult.success ? 'success' : 'error'"
                   :title="importResult.message"

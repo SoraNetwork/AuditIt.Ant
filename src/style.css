@@ -85,6 +85,27 @@ body.is-mobile .ant-cascader-picker {
   width: 100% !important;
 }
 
+/* 紧凑输入组需要让输入框收缩，把剩余空间留给按钮，避免窄屏横向溢出。 */
+body.is-mobile .ant-space-compact {
+  min-width: 0;
+}
+
+body.is-mobile .ant-space-compact > .ant-input,
+body.is-mobile .ant-space-compact > .ant-input-affix-wrapper,
+body.is-mobile .ant-space-compact > .ant-input-number,
+body.is-mobile .ant-space-compact > .ant-select,
+body.is-mobile .ant-space-compact > .ant-space-compact,
+body.is-mobile .ant-space-compact > .mobile-scan-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  width: auto !important;
+}
+
+body.is-mobile .ant-space-compact > .ant-btn {
+  flex: 0 0 auto;
+  width: auto !important;
+}
+
 body.is-mobile .ant-btn {
   border-radius: 8px;
   font-weight: 500;

@@ -12,7 +12,7 @@
 
       <a-spin :spinning="shipmentReminderStore.loading">
         <a-form layout="vertical" :model="formState" @finish="save">
-          <a-card title="发送规则" style="margin-bottom: 16px">
+          <a-card title="发送规则" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-row :gutter="16">
               <a-col :xs="24" :md="8">
                 <a-form-item label="启用自动提醒">
@@ -33,7 +33,7 @@
             <a-alert type="info" show-icon message="针对预计发货日为当天或已逾期、仍未登记出库的待处理租赁单；建单人、负责人和指定管理员按手机号去重。" />
           </a-card>
 
-          <a-card title="短信（DYSMS）" style="margin-bottom: 16px">
+          <a-card title="短信（DYSMS）" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-space direction="vertical" style="width: 100%" :size="12">
               <a-switch v-model:checked="formState.smsEnabled" checked-children="短信已开启" un-checked-children="短信已关闭" />
               <a-alert type="info" show-icon message="模板和签名由阿里云直接读取。系统仅允许选择审核通过且内容、变量与本提醒完全匹配的模板。" />
@@ -53,7 +53,7 @@
                 />
               </a-form-item>
               <a-table
-                v-if="formState.templateVariables.length"
+                v-if="!isMobile && formState.templateVariables.length"
                 :data-source="formState.templateVariables"
                 :pagination="false"
                 row-key="name"
@@ -71,12 +71,32 @@
                     <span v-else>按系统字段自动取值</span>
                   </template>
                 </a-table-column>
-              </a-table>
+                </a-table>
+              <div v-if="isMobile && formState.templateVariables.length" class="template-variable-list">
+                <MobileListCard v-for="variable in formState.templateVariables" :key="variable.name">
+                  <template #title>{{ variable.name }}</template>
+                  <template #meta>
+                    <div class="template-variable-field">
+                      <span>取值来源</span>
+                      <a-select
+                        v-model:value="variable.source"
+                        :options="variableSourceOptions"
+                        :size="isMobile ? 'large' : 'middle'"
+                      />
+                    </div>
+                    <div v-if="variable.source === 'StaticText'" class="template-variable-field">
+                      <span>固定文本</span>
+                      <a-input v-model:value="variable.staticValue" placeholder="填写固定值" />
+                    </div>
+                    <div v-else class="template-variable-hint">按系统字段自动取值</div>
+                  </template>
+                </MobileListCard>
+              </div>
               <a-empty v-if="templatesLoaded && matchingSmsTemplateOptions.length === 0" description="未找到审核通过且完全匹配的阿里云短信模板" />
             </a-space>
           </a-card>
 
-          <a-card title="语音（DYVMS）" style="margin-bottom: 16px">
+          <a-card title="语音（DYVMS）" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-space direction="vertical" style="width: 100%" :size="12">
               <a-switch v-model:checked="formState.voiceEnabled" checked-children="语音已开启" un-checked-children="语音已关闭" />
               <a-alert type="info" show-icon message="阿里云语音服务不提供模板列表 API。请填入已审核且变量与上方设置一致的 TTS 模板 Code；可通过下方测试发送验证。" />
@@ -106,7 +126,7 @@
             </a-space>
           </a-card>
 
-          <a-card title="收件人和文案预览" style="margin-bottom: 16px">
+          <a-card title="收件人和文案预览" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-form-item label="指定管理员">
               <a-select
                 v-model:value="formState.administratorUserIds"
@@ -123,14 +143,14 @@
             </a-descriptions>
           </a-card>
 
-          <a-space>
-            <a-button type="primary" html-type="submit" :loading="shipmentReminderStore.loading">保存设置</a-button>
-            <a-button @click="load">重新加载</a-button>
+          <a-space :direction="isMobile ? 'vertical' : 'horizontal'" :style="isMobile ? { width: '100%' } : {}">
+            <a-button type="primary" html-type="submit" :block="isMobile" :loading="shipmentReminderStore.loading">保存设置</a-button>
+            <a-button :block="isMobile" @click="load">重新加载</a-button>
           </a-space>
         </a-form>
       </a-spin>
 
-      <a-card title="测试发送" style="margin-top: 16px">
+      <a-card title="测试发送" style="margin-top: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
         <a-alert type="warning" show-icon message="测试会向所选员工的真实手机号发起短信或语音，请确认后再发送。" style="margin-bottom: 16px" />
         <a-form layout="vertical">
           <a-form-item label="测试接收人">
@@ -142,7 +162,7 @@
             <a-button type="primary" danger :loading="testSending" @click="sendTest">发送测试</a-button>
           </a-space>
         </a-form>
-        <a-table v-if="testResults.length" :data-source="testResults" :pagination="false" row-key="key" size="small" style="margin-top: 16px">
+        <a-table v-if="testResults.length && !isMobile" :data-source="testResults" :pagination="false" row-key="key" size="small" style="margin-top: 16px">
           <a-table-column title="接收人" data-index="userName" />
           <a-table-column title="手机号" data-index="mobile" />
           <a-table-column title="通道" data-index="channel" />
@@ -154,6 +174,20 @@
             </template>
           </a-table-column>
         </a-table>
+        <div v-if="testResults.length && isMobile" class="mobile-card-list test-result-list">
+          <MobileListCard v-for="result in testResults" :key="result.key">
+            <template #title>{{ result.userName }}</template>
+            <template #tags>
+              <a-tag>{{ result.channel === 'Sms' ? '短信' : '语音' }}</a-tag>
+              <a-tag :color="result.success ? 'green' : 'red'">{{ result.success ? '成功' : '失败' }}</a-tag>
+            </template>
+            <template #meta>
+              <div>手机号：{{ result.mobile }}</div>
+              <div v-if="result.error">错误：{{ result.error }}</div>
+              <div v-else-if="result.providerRequestId">请求 ID：{{ result.providerRequestId }}</div>
+            </template>
+          </MobileListCard>
+        </div>
       </a-card>
     </div>
   </div>
@@ -168,7 +202,10 @@ import {
   type ShipmentReminderTemplateVariable,
   type ShipmentReminderTestResult,
 } from '../stores/shipmentReminderStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
+import MobileListCard from '../components/mobile/MobileListCard.vue';
 
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const shipmentReminderStore = useShipmentReminderStore();
 const templatesLoading = ref(false);
 const templatesLoaded = ref(false);
@@ -359,6 +396,29 @@ onMounted(load);
 .page-container {
   padding: 24px;
   max-width: 1180px;
+}
+
+.template-variable-list,
+.test-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-variable-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-variable-field + .template-variable-field {
+  margin-top: 12px;
+}
+
+.template-variable-field > span,
+.template-variable-hint {
+  color: #667085;
+  font-size: 12px;
 }
 
 @media (max-width: 767.98px) {
