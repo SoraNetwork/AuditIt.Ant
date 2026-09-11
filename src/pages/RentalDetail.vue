@@ -1157,6 +1157,12 @@ const selectedRepairItems = ref<Record<number, string>>({});
 const returnItemConditions = ref<Record<number, ReturnCondition>>({});
 const selectedReturnRentalItemIds = ref<number[]>([]);
 const shippedOutboundRentalItemIds = computed(() => {
+  // A renewal carries the already-shipped inventory from its source rental;
+  // it intentionally has no new outbound shipment of its own.
+  if (rental.value?.isRenewal) {
+    return new Set(rental.value.items.map(item => item.id));
+  }
+
   const outboundShipments = rental.value?.shipments.filter(shipment => shipment.direction === 'Outbound') || [];
   if (outboundShipments.some(shipment => !shipment.items?.length)) {
     return new Set(rental.value?.items.map(item => item.id) || []);
@@ -1610,8 +1616,9 @@ const canReturn = computed(() =>
   !!rental.value
   && !isRentalClosed.value
   && hasRentalStarted.value
-  && unshippedRentalItems.value.length === 0
-  && unassignedOutboundShipments.value.length === 0
+  && (isRenewal.value
+    || (unshippedRentalItems.value.length === 0
+      && unassignedOutboundShipments.value.length === 0))
 );
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
@@ -1663,7 +1670,10 @@ const receiveDisabledReason = computed(() => {
 
 const returnDisabledReason = computed(() => {
   if (isRentalClosed.value) return '租赁单已结束，不能再登记归还';
-  if (!hasRentalStarted.value || unshippedRentalItems.value.length > 0 || unassignedOutboundShipments.value.length > 0) {
+  if (!hasRentalStarted.value) {
+    return '租赁尚未完全发货，不能直接登记归还';
+  }
+  if (!isRenewal.value && (unshippedRentalItems.value.length > 0 || unassignedOutboundShipments.value.length > 0)) {
     return '租赁尚未完全发货，不能直接登记归还';
   }
   return '';
