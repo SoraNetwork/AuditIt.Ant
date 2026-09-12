@@ -109,17 +109,33 @@
           </a-col>
           <a-col :span="12">
             <a-card title="未盘点物品（疑似丢失）">
-              <template #extra>
-                <a-button
-                  type="primary"
-                  danger
-                  :disabled="!hasSelection"
-                  :loading="isMarking"
-                  @click="markAsMissing"
-                >
-                  标记选中为疑似丢失
-                </a-button>
-              </template>
+              <div v-if="unCheckedItems.length > 0" class="selection-toolbar">
+                <a-space>
+                  <a-checkbox
+                    :checked="allUncheckedSelected"
+                    :indeterminate="someUncheckedSelected"
+                    :disabled="isMarking"
+                    @change="toggleAllSelections"
+                  >
+                    全选
+                  </a-checkbox>
+                  <span class="selection-count">已选 {{ selectedCount }} / {{ unCheckedItems.length }} 件</span>
+                </a-space>
+                <a-space>
+                  <a-button v-if="hasSelection" :disabled="isMarking" @click="clearSelection">
+                    清空选择
+                  </a-button>
+                  <a-button
+                    type="primary"
+                    danger
+                    :disabled="!hasSelection"
+                    :loading="isMarking"
+                    @click="markAsMissing"
+                  >
+                    标记选中为疑似丢失
+                  </a-button>
+                </a-space>
+              </div>
               <a-list :data-source="unCheckedItems" :loading="isLoading" bordered>
                 <template #renderItem="{ item }">
                   <a-list-item>
@@ -163,6 +179,14 @@
                 </div>
               </div>
               <div class="actions">
+                <a-checkbox
+                  :checked="allUncheckedSelected"
+                  :indeterminate="someUncheckedSelected"
+                  :disabled="isMarking"
+                  @change="toggleAllSelections"
+                >
+                  全选
+                </a-checkbox>
                 <a-button v-if="hasSelection" @click="clearSelection">清空选择</a-button>
               </div>
             </div>
@@ -253,9 +277,16 @@ const selectedItemIds = ref<Record<string, boolean>>({});
 
 const totalCount = computed(() => checkedItems.value.length + unCheckedItems.value.length);
 const selectedCount = computed(() =>
-  Object.values(selectedItemIds.value).filter(Boolean).length
+  unCheckedItems.value.filter(item => selectedItemIds.value[item.id]).length
 );
 const hasSelection = computed(() => selectedCount.value > 0);
+const allUncheckedSelected = computed(() =>
+  unCheckedItems.value.length > 0
+  && unCheckedItems.value.every(item => selectedItemIds.value[item.id])
+);
+const someUncheckedSelected = computed(() =>
+  selectedCount.value > 0 && !allUncheckedSelected.value
+);
 
 const getItemName = (item: Item) =>
   item.itemDefinition?.name || item.itemDefinitionName || item.name || '未命名物品';
@@ -269,6 +300,12 @@ const toggleSelected = (id: string) => {
     ...selectedItemIds.value,
     [id]: !selectedItemIds.value[id],
   };
+};
+
+const toggleAllSelections = () => {
+  selectedItemIds.value = allUncheckedSelected.value
+    ? {}
+    : Object.fromEntries(unCheckedItems.value.map(item => [item.id, true]));
 };
 
 onMounted(() => {
@@ -351,6 +388,19 @@ const markAsMissing = async () => {
 .analysis-result-row,
 .analysis-summary {
   margin-top: 16px;
+}
+
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.selection-count {
+  color: #667085;
 }
 
 .checked-text {

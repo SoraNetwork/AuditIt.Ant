@@ -34,6 +34,7 @@
               <a-select-option value="InStock">在库</a-select-option>
               <a-select-option value="LoanedOut">借出</a-select-option>
               <a-select-option value="Disposed">处置</a-select-option>
+              <a-select-option value="SuspectedMissing">疑似丢失</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
@@ -171,7 +172,7 @@ const warehouseStore = useWarehouseStore();
 const itemDefStore = useItemDefinitionStore();
 const categoryStore = useCategoryStore();
 
-const itemStatuses: ItemStatus[] = ['InStock', 'LoanedOut', 'Disposed'];
+const itemStatuses: ItemStatus[] = ['InStock', 'LoanedOut', 'Disposed', 'SuspectedMissing'];
 const readQueryItemStatus = (value: unknown): ItemStatus | undefined => {
   const status = readQueryString(value);
   return itemStatuses.includes(status as ItemStatus) ? (status as ItemStatus) : undefined;

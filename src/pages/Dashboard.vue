@@ -4,22 +4,27 @@
     <div class="page-container">
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]">
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToInventory()">
             <a-statistic title="总库存物品" :value="totalItems" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToInventory('InStock')">
             <a-statistic title="在库物品" :value="inStockItems" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToInventory('LoanedOut')">
             <a-statistic title="借出物品" :value="loanedOutItems" />
           </a-card>
         </a-col>
         <a-col :xs="12" :sm="12" :md="8" :lg="4">
-          <a-card>
+          <a-card hoverable class="overview-card" @click="goToInventory('Disposed')">
+            <a-statistic title="已处置物品" :value="disposedItems" />
+          </a-card>
+        </a-col>
+        <a-col :xs="12" :sm="12" :md="8" :lg="4">
+          <a-card hoverable class="overview-card" @click="goToInventory('SuspectedMissing')">
             <a-statistic title="疑似丢失" :value="suspectedMissingItems" />
           </a-card>
         </a-col>
@@ -275,7 +280,7 @@
           </a-card>
         </a-col>
         <a-col :xs="24" :md="12">
-          <a-card title="各仓库物品数量">
+          <a-card title="各仓库物品状态">
             <div class="chart-wrapper">
               <Bar :data="barChartData" :options="chartOptions" />
             </div>
@@ -290,7 +295,7 @@
 import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
-import { useItemStore } from '../stores/itemStore';
+import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useRentalStore, type Rental, type RentalStatus } from '../stores/rentalStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
@@ -429,6 +434,10 @@ const goToPendingSettlementList = () => {
   router.push({ path: '/rentals', query: { pendingSettlement: 'true' } });
 };
 
+const goToInventory = (status?: ItemStatus) => {
+  router.push({ path: '/inventory', query: status ? { status } : {} });
+};
+
 const daysUntil = (dateStr: string) => {
   const now = dayjs().startOf('day');
   const target = dayjs(dateStr).startOf('day');
@@ -447,6 +456,7 @@ const formatDate = (value?: string | null) =>
 const totalItems = computed(() => itemStore.items.length);
 const inStockItems = computed(() => itemStore.items.filter(i => i.status === 'InStock').length);
 const loanedOutItems = computed(() => itemStore.items.filter(i => i.status === 'LoanedOut').length);
+const disposedItems = computed(() => itemStore.items.filter(i => i.status === 'Disposed').length);
 const suspectedMissingItems = computed(() => itemStore.items.filter(i => i.status === 'SuspectedMissing').length);
 
 const pieChartData = computed(() => ({
@@ -456,7 +466,7 @@ const pieChartData = computed(() => ({
     data: [
       inStockItems.value,
       loanedOutItems.value,
-      itemStore.items.filter(i => i.status === 'Disposed').length,
+      disposedItems.value,
       suspectedMissingItems.value
     ]
   }]
@@ -464,16 +474,23 @@ const pieChartData = computed(() => ({
 
 const barChartData = computed(() => {
   const labels = warehouseStore.warehouses.map(w => w.name);
-  const data = warehouseStore.warehouses.map(w =>
-    itemStore.items.filter(i => i.warehouseId === w.id && i.status === 'InStock').length
-  );
+  const statusSeries: Array<{ status: ItemStatus; label: string; backgroundColor: string }> = [
+    { status: 'InStock', label: '在库', backgroundColor: '#41B883' },
+    { status: 'LoanedOut', label: '借出', backgroundColor: '#E46651' },
+    { status: 'Disposed', label: '已处置', backgroundColor: '#00D8FF' },
+    { status: 'SuspectedMissing', label: '疑似丢失', backgroundColor: '#FFC107' },
+  ];
   return {
     labels,
-    datasets: [{
-      label: '在库物品数量',
-      backgroundColor: '#f87979',
-      data
-    }]
+    datasets: statusSeries.map(series => ({
+      label: series.label,
+      backgroundColor: series.backgroundColor,
+      data: warehouseStore.warehouses.map(warehouse =>
+        itemStore.items.filter(item =>
+          item.warehouseId === warehouse.id && item.status === series.status
+        ).length
+      ),
+    })),
   };
 });
 
