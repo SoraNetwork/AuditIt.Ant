@@ -242,7 +242,12 @@ import { message } from 'ant-design-vue';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
-import { getStatusText as getItemStatusText, type Item, useItemStore } from '../stores/itemStore';
+import {
+  getStatusText as getItemStatusText,
+  type Item,
+  type ItemStatus,
+  useItemStore,
+} from '../stores/itemStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 
@@ -292,6 +297,8 @@ const hasResults = computed(() => scannedItems.value.length > 0);
 
 const getItemName = (item: Item) =>
   item.itemDefinition?.name || item.itemDefinitionName || item.name || '未命名物品';
+
+const checkableItemStatus: ItemStatus = 'InStock';
 
 const successSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaXRyYXRlOjMyMGtiL3MA');
 const failSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaXRyYXRlOjI1NmtiL3MA');
@@ -345,6 +352,12 @@ const assertWithinCandidateScope = (item: Item) => {
 
   if (candidateFilters.warehouseId && item.warehouseId !== candidateFilters.warehouseId) {
     throw new Error('当前盘点范围仅限所选库房。');
+  }
+};
+
+const assertCheckableItem = (item: Item) => {
+  if (item.status !== checkableItemStatus) {
+    throw new Error('租借中的物品不能参与盘点。');
   }
 };
 
@@ -426,6 +439,7 @@ const handleCandidateCheck = async (item: Item) => {
   isLoading.value = true;
   try {
     assertWithinCandidateScope(item);
+    assertCheckableItem(item);
     await checkResolvedItem(item, item.shortId);
   } catch (error: any) {
     stats.failed += 1;
@@ -469,6 +483,7 @@ const handleSingleCheck = async () => {
       shortId: shortIdValue,
       categoryId: candidateFilters.categoryId,
       warehouseId: candidateFilters.warehouseId,
+      status: checkableItemStatus,
     });
     if (itemStore.error) {
       throw new Error(itemStore.error);
@@ -480,6 +495,7 @@ const handleSingleCheck = async () => {
         search: shortIdValue,
         categoryId: candidateFilters.categoryId,
         warehouseId: candidateFilters.warehouseId,
+        status: checkableItemStatus,
       });
       if (itemStore.error) {
         throw new Error(itemStore.error);
@@ -502,6 +518,7 @@ const handleSingleCheck = async () => {
     }
 
     assertWithinCandidateScope(item);
+    assertCheckableItem(item);
     await checkResolvedItem(item, shortIdValue);
   } catch (error: any) {
     stats.failed += 1;
