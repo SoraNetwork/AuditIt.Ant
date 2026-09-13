@@ -444,7 +444,10 @@ const latestPendingOutboundShipment = (rental: Rental) =>
 
 const outboundPendingDeliveryList = computed(() =>
   [...rentalStore.rentals]
-    .filter(rental => Boolean(latestPendingOutboundShipment(rental)))
+    .filter(rental =>
+      rental.status !== 'Returned'
+      && Boolean(latestPendingOutboundShipment(rental))
+    )
     .sort((left, right) =>
       new Date(latestPendingOutboundShipment(left)!.shippedAt).getTime()
       - new Date(latestPendingOutboundShipment(right)!.shippedAt).getTime()

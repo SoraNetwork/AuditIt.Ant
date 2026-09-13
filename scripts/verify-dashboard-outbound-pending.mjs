@@ -21,6 +21,10 @@ const checks = [
     pass: /direction\s*===\s*'Outbound'\s*&&\s*!shipment\.deliveredAt/.test(dashboard),
   },
   {
+    name: 'returned rentals are excluded from pending outbound delivery',
+    pass: /rental\.status\s*!==\s*'Returned'[\s\S]*Boolean\(latestPendingOutboundShipment\(rental\)\)/.test(outboundPendingListSource),
+  },
+  {
     name: 'pending-delivery list has no UI item limit',
     pass: listStart >= 0 && listEnd > listStart && !outboundPendingListSource.includes('.slice('),
   },
