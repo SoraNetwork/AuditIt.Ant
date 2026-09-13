@@ -394,6 +394,38 @@ export const useRentalStore = defineStore('rental', {
       }
     },
 
+    async fetchAllRentals() {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const pageSize = 200;
+        const rentalsById = new Map<string, Rental>();
+        let page = 1;
+        let total = 0;
+
+        do {
+          const response = await apiClient.get<{ items: Rental[]; total: number }>(
+            `/rentals?page=${page}&pageSize=${pageSize}`
+          );
+          const items = response.data.items || [];
+          const previousCount = rentalsById.size;
+          total = response.data.total;
+          items.forEach(rental => rentalsById.set(rental.id, rental));
+
+          if (items.length < pageSize || rentalsById.size === previousCount) break;
+          page += 1;
+        } while (rentalsById.size < total);
+
+        this.rentals = Array.from(rentalsById.values());
+        this.total = total;
+      } catch (err: any) {
+        this.error = '获取租赁列表失败: ' + (err.response?.data?.message || err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async fetchOwnerOptions(): Promise<RentalOwnerOptions> {
       const response = await apiClient.get<RentalOwnerOptions>('/rentals/owner-options');
       return {

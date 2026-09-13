@@ -127,6 +127,41 @@
       </a-row>
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
+          <a-card title="发货待签收">
+            <a-list size="small" :data-source="outboundPendingDeliveryList" :locale="{ emptyText: '暂无发货待签收的物流' }">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <template #actions>
+                    <router-link :to="`/rentals/${item.id}`">处理</router-link>
+                  </template>
+                  <a-list-item-meta>
+                    <template #title>
+                      <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
+                      <a-tag color="processing" style="margin-left: 8px">待签收</a-tag>
+                      <a-tooltip v-if="shippingRegionLabel(item)" :title="item.shippingAddress || undefined">
+                        <a-tag color="cyan">收货：{{ shippingRegionLabel(item) }}</a-tag>
+                      </a-tooltip>
+                    </template>
+                    <template #description>
+                      <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span style="margin-left: 8px">
+                        {{ latestPendingOutboundShipment(item)?.carrier || '发货物流' }}
+                        {{ latestPendingOutboundShipment(item)?.trackingNumber || '-' }}
+                      </span>
+                      <span v-if="latestPendingOutboundShipment(item)" style="margin-left: 8px">
+                        已发货 {{ daysSince(latestPendingOutboundShipment(item)!.shippedAt) }} 天
+                      </span>
+                      <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </a-card>
+        </a-col>
+      </a-row>
+      <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
+        <a-col :xs="24">
           <a-card title="回货中">
             <a-list size="small" :data-source="returnInTransitList" :locale="{ emptyText: '暂无回货中的物流' }">
               <template #renderItem="{ item }">
@@ -212,11 +247,8 @@
 
       <a-row :gutter="isMobile ? [8, 8] : [16, 16]" style="margin-top: 16px;">
         <a-col :xs="24">
-          <a-card title="已签收待归还单">
-          <!--  <template #extra>
-              <router-link :to="{ path: '/rentals', query: { pendingSettlement: 'true' } }">查看全部</router-link>
-            </template>-->
-            <a-list size="small" :data-source="transReturnedButNotCheckList" :locale="{ emptyText: '暂无待结算租赁单' }">
+          <a-card title="回货已签收待确认归还">
+            <a-list size="small" :data-source="returnDeliveredPendingConfirmationList" :locale="{ emptyText: '暂无回货已签收待确认归还的租赁单' }">
               <template #renderItem="{ item }">
                 <a-list-item>
                   <template #actions>
@@ -225,10 +257,15 @@
                   <a-list-item-meta>
                     <template #title>
                       <router-link :to="`/rentals/${item.id}`">{{ item.rentalNumber }}</router-link>
-                      <a-tag color="processing" style="margin-left: 8px">待归还</a-tag>
+                      <a-tag color="processing" style="margin-left: 8px">待确认归还</a-tag>
                     </template>
                     <template #description>
                       <RenterLink :renter-id="item.renterId" :name="item.renter?.name" />
+                      <span v-if="latestDeliveredInboundShipment(item)" style="margin-left: 8px">
+                        {{ latestDeliveredInboundShipment(item)?.carrier || '回货物流' }}
+                        {{ latestDeliveredInboundShipment(item)?.trackingNumber || '-' }}
+                        · 签收于 {{ formatDate(latestDeliveredInboundShipment(item)?.deliveredAt) }}
+                      </span>
                       <span v-if="item.platformOrderNo" style="margin-left: 8px">平台单号：{{ item.platformOrderNo }}</span>
                     </template>
                   </a-list-item-meta>
@@ -328,7 +365,7 @@ const rentalListDefaultSorts: Partial<Record<RentalStatus, { sortField: RentalDa
 onMounted(() => {
   itemStore.fetchItems();
   warehouseStore.fetchWarehouses();
-  rentalStore.fetchRentals({ pageSize: 200 });
+  rentalStore.fetchAllRentals();
 });
 
 const pendingSettlementList = computed(() =>
@@ -400,6 +437,20 @@ const latestPendingInboundShipment = (rental: Rental) =>
     .filter(shipment => shipment.direction === 'Inbound' && !shipment.deliveredAt)
     .sort((left, right) => new Date(right.shippedAt).getTime() - new Date(left.shippedAt).getTime())[0];
 
+const latestPendingOutboundShipment = (rental: Rental) =>
+  [...(rental.shipments || [])]
+    .filter(shipment => shipment.direction === 'Outbound' && !shipment.deliveredAt)
+    .sort((left, right) => new Date(right.shippedAt).getTime() - new Date(left.shippedAt).getTime())[0];
+
+const outboundPendingDeliveryList = computed(() =>
+  [...rentalStore.rentals]
+    .filter(rental => Boolean(latestPendingOutboundShipment(rental)))
+    .sort((left, right) =>
+      new Date(latestPendingOutboundShipment(left)!.shippedAt).getTime()
+      - new Date(latestPendingOutboundShipment(right)!.shippedAt).getTime()
+    )
+);
+
 const returnInTransitList = computed(() =>
   [...rentalStore.rentals]
     .filter(rental =>
@@ -414,16 +465,24 @@ const returnInTransitList = computed(() =>
     //.slice(0, 12)
 );
 
-const transReturnedButNotCheckList = computed(() =>
+const latestDeliveredInboundShipment = (rental: Rental) =>
+  [...(rental.shipments || [])]
+    .filter(shipment => shipment.direction === 'Inbound' && Boolean(shipment.deliveredAt))
+    .sort((left, right) =>
+      new Date(right.deliveredAt!).getTime() - new Date(left.deliveredAt!).getTime()
+    )[0];
+
+const returnDeliveredPendingConfirmationList = computed(() =>
   [...rentalStore.rentals]
     .filter(rental =>
       (rental.status === 'Active' || rental.status === 'Overdue')
-      && rental.shipments.some(shipment => shipment.direction === 'Inbound' && shipment.deliveredAt)
+      && rental.items.some(item => !item.returnedAt)
+      && Boolean(latestDeliveredInboundShipment(rental))
     )
     .sort((left, right) =>
-      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+      new Date(latestDeliveredInboundShipment(left)!.deliveredAt!).getTime()
+      - new Date(latestDeliveredInboundShipment(right)!.deliveredAt!).getTime()
     )
-    //.slice(0, 12)
 );
 
 const goToRentalsByStatus = (status: RentalStatus) => {
@@ -443,6 +502,8 @@ const daysUntil = (dateStr: string) => {
   const target = dayjs(dateStr).startOf('day');
   return target.diff(now, 'day');
 };
+
+const daysSince = (dateStr: string) => Math.max(0, -daysUntil(dateStr));
 
 const isUnreturnedOverdueRental = (rental: Rental) =>
   (rental.status === 'Active' || rental.status === 'Overdue')
