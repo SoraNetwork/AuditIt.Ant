@@ -9,6 +9,20 @@
       <div class="calendar-header-toolbar">
         <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="filter-controls">
           <div class="filter-field">
+            <span class="toolbar-label">仓库：</span>
+            <a-select
+              v-model:value="selectedWarehouseId"
+              show-search
+              option-filter-prop="label"
+              :options="warehouseOptions"
+              :loading="warehouseStore.loading"
+              placeholder="请选择仓库"
+              :size="isMobile ? 'large' : 'middle'"
+              class="warehouse-select"
+              @change="onWarehouseChange"
+            />
+          </div>
+          <div class="filter-field">
             <span class="toolbar-label">物品分类：</span>
             <a-select
               v-model:value="selectedCategoryId"
@@ -39,7 +53,7 @@
           </div>
         </a-space>
 
-        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="navigation-controls" v-if="selectedDefinitionId">
+        <a-space :direction="isMobile ? 'vertical' : 'horizontal'" wrap class="navigation-controls" v-if="selectedWarehouseId && selectedDefinitionId">
           <div class="nav-buttons">
             <a-button :size="isMobile ? 'large' : 'middle'" @click="moveMonth(-1)">上月</a-button>
             <a-button :size="isMobile ? 'large' : 'middle'" @click="goToday">今天</a-button>
@@ -49,8 +63,16 @@
         </a-space>
       </div>
 
-      <div v-if="!selectedDefinitionId" class="select-prompt">
-        <a-empty description="请选择上方物品定义以查看占用日历" />
+      <a-alert
+        v-if="selectedWarehouseId"
+        type="info"
+        show-icon
+        message="仓库日历按具体物品归属统计；尚未分配物品的租赁不会计入任一仓库。"
+        class="scope-alert"
+      />
+
+      <div v-if="!selectedWarehouseId || !selectedDefinitionId" class="select-prompt">
+        <a-empty :description="!selectedWarehouseId ? '请先选择仓库' : '请选择上方物品定义以查看占用日历'" />
       </div>
 
       <a-spin v-else :spinning="loading">
@@ -156,6 +178,7 @@ import { message } from 'ant-design-vue';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useItemAvailabilityStore, type ItemDefinitionDailyStock } from '../stores/itemAvailabilityStore';
+import { useWarehouseStore } from '../stores/warehouseStore';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { rentalStatusText } from '../utils/rentalDisplay';
 import { readQueryDay, readQueryMonth, readQueryNumber } from '../utils/routeQuery';
@@ -167,9 +190,11 @@ const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
 const availabilityStore = useItemAvailabilityStore();
+const warehouseStore = useWarehouseStore();
 
 const initialSelectedDate = readQueryDay(route.query.date, dayjs());
 const selectedCategoryId = ref<number | undefined>(readQueryNumber(route.query.categoryId));
+const selectedWarehouseId = ref<number | undefined>(readQueryNumber(route.query.warehouseId));
 const selectedDefinitionId = ref<number | undefined>(readQueryNumber(route.query.definitionId));
 const visibleMonth = ref(readQueryMonth(route.query.month, initialSelectedDate));
 const selectedDate = ref(initialSelectedDate);
@@ -184,6 +209,9 @@ const categoryOptions = computed(() =>
     value: category.id,
     label: category.name,
   }))
+);
+const warehouseOptions = computed(() =>
+  warehouseStore.warehouses.map(warehouse => ({ value: warehouse.id, label: warehouse.name }))
 );
 
 const filteredDefinitions = computed(() => {
@@ -210,12 +238,13 @@ const rangeStart = computed(() => calendarDays.value[0].format('YYYY-MM-DD'));
 const rangeEnd = computed(() => calendarDays.value[calendarDays.value.length - 1].format('YYYY-MM-DD'));
 
 const loadOccupancy = async () => {
-  if (!selectedDefinitionId.value) return;
+  if (!selectedWarehouseId.value || !selectedDefinitionId.value) return;
 
   loading.value = true;
   try {
     const data = await availabilityStore.fetchDefinitionOccupancy(
       selectedDefinitionId.value,
+      selectedWarehouseId.value,
       rangeStart.value,
       rangeEnd.value
     );
@@ -240,6 +269,7 @@ const syncCalendarQuery = async () => {
     query: {
       ...route.query,
       categoryId: selectedCategoryId.value,
+      warehouseId: selectedWarehouseId.value,
       definitionId: selectedDefinitionId.value,
       month: selectedDefinitionId.value ? visibleMonth.value.format('YYYY-MM') : undefined,
       date: selectedDefinitionId.value ? selectedDate.value.format('YYYY-MM-DD') : undefined,
@@ -274,6 +304,13 @@ const onCategoryChange = async () => {
   calendarData.value = {};
   totalStock.value = 0;
   await syncCalendarQuery();
+};
+
+const onWarehouseChange = async () => {
+  calendarData.value = {};
+  totalStock.value = 0;
+  await syncCalendarQuery();
+  if (selectedDefinitionId.value) await loadOccupancy();
 };
 
 const moveMonth = async (step: number) => {
@@ -327,7 +364,13 @@ onMounted(async () => {
   await Promise.all([
     categoryStore.fetchCategories(),
     itemDefStore.fetchItemDefinitions(),
+    warehouseStore.fetchWarehouses(),
   ]);
+
+  if (!selectedWarehouseId.value || !warehouseStore.warehouses.some(warehouse => warehouse.id === selectedWarehouseId.value)) {
+    selectedWarehouseId.value = warehouseStore.warehouses[0]?.id;
+    await syncCalendarQuery();
+  }
 
   const selectedDefinitionStillVisible =
     selectedDefinitionId.value
@@ -387,6 +430,7 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
+.warehouse-select,
 .category-select {
   width: 200px;
 }
@@ -414,6 +458,10 @@ onMounted(async () => {
 
 .select-prompt {
   padding: 60px 0;
+}
+
+.scope-alert {
+  margin-bottom: 16px;
 }
 
 .calendar-wrapper {
@@ -697,6 +745,7 @@ onMounted(async () => {
     gap: 6px;
   }
 
+  .warehouse-select,
   .category-select,
   .definition-select {
     width: 100%;

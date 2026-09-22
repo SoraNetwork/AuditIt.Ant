@@ -61,11 +61,16 @@ export const useItemAvailabilityStore = defineStore('itemAvailability', {
         this.loading = false;
       }
     },
-    async fetchDefinitionOccupancy(definitionId: number, from: string, to: string): Promise<ItemDefinitionOccupancyCalendar> {
+    async fetchDefinitionOccupancy(
+      definitionId: number,
+      warehouseId: number,
+      from: string,
+      to: string,
+    ): Promise<ItemDefinitionOccupancyCalendar> {
       this.loading = true;
       this.error = null;
       try {
-        const params = new URLSearchParams({ from, to });
+        const params = new URLSearchParams({ from, to, warehouseId: String(warehouseId) });
         const response = await apiClient.get<ItemDefinitionOccupancyCalendar>(`/itemDefinitions/${definitionId}/occupancy?${params.toString()}`);
         return response.data;
       } catch (err: any) {
@@ -104,6 +109,8 @@ export interface ItemDefinitionDailyStock {
 export interface ItemDefinitionOccupancyCalendar {
   itemDefinitionId: number;
   name: string;
+  warehouseId: number | null;
+  warehouseName: string | null;
   totalStock: number;
   from: string;
   to: string;
