@@ -569,6 +569,12 @@ export const useRentalStore = defineStore('rental', {
       return response.data;
     },
 
+    async prepareRentalItems(id: string, warehouseId: number): Promise<Rental> {
+      const response = await apiClient.post<Rental>(`/rentals/${id}/prepare`, { warehouseId });
+      this.replaceInList(response.data);
+      return response.data;
+    },
+
     replaceInList(rental: Rental) {
       const idx = this.rentals.findIndex(r => r.id === rental.id);
       if (idx !== -1) this.rentals[idx] = rental;

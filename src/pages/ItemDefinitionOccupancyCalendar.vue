@@ -67,7 +67,7 @@
         v-if="selectedWarehouseId"
         type="info"
         show-icon
-        message="仓库日历按具体物品归属统计；尚未分配物品的租赁不会计入任一仓库。"
+        message="未配货订单会按各仓库现有库存稳定地暂分配；提前配货后改按实际物品仓库统计。"
         class="scope-alert"
       />
 

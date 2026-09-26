@@ -133,6 +133,7 @@
 
       <div v-if="isMobile" class="rental-mobile-actions">
         <div class="rental-primary-actions">
+          <a-button v-if="canPrepare" type="primary" ghost @click="openPrepare">提前配货</a-button>
           <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
           <a-button v-if="canRepairShipment" @click="openRepairShipment(unassignedOutboundShipments[0])">补录发货物品</a-button>
           <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
@@ -152,6 +153,7 @@
       <div v-else class="rental-actions">
         <a-button v-if="canEdit" @click="openEdit">编辑基础信息</a-button>
         <a-button v-if="canRenew" type="primary" ghost @click="openRenew">续租</a-button>
+        <a-button v-if="canPrepare" type="primary" ghost @click="openPrepare">提前配货</a-button>
         <a-button v-if="canShip" type="primary" @click="openOutbound">登记发货</a-button>
         <a-button v-if="canRepairShipment" @click="openRepairShipment(unassignedOutboundShipments[0])">补录发货物品</a-button>
         <a-tooltip :title="receiveDisabledReason" :open="canReceive ? false : undefined">
@@ -491,6 +493,35 @@
       </template>
     </a-card>
   </div>
+
+  <a-modal
+    v-model:open="prepareVisible"
+    title="提前配货"
+    ok-text="按仓库自动配货"
+    cancel-text="取消"
+    :confirm-loading="prepareSaving"
+    :ok-button-props="{ disabled: !prepareWarehouseId }"
+    @ok="submitPrepare"
+  >
+    <a-alert
+      type="info"
+      show-icon
+      message="提前配货只确定具体库存，不会登记发货；保存后仓库日历将按实际物品归属统计。"
+      style="margin-bottom: 16px"
+    />
+    <a-form layout="vertical">
+      <a-form-item label="计划发货仓库" required>
+        <a-select
+          v-model:value="prepareWarehouseId"
+          placeholder="选择仓库"
+          show-search
+          option-filter-prop="label"
+          :options="warehouseStore.warehouses.map(warehouse => ({ value: warehouse.id, label: warehouse.name }))"
+        />
+      </a-form-item>
+      <div class="form-help">待配货 {{ unallocatedRentalItems.length }} 件；系统会从该仓库选择无时间冲突的在库物品。</div>
+    </a-form>
+  </a-modal>
 
   <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="() => submitShip()">
     <a-form layout="vertical">
@@ -1172,6 +1203,9 @@ const shippedOutboundRentalItemIds = computed(() => {
 const unshippedRentalItems = computed(() =>
   rental.value?.items.filter(item => !item.returnedAt && !shippedOutboundRentalItemIds.value.has(item.id)) || []
 );
+const unallocatedRentalItems = computed(() =>
+  unshippedRentalItems.value.filter(item => !item.itemId)
+);
 const uncertainRentalItems = computed(() => {
   if (shipForm.direction !== 'Outbound') return [];
   const selected = new Set(selectedOutboundRentalItemIds.value.map(Number));
@@ -1217,6 +1251,9 @@ const availableItemsForRepair = (definitionId?: number | null) => {
   );
 };
 const shipVisible = ref(false);
+const prepareVisible = ref(false);
+const prepareSaving = ref(false);
+const prepareWarehouseId = ref<number | undefined>();
 const shipmentFeeVisible = ref(false);
 const returnVisible = ref(false);
 const cancelVisible = ref(false);
@@ -1620,6 +1657,12 @@ const canReturn = computed(() =>
     || (unshippedRentalItems.value.length === 0
       && unassignedOutboundShipments.value.length === 0))
 );
+const canPrepare = computed(() =>
+  !!rental.value
+  && !isRentalClosed.value
+  && !hasRentalStarted.value
+  && unallocatedRentalItems.value.length > 0
+);
 const canCancel = computed(() => !!rental.value && !isRentalClosed.value);
 const canEdit = computed(() => !!rental.value && !isRentalClosed.value);
 const canRenew = computed(() =>
@@ -1738,6 +1781,40 @@ const openOutbound = async () => {
   selectedOutboundRentalItemIds.value = unshippedRentalItems.value.map(item => item.id);
   shipVisible.value = true;
   await itemStore.fetchItems();
+  const selectedItemIds = unshippedRentalItems.value
+    .map(item => item.itemId)
+    .filter((itemId): itemId is string => !!itemId);
+  if (selectedItemIds.length === unshippedRentalItems.value.length) {
+    const warehouseIds = new Set(selectedItemIds
+      .map(itemId => itemStore.items.find(item => item.id === itemId)?.warehouseId)
+      .filter((warehouseId): warehouseId is number => !!warehouseId));
+    if (warehouseIds.size === 1) {
+      shipForm.originWarehouseId = Array.from(warehouseIds)[0];
+    }
+  }
+};
+
+const openPrepare = () => {
+  prepareWarehouseId.value = undefined;
+  prepareVisible.value = true;
+};
+
+const submitPrepare = async () => {
+  if (!rental.value || !prepareWarehouseId.value) {
+    message.warning('请选择计划发货仓库');
+    return;
+  }
+
+  prepareSaving.value = true;
+  try {
+    rental.value = await rentalStore.prepareRentalItems(rental.value.id, prepareWarehouseId.value);
+    prepareVisible.value = false;
+    message.success('提前配货完成');
+  } catch (err: any) {
+    message.error(err?.response?.data || err?.message || '提前配货失败');
+  } finally {
+    prepareSaving.value = false;
+  }
 };
 
 const openInbound = () => {
