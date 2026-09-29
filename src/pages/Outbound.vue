@@ -56,7 +56,7 @@
 
           <div v-else-if="isMobile" class="mobile-card-list">
             <MobileListCard
-              v-for="item in filteredData"
+              v-for="item in visibleMobileItems"
               :key="item.id"
               clickable
               :active="selectedRowKeys.includes(item.id)"
@@ -78,6 +78,10 @@
                 <div v-if="item.remarks">备注：{{ item.remarks }}</div>
               </template>
             </MobileListCard>
+              <div class="mobile-list-pagination">
+                <span role="status">已显示 {{ visibleMobileItems.length }} / {{ filteredData.length }} 件</span>
+                <a-button v-if="hasMoreMobileItems" block @click="loadMoreMobileItems">加载更多物品</a-button>
+              </div>
           </div>
 
           <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该仓库中没有符合条件的物品" />
@@ -111,6 +115,7 @@
 </template>
 
 <script setup lang="ts">
+import { useProgressiveList } from '../composables/useProgressiveList';
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
@@ -269,6 +274,7 @@ const getStatusColor = (status: ItemStatus) => {
     default: return 'default';
   }
 };
+const { visibleItems: visibleMobileItems, hasMore: hasMoreMobileItems, loadMore: loadMoreMobileItems } = useProgressiveList(filteredData);
 </script>
 
 <style scoped>

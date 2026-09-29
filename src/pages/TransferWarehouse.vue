@@ -106,7 +106,7 @@
 
           <div v-else-if="isMobile" class="mobile-card-list">
             <MobileListCard
-              v-for="item in filteredData"
+              v-for="item in visibleMobileItems"
               :key="item.id"
               clickable
               :active="selectedRowKeys.includes(item.id)"
@@ -135,6 +135,10 @@
                 />
               </template>
             </MobileListCard>
+              <div class="mobile-list-pagination">
+                <span role="status">已显示 {{ visibleMobileItems.length }} / {{ filteredData.length }} 件</span>
+                <a-button v-if="hasMoreMobileItems" block @click="loadMoreMobileItems">加载更多物品</a-button>
+              </div>
           </div>
 
           <a-empty v-if="!itemStore.loading && filteredData.length === 0" description="该库房中没有符合条件的物品" />
@@ -208,6 +212,7 @@
 </template>
 
 <script setup lang="ts">
+import { useProgressiveList } from '../composables/useProgressiveList';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
@@ -369,6 +374,7 @@ const getPhotoUrl = (photoUrl: string) => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5048/api';
   return baseUrl.replace('/api', '') + photoUrl;
 };
+const { visibleItems: visibleMobileItems, hasMore: hasMoreMobileItems, loadMore: loadMoreMobileItems } = useProgressiveList(filteredData);
 </script>
 
 <style scoped>

@@ -154,22 +154,22 @@
         <a-row :gutter="16">
           <a-col :xs="24" :span="6">
             <a-form-item label="预计发货日期">
-              <a-date-picker v-model:value="form.expectedShipDate" style="width: 100%" />
+              <MobileDatePicker v-model:value="form.expectedShipDate" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
             <a-form-item label="开始日期">
-              <a-date-picker v-model:value="form.startDate" style="width: 100%" />
+              <MobileDatePicker v-model:value="form.startDate" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
             <a-form-item label="预计结束日期" required>
-              <a-date-picker v-model:value="form.expectedEndDate" style="width: 100%" />
+              <MobileDatePicker v-model:value="form.expectedEndDate" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
             <a-form-item label="预计回货时间" required>
-              <a-date-picker v-model:value="form.expectedReturnDate" style="width: 100%" />
+              <MobileDatePicker v-model:value="form.expectedReturnDate" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :span="6">
@@ -197,7 +197,7 @@
           </a-col>
           <a-col :xs="24" :span="6">
             <a-form-item label="续租意愿至" :required="form.hasRenewalIntent">
-              <a-date-picker
+              <MobileDatePicker
                 v-model:value="form.renewalIntentEndDate"
                 style="width: 100%"
                 :disabled="!form.hasRenewalIntent"
@@ -522,7 +522,7 @@
           <div v-else class="mobile-card-list">
             <a-skeleton :loading="itemStore.loading" active :paragraph="{ rows: 4 }">
               <MobileListCard
-                v-for="item in filteredSelectableItems"
+                v-for="item in visibleMobileItems"
                 :key="item.id"
                 clickable
                 :active="selectedItemIds.includes(item.id)"
@@ -546,6 +546,10 @@
                   <div v-if="item.remarks">备注：{{ item.remarks }}</div>
                 </template>
               </MobileListCard>
+              <div class="mobile-list-pagination">
+                <span role="status">已显示 {{ visibleMobileItems.length }} / {{ filteredSelectableItems.length }} 件</span>
+                <a-button v-if="hasMoreMobileItems" block @click="loadMoreMobileItems">加载更多物品</a-button>
+              </div>
               <a-empty v-if="filteredSelectableItems.length === 0 && !itemStore.loading" description="暂无可选商品" />
             </a-skeleton>
           </div>
@@ -755,6 +759,8 @@
 </template>
 
 <script setup lang="ts">
+import { useProgressiveList } from '../composables/useProgressiveList';
+import MobileDatePicker from '../components/mobile/MobileDatePicker.vue';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useRouter } from 'vue-router';
@@ -875,10 +881,10 @@ const quickForm = reactive({
 
 const form = reactive({
   shippingAddress: '',
-  expectedShipDate: dayjs().subtract(3, 'day') as Dayjs,
-  startDate: dayjs() as Dayjs,
-  expectedEndDate: dayjs().add(7, 'day') as Dayjs,
-  expectedReturnDate: dayjs().add(10, 'day') as Dayjs,
+  expectedShipDate: dayjs().subtract(3, 'day') as Dayjs | null,
+  startDate: dayjs() as Dayjs | null,
+  expectedEndDate: dayjs().add(7, 'day') as Dayjs | null,
+  expectedReturnDate: dayjs().add(9, 'day') as Dayjs | null,
   hasRenewalIntent: false,
   renewalIntentEndDate: null as Dayjs | null,
   deposit: null as number | null,
@@ -1596,9 +1602,9 @@ watch(
     if (!nextEnd) return;
 
     const currentReturnDate = form.expectedReturnDate?.format('YYYY-MM-DD');
-    const previousDefaultReturnDate = previousEnd?.add(3, 'day').format('YYYY-MM-DD');
+    const previousDefaultReturnDate = previousEnd?.add(2, 'day').format('YYYY-MM-DD');
     if (!currentReturnDate || currentReturnDate === previousDefaultReturnDate) {
-      form.expectedReturnDate = nextEnd.add(3, 'day');
+      form.expectedReturnDate = nextEnd.add(2, 'day');
     }
   }
 );
@@ -1630,6 +1636,7 @@ onMounted(async () => {
     form.paymentAccount = paymentAccountSettings.defaultPaymentAccount;
   }
 });
+const { visibleItems: visibleMobileItems, hasMore: hasMoreMobileItems, loadMore: loadMoreMobileItems } = useProgressiveList(filteredSelectableItems);
 </script>
 
 <style scoped>

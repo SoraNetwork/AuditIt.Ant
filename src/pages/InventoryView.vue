@@ -111,7 +111,7 @@
 
             <div v-else class="mobile-card-list">
               <MobileListCard
-                v-for="item in filteredData"
+                v-for="item in visibleMobileItems"
                 :key="item.id"
                 clickable
                 @click="router.push({ name: 'item-details', params: { id: item.id } })"
@@ -131,6 +131,10 @@
                   <div>最后更新：{{ formatDateTime(item.lastUpdated) }}</div>
                 </template>
               </MobileListCard>
+              <div class="mobile-list-pagination">
+                <span role="status">已显示 {{ visibleMobileItems.length }} / {{ filteredData.length }} 件</span>
+                <a-button v-if="visibleMobileItems.length < filteredData.length" block @click="mobileLimit += 30">加载更多物品</a-button>
+              </div>
             </div>
           </template>
 
@@ -144,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, computed, ref } from 'vue';
+import { reactive, onMounted, computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import dayjs from 'dayjs';
@@ -240,6 +244,12 @@ const filteredData = computed(() => {
     item.categoryName.toLowerCase().includes(searchTermLower) ||
     (item.serialNumber || '').toLowerCase().includes(searchTermLower)
   );
+});
+
+const mobileLimit = ref(30);
+const visibleMobileItems = computed(() => filteredData.value.slice(0, mobileLimit.value));
+watch([() => filters.searchTerm, () => filters.warehouseId, () => filters.categoryId, () => filters.status], () => {
+  mobileLimit.value = 30;
 });
 
 const formatOwnerSummary = (item: { ownerUserNames?: string[]; ownerUserName?: string | null }) => {

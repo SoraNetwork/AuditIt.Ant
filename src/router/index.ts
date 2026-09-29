@@ -70,12 +70,17 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition;
+    if (to.path !== from.path) return { top: 0 };
+    return false;
+  },
 });
 
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore();
   const uiStore = useUiStore();
-  uiStore.startLoading();
+  if (to.path !== _from.path) uiStore.startLoading();
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' });
@@ -108,5 +113,7 @@ router.afterEach(to => {
   }
   uiStore.stopLoading();
 });
+
+router.onError(() => useUiStore().stopLoading());
 
 export default router;

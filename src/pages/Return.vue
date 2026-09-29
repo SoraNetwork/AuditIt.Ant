@@ -46,7 +46,7 @@
 
         <div v-else-if="isMobile && filteredTableData.length > 0" class="mobile-card-list">
           <MobileListCard
-            v-for="item in filteredTableData"
+            v-for="item in visibleMobileItems"
             :key="item.id"
             clickable
             :active="selectedRowKeys.includes(item.id)"
@@ -68,6 +68,10 @@
               <div>原属仓库：{{ item.warehouseName }}</div>
             </template>
           </MobileListCard>
+              <div class="mobile-list-pagination">
+                <span role="status">已显示 {{ visibleMobileItems.length }} / {{ filteredTableData.length }} 件</span>
+                <a-button v-if="hasMoreMobileItems" block @click="loadMoreMobileItems">加载更多物品</a-button>
+              </div>
         </div>
 
         <a-empty
@@ -93,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { useProgressiveList } from '../composables/useProgressiveList';
 import { ref, onMounted, computed } from 'vue';
 import { useItemStore, getStatusText, type ItemStatus } from '../stores/itemStore';
 import { useWarehouseStore, type Warehouse } from '../stores/warehouseStore';
@@ -234,6 +239,7 @@ onMounted(() => {
   warehouseStore.fetchWarehouses();
   itemDefStore.fetchItemDefinitions();
 });
+const { visibleItems: visibleMobileItems, hasMore: hasMoreMobileItems, loadMore: loadMoreMobileItems } = useProgressiveList(filteredTableData);
 </script>
 
 <style scoped>

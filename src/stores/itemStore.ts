@@ -1,3 +1,4 @@
+import { beginLatestRequest } from '../utils/latestRequest';
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
@@ -139,6 +140,7 @@ export const useItemStore = defineStore('item', {
       serialNumber?: string;
       search?: string;
     } = {}) {
+      const isLatest = beginLatestRequest(this);
       this.loading = true;
       this.error = null;
       try {
@@ -152,11 +154,13 @@ export const useItemStore = defineStore('item', {
         if (filters.search) params.append('search', filters.search);
 
         const response = await apiClient.get<Item[]>(`/items?${params.toString()}`);
+        if (!isLatest()) return;
         this.items = response.data.map(normalizeItem);
       } catch (err: any) {
+        if (!isLatest()) return;
         this.error = '获取库存失败: ' + (err.response?.data?.message || err.message);
       } finally {
-        this.loading = false;
+        if (isLatest()) this.loading = false;
       }
     },
 

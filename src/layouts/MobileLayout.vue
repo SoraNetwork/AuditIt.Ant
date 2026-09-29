@@ -2,7 +2,7 @@
   <a-config-provider :component-size="'large'">
     <a-layout class="mobile-root">
       <header class="mobile-header">
-        <a-button type="text" class="icon-btn" @click="drawerOpen = true">
+        <a-button type="text" class="icon-btn" aria-label="打开导航菜单" @click="drawerOpen = true">
           <menu-outlined />
         </a-button>
         <div class="title">{{ title }}</div>
@@ -10,6 +10,7 @@
           v-if="auth.hasPermission(P.ReminderView)"
           to="/reminders"
           class="icon-btn"
+          aria-label="提醒中心"
         >
           <a-badge
             :count="reminderStore.unreadCount"
@@ -20,7 +21,7 @@
             <bell-outlined style="font-size: 18px; color: #333" />
           </a-badge>
         </router-link>
-        <router-link to="/profile" class="icon-btn">
+        <router-link to="/profile" class="icon-btn" aria-label="我的账户">
           <user-outlined style="font-size: 18px; color: #333" />
         </router-link>
       </header>
@@ -54,6 +55,9 @@ import { useReminderStore } from '../stores/reminderStore';
 import { PermissionCodes as P } from '../utils/permissions';
 import MobileDrawerMenu from '../components/mobile/MobileDrawerMenu.vue';
 import MobileTabbar from '../components/mobile/MobileTabbar.vue';
+import { useMobileViewport } from '../composables/useMobileViewport';
+
+useMobileViewport();
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -81,6 +85,8 @@ onUnmounted(() => {
 <style scoped>
 .mobile-root {
   min-height: 100vh;
+  min-height: 100dvh;
+  min-width: 0;
   background: #f5f7fa;
 }
 
@@ -91,7 +97,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 52px;
+  min-height: calc(52px + env(safe-area-inset-top));
+  box-sizing: border-box;
   padding: 0 12px;
   padding-top: env(safe-area-inset-top);
   background: #fff;
@@ -113,8 +120,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   color: #333;
   text-decoration: none;
   border-radius: 8px;
@@ -138,5 +146,7 @@ onUnmounted(() => {
 .mobile-content {
   padding: 16px 16px calc(88px + env(safe-area-inset-bottom));
   min-height: calc(100vh - 52px);
+  min-width: 0;
+  min-height: calc(100dvh - 52px);
 }
 </style>

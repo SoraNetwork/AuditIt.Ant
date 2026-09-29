@@ -2,7 +2,11 @@
   <div
     class="mobile-list-card"
     :class="{ clickable, active }"
+    :role="clickable ? 'link' : undefined"
+    :tabindex="clickable ? 0 : undefined"
     @click="onClick"
+    @keydown.enter.self="onKeyboardActivate"
+    @keydown.space.self.prevent="onKeyboardActivate"
   >
     <div v-if="$slots.title || $slots.tags" class="card-header">
       <div class="card-title"><slot name="title" /></div>
@@ -25,6 +29,10 @@ const emit = defineEmits<{ (e: 'click', ev: MouseEvent): void }>();
 function onClick(ev: MouseEvent) {
   emit('click', ev);
 }
+
+function onKeyboardActivate(ev: KeyboardEvent) {
+  (ev.currentTarget as HTMLElement).click();
+}
 </script>
 
 <style scoped>
@@ -36,6 +44,13 @@ function onClick(ev: MouseEvent) {
   border: 1px solid #e8edf3;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
+.mobile-list-card:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }
 
 .mobile-list-card.clickable {
@@ -63,6 +78,7 @@ function onClick(ev: MouseEvent) {
 }
 
 .card-title {
+  min-width: 0;
   font-size: 14px;
   font-weight: 600;
   color: #262626;
@@ -75,7 +91,8 @@ function onClick(ev: MouseEvent) {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  max-width: 50%;
 }
 
 .card-subtitle {
@@ -109,7 +126,7 @@ function onClick(ev: MouseEvent) {
 
 .card-footer :deep(.ant-btn) {
   flex: 1 1 120px;
-  min-height: 34px;
+  min-height: 44px;
   border-radius: 8px;
 }
 </style>

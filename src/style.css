@@ -41,7 +41,8 @@ body.is-mobile .ant-page-header {
   padding: 2px 0 16px;
 }
 
-body.is-mobile .ant-page-header:not(:has(.ant-page-header-back)) {
+/* Keep header actions (create, refresh, export) reachable on every page. */
+body.is-mobile .ant-page-header:not(:has(.ant-page-header-back)):not(:has(.ant-page-header-heading-extra)) {
   display: none;
 }
 
@@ -112,11 +113,11 @@ body.is-mobile .ant-btn {
 }
 
 body.is-mobile .ant-btn:not(.ant-btn-link):not(.ant-btn-text):not(.ant-btn-icon-only) {
-  min-height: 40px;
+  min-height: 44px;
 }
 
 body.is-mobile .ant-btn.ant-btn-sm:not(.ant-btn-link):not(.ant-btn-text):not(.ant-btn-icon-only) {
-  min-height: 34px;
+  min-height: 40px;
   padding-inline: 12px;
 }
 
@@ -133,11 +134,28 @@ body.is-mobile .ant-modal {
 body.is-mobile .ant-modal .ant-modal-content {
   border-radius: 8px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--mobile-viewport-height, 100dvh) - 24px - env(safe-area-inset-top));
+}
+
+body.is-mobile .ant-modal .ant-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-block: 8px;
+  scroll-padding-block: 12px;
+}
+
+body.is-mobile .ant-modal .ant-modal-header,
+body.is-mobile .ant-modal .ant-modal-footer {
+  flex: 0 0 auto;
 }
 
 body.is-mobile .ant-modal .ant-modal-footer {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 body.is-mobile .ant-modal .ant-modal-footer .ant-btn {
@@ -222,13 +240,63 @@ body.is-mobile .ant-timeline-item-content {
   right: 12px;
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 8px;
   box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
   display: flex;
   gap: 8px;
   z-index: 99;
+}
+
+body.is-mobile .ant-input,
+body.is-mobile .ant-input-number-input,
+body.is-mobile .ant-select-selection-search-input,
+body.is-mobile .ant-picker-input > input,
+body.is-mobile input[type='date'],
+body.is-mobile textarea {
+  font-size: 16px; /* Avoid automatic input zoom on iOS. */
+}
+
+body.is-mobile .ant-btn,
+body.is-mobile a,
+body.is-mobile button,
+body.is-mobile .ant-checkbox-wrapper,
+body.is-mobile .ant-radio-wrapper {
+  touch-action: manipulation;
+}
+
+body.is-mobile .ant-table-content,
+body.is-mobile .ant-table-body {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+body.is-mobile .ant-card-head-wrapper,
+body.is-mobile .ant-descriptions-item-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+body.is-mobile .ant-card-head-wrapper {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.is-mobile.keyboard-open .mobile-tabbar {
+  display: none;
+}
+
+body.is-mobile.keyboard-open .mobile-action-bar {
+  position: static;
+  margin-top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .mobile-action-bar .ant-btn {
@@ -254,6 +322,14 @@ body.is-mobile .menu-link-with-badge .reminder-badge {
 
 .mobile-card-list > * {
   margin-bottom: 0 !important;
+}
+
+.mobile-list-pagination {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  text-align: center;
+  color: #667085;
 }
 
 .mobile-toolbar {

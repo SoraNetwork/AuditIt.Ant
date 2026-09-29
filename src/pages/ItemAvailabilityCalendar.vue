@@ -29,12 +29,16 @@
             :key="day.format('YYYY-MM-DD')"
             type="button"
             class="day-cell"
-            :class="{ muted: day.month() !== visibleMonth.month(), busy: busyForDate(day).length > 0, missing: calendar?.item.status === 'SuspectedMissing' }"
+            :aria-pressed="day.isSame(selectedDate, 'day')"
+            :class="{ muted: day.month() !== visibleMonth.month(), busy: busyForDate(day).length > 0, missing: calendar?.item.status === 'SuspectedMissing' || calendar?.item.status === 'Disposed' }"
             @click="selectDate(day)"
           >
             <span class="day-number">{{ day.date() }}</span>
-            <template v-if="calendar?.item.status === 'SuspectedMissing'">
-              <span class="missing-pill">疑似丢失</span>
+            <template v-if="calendar?.item.status === 'SuspectedMissing' || calendar?.item.status === 'Disposed'">
+              <span class="missing-pill">{{ getItemStatusText(calendar!.item.status) }}</span>
+            </template>
+            <template v-else-if="!calendar || availabilityStore.loading">
+              <span class="missing-pill">加载中</span>
             </template>
             <template v-else-if="busyForDate(day).length === 0">
               <span class="free-pill">空闲</span>
@@ -55,7 +59,7 @@
       </a-spin>
 
       <a-divider>{{ selectedDate.format('YYYY-MM-DD') }}</a-divider>
-      <a-list size="small" :data-source="selectedBusy" :locale="{ emptyText: '当天设备空闲' }">
+      <a-list size="small" :data-source="selectedBusy" :locale="{ emptyText: availabilityStore.loading ? '正在加载…' : !calendar ? '暂无数据，请重新查询' : calendar.item.status === 'Disposed' || calendar.item.status === 'SuspectedMissing' ? '该物品不可用' : '当天无占用记录' }">
         <template #renderItem="{ item }">
           <a-list-item
             class="busy-list-item"
@@ -92,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, watch, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
@@ -167,7 +171,7 @@ const busyForDate = (day: Dayjs) =>
 const selectedBusy = computed(() => busyForDate(selectedDate.value));
 const formatDate = (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD') : '';
 
-onMounted(loadCalendar);
+watch(() => route.params.id, loadCalendar, { immediate: true });
 </script>
 
 <style scoped>

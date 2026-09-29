@@ -1,3 +1,4 @@
+import { beginLatestRequest } from '../utils/latestRequest';
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
@@ -368,6 +369,7 @@ export const useRentalStore = defineStore('rental', {
       page?: number;
       pageSize?: number;
     } = {}) {
+      const isLatest = beginLatestRequest(this);
       this.loading = true;
       this.error = null;
       try {
@@ -385,16 +387,19 @@ export const useRentalStore = defineStore('rental', {
         if (filters.pageSize) params.append('pageSize', String(filters.pageSize));
 
         const response = await apiClient.get<{ items: Rental[]; total: number }>(`/rentals?${params.toString()}`);
+        if (!isLatest()) return;
         this.rentals = response.data.items;
         this.total = response.data.total;
       } catch (err: any) {
+        if (!isLatest()) return;
         this.error = '获取租赁列表失败: ' + (err.response?.data?.message || err.message);
       } finally {
-        this.loading = false;
+        if (isLatest()) this.loading = false;
       }
     },
 
     async fetchAllRentals() {
+      const isLatest = beginLatestRequest(this);
       this.loading = true;
       this.error = null;
 
@@ -417,12 +422,14 @@ export const useRentalStore = defineStore('rental', {
           page += 1;
         } while (rentalsById.size < total);
 
+        if (!isLatest()) return;
         this.rentals = Array.from(rentalsById.values());
         this.total = total;
       } catch (err: any) {
+        if (!isLatest()) return;
         this.error = '获取租赁列表失败: ' + (err.response?.data?.message || err.message);
       } finally {
-        this.loading = false;
+        if (isLatest()) this.loading = false;
       }
     },
 

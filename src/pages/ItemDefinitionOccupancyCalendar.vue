@@ -67,7 +67,7 @@
         v-if="selectedWarehouseId"
         type="info"
         show-icon
-        message="未配货订单会按各仓库现有库存稳定地暂分配；提前配货后改按实际物品仓库统计。"
+        message="未配货订单按每日剩余库存暂分配到仓库；提前配货后按实际物品仓库统计。"
         class="scope-alert"
       />
 
@@ -84,6 +84,8 @@
               :key="day.format('YYYY-MM-DD')"
               type="button"
               class="day-cell"
+              :aria-pressed="day.isSame(selectedDate, 'day')"
+              :aria-label="`${day.format('M月D日')}，${hasStockData(day) ? `剩余 ${remainingStockForDate(day)} 件` : '暂无数据'}`"
                 :class="{
                   muted: day.month() !== visibleMonth.month(),
                   active: day.isSame(selectedDate, 'day'),
@@ -126,7 +128,7 @@
         <a-list
           size="small"
           :data-source="selectedDailyOccupancies"
-          :locale="{ emptyText: '当天该定义无租赁占用，库存充裕' }"
+          :locale="{ emptyText: loading ? '正在加载占用…' : !hasStockData(selectedDate) ? '暂无数据，请重新查询' : totalStock === 0 ? '该仓库暂无此物品库存' : '当天无占用记录' }"
           class="occupancy-list"
         >
           <template #renderItem="{ item }">
@@ -183,6 +185,7 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import { rentalStatusText } from '../utils/rentalDisplay';
 import { readQueryDay, readQueryMonth, readQueryNumber } from '../utils/routeQuery';
 import RenterLink from '../components/RenterLink.vue';
+import { beginLatestRequest } from '../utils/latestRequest';
 
 const route = useRoute();
 const router = useRouter();
@@ -237,8 +240,15 @@ const calendarDays = computed(() => {
 const rangeStart = computed(() => calendarDays.value[0].format('YYYY-MM-DD'));
 const rangeEnd = computed(() => calendarDays.value[calendarDays.value.length - 1].format('YYYY-MM-DD'));
 
+const requestOwner = {};
 const loadOccupancy = async () => {
-  if (!selectedWarehouseId.value || !selectedDefinitionId.value) return;
+  const isLatest = beginLatestRequest(requestOwner);
+  calendarData.value = {};
+  totalStock.value = 0;
+  if (!selectedWarehouseId.value || !selectedDefinitionId.value) {
+    loading.value = false;
+    return;
+  }
 
   loading.value = true;
   try {
@@ -248,6 +258,7 @@ const loadOccupancy = async () => {
       rangeStart.value,
       rangeEnd.value
     );
+    if (!isLatest()) return;
     totalStock.value = data.totalStock;
     
     // Map list to daily lookup
@@ -258,9 +269,10 @@ const loadOccupancy = async () => {
     });
     calendarData.value = lookup;
   } catch (err: any) {
+    if (!isLatest()) return;
     message.error(err?.response?.data || err?.message || '获取占用日历数据失败');
   } finally {
-    loading.value = false;
+    if (isLatest()) loading.value = false;
   }
 };
 
@@ -300,6 +312,8 @@ const onCategoryChange = async () => {
     return;
   }
 
+  beginLatestRequest(requestOwner);
+  loading.value = false;
   selectedDefinitionId.value = undefined;
   calendarData.value = {};
   totalStock.value = 0;

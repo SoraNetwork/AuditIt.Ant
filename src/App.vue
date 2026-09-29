@@ -1,8 +1,6 @@
 <template>
   <router-view />
-  <div v-if="uiStore.isLoading" class="global-loading-overlay">
-    <a-spin size="large" tip="加载中..." />
-  </div>
+  <div v-if="uiStore.isLoading" class="route-progress" role="progressbar" aria-label="页面加载中" />
 </template>
 
 <script setup lang="ts">
@@ -31,16 +29,22 @@ onUnmounted(() => {
 </script>
 
 <style>
-.global-loading-overlay {
+.route-progress {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(255, 255, 255, 0.7);
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #1677ff, transparent);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: route-progress 1s ease-in-out infinite;
+  pointer-events: none;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+@keyframes route-progress {
+  from { background-position: -100% 0; }
+  to { background-position: 200% 0; }
 }
 </style>

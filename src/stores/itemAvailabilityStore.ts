@@ -1,3 +1,4 @@
+import { beginLatestRequest } from '../utils/latestRequest';
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 import type { Item } from './itemStore';
@@ -47,18 +48,22 @@ export const useItemAvailabilityStore = defineStore('itemAvailability', {
   }),
   actions: {
     async fetchAvailability(itemId: string, from: string, to: string) {
+      const isLatest = beginLatestRequest(this);
+      this.calendar = null;
       this.loading = true;
       this.error = null;
       try {
         const params = new URLSearchParams({ from, to });
         const response = await apiClient.get<ItemAvailabilityCalendar>(`/items/${itemId}/availability?${params.toString()}`);
+        if (!isLatest()) return;
         this.calendar = response.data;
         return response.data;
       } catch (err: any) {
+        if (!isLatest()) return;
         this.error = '获取设备空闲日历失败: ' + (err.response?.data?.message || err.message);
         throw err;
       } finally {
-        this.loading = false;
+        if (isLatest()) this.loading = false;
       }
     },
     async fetchDefinitionOccupancy(
