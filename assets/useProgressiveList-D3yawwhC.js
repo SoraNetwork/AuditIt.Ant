@@ -1,0 +1,1 @@
+import{f as n,c as a,w as r}from"./vendor-vue-DdmwRumK.js";function c(t,e=20){const s=n(e),l=a(()=>t.value.slice(0,s.value)),o=a(()=>s.value<t.value.length),u=()=>{s.value+=e};return r(t,()=>{s.value=e}),{visibleItems:l,hasMore:o,loadMore:u}}export{c as u};
