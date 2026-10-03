@@ -41,6 +41,7 @@
         <a-descriptions-item label="更新时间">{{ formatDateTime(rental.updatedAt) || '-' }}</a-descriptions-item>
         <a-descriptions-item label="创建人">{{ rental.createdBy || '-' }}</a-descriptions-item>
         <a-descriptions-item label="发货人">{{ rental.senderName || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="预计发货人">{{ rental.expectedShipperName || rental.createdBy || '-' }}</a-descriptions-item>
       </a-descriptions>
 
       <div v-if="isMobile" class="rental-mobile-shell">
@@ -123,6 +124,7 @@
             <div class="full"><span>备注</span><strong>{{ rental.notes || '-' }}</strong></div>
             <div><span>创建人</span><strong>{{ rental.createdBy || '-' }}</strong></div>
             <div><span>发货人</span><strong>{{ rental.senderName || '-' }}</strong></div>
+            <div><span>预计发货人</span><strong>{{ rental.expectedShipperName || rental.createdBy || '-' }}</strong></div>
             <div><span>创建时间</span><strong>{{ formatDateTime(rental.createdAt) || '-' }}</strong></div>
             <div><span>更新时间</span><strong>{{ formatDateTime(rental.updatedAt) || '-' }}</strong></div>
           </div>
@@ -609,10 +611,10 @@
           allow-clear
         />
       </a-form-item>
-      <a-form-item label="运单号">
+      <a-form-item label="运单号" :required="expressDetailsRequired">
         <MobileScanInput v-model="shipForm.trackingNumber" placeholder="填写运单号" />
       </a-form-item>
-      <a-form-item label="运费（可稍后补录）">
+      <a-form-item :label="expressDetailsRequired ? '运费' : '运费（可稍后补录）'" :required="expressDetailsRequired">
         <a-input-number v-model:value="shipForm.shippingFee" :min="0" :step="0.1" :precision="1" style="width: 100%" />
       </a-form-item>
       <a-form-item label="备注">
@@ -1101,6 +1103,16 @@
           option-filter-prop="label"
         />
       </a-form-item>
+      <a-form-item label="预计发货人" required>
+        <a-select
+          v-model:value="editForm.expectedShipperName"
+          placeholder="选择预计发货人"
+          :options="userOptions"
+          :loading="userStore.loading"
+          show-search
+          option-filter-prop="label"
+        />
+      </a-form-item>
       <a-form-item label="备注">
         <a-textarea v-model:value="editForm.notes" :rows="3" :maxlength="500" />
       </a-form-item>
@@ -1388,6 +1400,7 @@ const editForm = reactive({
   notes: '',
   createdBy: '' as string | null,
   senderName: '' as string | null,
+  expectedShipperName: '',
 });
 
 const editAccountedAmount = computed(() =>
@@ -1465,6 +1478,12 @@ const carrierOptions = [
   { value: '菜鸟裹裹' },
   { value: '其他' },
 ];
+const expressDetailsRequired = computed(() =>
+  shipForm.direction === 'Outbound'
+  && !!shipForm.carrier.trim()
+  && !shipForm.carrier.includes('同城')
+  && shipForm.carrier.trim() !== '其他'
+);
 
 const filterCarrier = (input: string, option: { value: string }) =>
   !!option.value && option.value.toLowerCase().includes(input.toLowerCase());
@@ -1997,13 +2016,20 @@ const sfRouteStatusText = (route?: SfShipmentRoute) => {
   return '暂无路由';
 };
 
-const submitShip = async (allowOpenItemConflict = false) => {
+const submitShip = async (allowOpenItemConflict = false, zeroFeeConfirmed = false) => {
   if (!rental.value) return;
   if (!shipForm.originWarehouseId || !shipForm.carrier.trim()) {
     message.error('请填写仓库和物流公司');
     return;
   }
-
+  if (expressDetailsRequired.value && !shipForm.trackingNumber.trim()) {
+    message.error('请填写运单号');
+    return;
+  }
+  if (expressDetailsRequired.value && shipForm.shippingFee == null) {
+    message.error('请填写运费，0 元也请明确填写');
+    return;
+  }
   const outboundRentalItemIds = selectedOutboundRentalItemIds.value
     .map(Number)
     .filter(id => Number.isInteger(id) && id > 0);
@@ -2040,6 +2066,17 @@ const submitShip = async (allowOpenItemConflict = false) => {
         return itemId ? [{ rentalItemId, itemId }] : [];
       });
 
+  if (expressDetailsRequired.value && shipForm.shippingFee === 0 && !zeroFeeConfirmed) {
+    Modal.confirm({
+      title: '确认运费为 0 元？',
+      content: '这笔快递发货的运费填写为 0 元。确认后继续提交发货。',
+      okText: '确认提交',
+      cancelText: '返回修改',
+      onOk: () => submitShip(allowOpenItemConflict, true),
+    });
+    return;
+  }
+
   try {
     await rentalStore.ship(rental.value.id, {
       direction: shipForm.direction,
@@ -2060,7 +2097,7 @@ const submitShip = async (allowOpenItemConflict = false) => {
     await loadSfRoutes(true);
   } catch (err: any) {
     if (err?.response?.status === 409 && err?.response?.data && shipForm.direction === 'Outbound') {
-      showShipmentConflictConfirm(err.response.data as RentalCreateConflictResponse);
+      showShipmentConflictConfirm(err.response.data as RentalCreateConflictResponse, zeroFeeConfirmed);
       return;
     }
 
@@ -2385,7 +2422,7 @@ const conflictLines = (payload: RentalCreateConflictResponse) => {
   return lines.join('\n');
 };
 
-const showShipmentConflictConfirm = (payload: RentalCreateConflictResponse) => {
+const showShipmentConflictConfirm = (payload: RentalCreateConflictResponse, zeroFeeConfirmed = false) => {
   Modal.confirm({
     title: '发货物品仍被其他租赁单占用',
     width: 720,
@@ -2393,7 +2430,7 @@ const showShipmentConflictConfirm = (payload: RentalCreateConflictResponse) => {
     cancelText: '返回检查',
     content: conflictLines(payload),
     async onOk() {
-      await submitShip(true);
+      await submitShip(true, zeroFeeConfirmed);
     },
   });
 };
@@ -2572,6 +2609,7 @@ const openEdit = () => {
   editForm.notes = rental.value.notes || '';
   editForm.createdBy = rental.value.createdBy || '';
   editForm.senderName = rental.value.senderName || '';
+  editForm.expectedShipperName = rental.value.expectedShipperName || rental.value.createdBy || '';
   editVisible.value = true;
 };
 
@@ -2607,6 +2645,10 @@ const submitEdit = async (allowScheduleConflict = false) => {
     message.error('请选择租客');
     return;
   }
+  if (!editForm.expectedShipperName.trim()) {
+    message.error('请选择预计发货人');
+    return;
+  }
 
   saving.value = true;
   try {
@@ -2628,6 +2670,7 @@ const submitEdit = async (allowScheduleConflict = false) => {
       assignedTo: editForm.assignedUsers.join(','),
       createdBy: editForm.createdBy || undefined,
       senderName: editForm.senderName || undefined,
+      expectedShipperName: editForm.expectedShipperName,
       allowScheduleConflict,
     });
     editVisible.value = false;

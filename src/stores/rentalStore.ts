@@ -122,6 +122,7 @@ export interface Rental {
   createdAt: string;
   createdBy?: string | null;
   senderName?: string | null;
+  expectedShipperName?: string | null;
   updatedAt: string;
   updatedBy?: string | null;
   settlementNotifiedAt?: string | null;
@@ -159,6 +160,7 @@ export interface CreateRentalPayload {
   notes?: string;
   paymentAccount?: string;
   assignedTo?: string;
+  expectedShipperName?: string;
   allowScheduleConflict?: boolean;
 }
 
@@ -180,6 +182,7 @@ export interface UpdateRentalPayload {
   assignedTo?: string;
   createdBy?: string;
   senderName?: string;
+  expectedShipperName?: string;
   allowScheduleConflict?: boolean;
 }
 

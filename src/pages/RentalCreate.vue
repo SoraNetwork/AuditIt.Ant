@@ -137,6 +137,18 @@
               />
             </a-form-item>
           </a-col>
+          <a-col :xs="24" :span="12">
+            <a-form-item label="预计发货人" required>
+              <a-select
+                v-model:value="form.expectedShipperName"
+                :options="userOptions"
+                :loading="userStore.loading"
+                placeholder="选择预计发货人"
+                show-search
+                option-filter-prop="label"
+              />
+            </a-form-item>
+          </a-col>
         </a-row>
       </section>
 
@@ -789,6 +801,7 @@ import { useRenterStore, type Renter } from '../stores/renterStore';
 import RenterLink from '../components/RenterLink.vue';
 import { useItemStore, getStatusText, type Item, type ItemStatus } from '../stores/itemStore';
 import { useUserStore } from '../stores/userStore';
+import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useItemDefinitionStore, type ItemDefinition } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
@@ -841,6 +854,7 @@ const rentalStore = useRentalStore();
 const renterStore = useRenterStore();
 const itemStore = useItemStore();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 const categoryStore = useCategoryStore();
 const itemDefStore = useItemDefinitionStore();
 const warehouseStore = useWarehouseStore();
@@ -880,6 +894,7 @@ const quickForm = reactive({
 });
 
 const form = reactive({
+  expectedShipperName: authStore.user?.name || '',
   shippingAddress: '',
   expectedShipDate: dayjs().subtract(3, 'day') as Dayjs | null,
   startDate: dayjs() as Dayjs | null,
@@ -1461,6 +1476,7 @@ const buildCreatePayload = (allowScheduleConflict = false): CreateRentalPayload 
     paymentAccount: form.paymentAccount.trim() || undefined,
     notes: form.notes.trim() || undefined,
     assignedTo: assignedUsers.value.length ? assignedUsers.value.join(',') : undefined,
+    expectedShipperName: form.expectedShipperName.trim(),
     allowScheduleConflict,
   };
 };
@@ -1534,6 +1550,10 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
 };
 
 const submit = async () => {
+  if (!form.expectedShipperName.trim()) {
+    message.error('请选择预计发货人');
+    return;
+  }
   if (!matchedRenter.value) {
     message.error('请先匹配租客，或快速建档创建新租客');
     return;

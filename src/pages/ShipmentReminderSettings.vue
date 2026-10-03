@@ -99,6 +99,7 @@
           <a-card title="语音（DYVMS）" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
             <a-space direction="vertical" style="width: 100%" :size="12">
               <a-switch v-model:checked="formState.voiceEnabled" checked-children="语音已开启" un-checked-children="语音已关闭" />
+              <a-alert type="warning" show-icon message="语音开启后，预计发货日 16:00 仍未全部发货的订单会每半小时呼叫预计发货人，跨日持续至全部发货；原定时语音提醒照常发送。" />
               <a-alert type="info" show-icon message="阿里云语音服务不提供模板列表 API。请填入已审核且变量与上方设置一致的 TTS 模板 Code；可通过下方测试发送验证。" />
               <a-row :gutter="16">
                 <a-col :xs="12" :md="6">
