@@ -352,8 +352,8 @@
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space :size="0">
-              <a-button type="link" @click="openShipmentFee(record)">
-                {{ record.shippingFee === null || record.shippingFee === undefined ? '补录运费' : '修改运费' }}
+              <a-button type="link" @click="openShipmentDetails(record)">
+                {{ !record.trackingNumber || record.shippingFee == null ? '补录物流' : '修改物流' }}
               </a-button>
               <a-button v-if="!record.deliveredAt" type="link" @click="deliver(record.id)">标记签收</a-button>
               <a-button
@@ -397,8 +397,8 @@
           </template>
           <template #footer>
             <a-space>
-              <a-button size="small" @click="openShipmentFee(shipment)">
-                {{ shipment.shippingFee === null || shipment.shippingFee === undefined ? '补录运费' : '修改运费' }}
+              <a-button size="small" @click="openShipmentDetails(shipment)">
+                {{ !shipment.trackingNumber || shipment.shippingFee == null ? '补录物流' : '修改物流' }}
               </a-button>
               <a-button v-if="!shipment.deliveredAt" size="small" type="primary" @click="deliver(shipment.id)">标记签收</a-button>
               <a-button
@@ -611,7 +611,7 @@
           allow-clear
         />
       </a-form-item>
-      <a-form-item label="运单号" :required="expressDetailsRequired">
+      <a-form-item :label="expressDetailsRequired ? '运单号' : '运单号（可稍后补录）'" :required="expressDetailsRequired">
         <MobileScanInput v-model="shipForm.trackingNumber" placeholder="填写运单号" />
       </a-form-item>
       <a-form-item :label="expressDetailsRequired ? '运费' : '运费（可稍后补录）'" :required="expressDetailsRequired">
@@ -624,17 +624,20 @@
   </a-modal>
 
   <a-modal
-    v-model:open="shipmentFeeVisible"
-    title="补录运费"
+    v-model:open="shipmentDetailsVisible"
+    title="补录或修改物流"
     ok-text="保存"
     cancel-text="取消"
-    :confirm-loading="shipmentFeeSaving"
-    @ok="submitShipmentFee"
+    :confirm-loading="shipmentDetailsSaving"
+    @ok="submitShipmentDetails"
   >
     <a-form layout="vertical">
+      <a-form-item label="运单号">
+        <MobileScanInput v-model="shipmentDetailsForm.trackingNumber" placeholder="暂不填写可留空" />
+      </a-form-item>
       <a-form-item label="运费">
         <a-input-number
-          v-model:value="shipmentFeeForm.shippingFee"
+          v-model:value="shipmentDetailsForm.shippingFee"
           :min="0"
           :step="0.1"
           :precision="1"
@@ -1266,12 +1269,12 @@ const shipVisible = ref(false);
 const prepareVisible = ref(false);
 const prepareSaving = ref(false);
 const prepareWarehouseId = ref<number | undefined>();
-const shipmentFeeVisible = ref(false);
+const shipmentDetailsVisible = ref(false);
 const returnVisible = ref(false);
 const cancelVisible = ref(false);
 const editVisible = ref(false);
 const saving = ref(false);
-const shipmentFeeSaving = ref(false);
+const shipmentDetailsSaving = ref(false);
 const returnSaving = ref(false);
 const importing = ref(false);
 const itemPickerVisible = ref(false);
@@ -1457,8 +1460,9 @@ const hasDamageReturn = computed(() =>
   })
 );
 
-const shipmentFeeForm = reactive({
+const shipmentDetailsForm = reactive({
   shipmentId: undefined as number | undefined,
+  trackingNumber: '',
   shippingFee: null as number | null,
 });
 
@@ -1482,6 +1486,7 @@ const expressDetailsRequired = computed(() =>
   shipForm.direction === 'Outbound'
   && !!shipForm.carrier.trim()
   && !shipForm.carrier.includes('同城')
+  && shipForm.carrier.trim() !== '顺丰速运'
   && shipForm.carrier.trim() !== '其他'
 );
 
@@ -1869,10 +1874,11 @@ const clearReturnItems = () => {
   selectedReturnRentalItemIds.value = [];
 };
 
-const openShipmentFee = (shipment: RentalShipment) => {
-  shipmentFeeForm.shipmentId = shipment.id;
-  shipmentFeeForm.shippingFee = shipment.shippingFee ?? null;
-  shipmentFeeVisible.value = true;
+const openShipmentDetails = (shipment: RentalShipment) => {
+  shipmentDetailsForm.shipmentId = shipment.id;
+  shipmentDetailsForm.trackingNumber = shipment.trackingNumber ?? '';
+  shipmentDetailsForm.shippingFee = shipment.shippingFee ?? null;
+  shipmentDetailsVisible.value = true;
 };
 
 const openRepairShipment = async (shipment?: RentalShipment) => {
@@ -2118,21 +2124,23 @@ const deliver = async (shipmentId: number) => {
   }
 };
 
-const submitShipmentFee = async () => {
-  if (!rental.value || !shipmentFeeForm.shipmentId) return;
+const submitShipmentDetails = async () => {
+  if (!rental.value || !shipmentDetailsForm.shipmentId) return;
 
-  shipmentFeeSaving.value = true;
+  shipmentDetailsSaving.value = true;
   try {
-    await rentalStore.updateShipment(rental.value.id, shipmentFeeForm.shipmentId, {
-      shippingFee: shipmentFeeForm.shippingFee,
+    await rentalStore.updateShipment(rental.value.id, shipmentDetailsForm.shipmentId, {
+      trackingNumber: shipmentDetailsForm.trackingNumber.trim(),
+      shippingFee: shipmentDetailsForm.shippingFee,
     });
-    shipmentFeeVisible.value = false;
-    message.success('运费已更新');
+    shipmentDetailsVisible.value = false;
+    message.success('物流信息已更新');
     await load();
+    await loadSfRoutes(true);
   } catch (err: any) {
-    message.error(err?.response?.data || err?.message || '运费更新失败');
+    message.error(err?.response?.data || err?.message || '物流信息更新失败');
   } finally {
-    shipmentFeeSaving.value = false;
+    shipmentDetailsSaving.value = false;
   }
 };
 

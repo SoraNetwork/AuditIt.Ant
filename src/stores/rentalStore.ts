@@ -220,6 +220,7 @@ export interface DeliverPayload {
 }
 
 export interface UpdateShipmentPayload {
+  trackingNumber?: string;
   shippingFee?: number | null;
   itemSelections?: { rentalItemId: number; itemId: string }[];
 }
