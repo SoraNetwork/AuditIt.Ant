@@ -11,7 +11,7 @@
               :style="isMobile ? { width: '100%' } : { width: '200px' }"
               @change="loadItems"
               allow-clear
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
             >
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id" :label="wh.name">
@@ -173,7 +173,7 @@
         <a-form-item label="目标库房" required>
           <a-select 
             v-model:value="transferForm.targetWarehouseId" 
-            show-search
+            :show-search="!isMobile"
             option-filter-prop="label"
             placeholder="请选择目标库房"
             style="width: 100%"

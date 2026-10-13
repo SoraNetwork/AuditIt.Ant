@@ -516,7 +516,7 @@
         <a-select
           v-model:value="prepareWarehouseId"
           placeholder="选择仓库"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
           :options="warehouseStore.warehouses.map(warehouse => ({ value: warehouse.id, label: warehouse.name }))"
         />
@@ -528,7 +528,7 @@
   <a-modal v-model:open="shipVisible" :title="shipModalTitle" ok-text="提交" cancel-text="取消" @ok="() => submitShip()">
     <a-form layout="vertical">
       <a-form-item :label="shipForm.direction === 'Outbound' ? '发货仓库' : '回货仓库'" required>
-        <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库" show-search option-filter-prop="label">
+        <a-select v-model:value="shipForm.originWarehouseId" placeholder="选择仓库" :show-search="!isMobile" option-filter-prop="label">
           <a-select-option v-for="warehouse in warehouseStore.warehouses" :key="warehouse.id" :value="warehouse.id" :label="warehouse.name">
             {{ warehouse.name }}
           </a-select-option>
@@ -543,7 +543,7 @@
             placeholder="可选择一个或多个未归还物品；不选表示未指定"
             option-filter-prop="label"
             :max-tag-count="3"
-            show-search
+            :show-search="!isMobile"
           >
             <a-select-option
               v-for="item in activeRentalItems"
@@ -583,16 +583,23 @@
           :label="`发货物品: ${ri.itemNameSnapshot || '未命名'} (项 ID: ${ri.id})`"
           required
         >
+          <a-input-search
+            v-if="isMobile"
+            v-model:value="shipItemKeywords[ri.id]"
+            allow-clear
+            placeholder="按物品编号或备注筛选"
+            style="margin-bottom: 8px"
+          />
           <a-select
             v-model:value="selectedShipItems[ri.id]"
             placeholder="请选择具体物品"
             :loading="itemStore.loading"
             :disabled="!shipForm.originWarehouseId"
-            show-search
+            :show-search="!isMobile"
             option-filter-prop="label"
           >
             <a-select-option
-              v-for="item in availableItemsForDefinition(ri.itemDefinitionId)"
+              v-for="item in filteredAvailableShipItems(ri)"
               :key="item.id"
               :value="item.id"
               :label="item.shortId"
@@ -603,7 +610,27 @@
         </a-form-item>
       </template>
       <a-form-item label="物流公司" required>
+        <template v-if="isMobile">
+          <a-input
+            v-if="manualCarrierEntry"
+            v-model:value="shipForm.carrier"
+            placeholder="输入物流公司"
+            allow-clear
+          />
+          <a-select
+            v-else
+            v-model:value="mobileCarrierSelection"
+            :options="carrierOptions"
+            placeholder="选择物流公司"
+            :show-search="false"
+            allow-clear
+          />
+          <a-button type="link" style="padding: 4px 0" @click="toggleCarrierEntry">
+            {{ manualCarrierEntry ? '从列表选择' : '手动输入物流公司' }}
+          </a-button>
+        </template>
         <a-auto-complete
+          v-else
           v-model:value="shipForm.carrier"
           :options="carrierOptions"
           placeholder="选择或输入物流公司"
@@ -677,15 +704,22 @@
           :label="`对应库存：${ri.itemNameSnapshot || '未命名物品'} (项 ID: ${ri.id})`"
           required
         >
+          <a-input-search
+            v-if="isMobile"
+            v-model:value="repairItemKeywords[ri.id]"
+            allow-clear
+            placeholder="按物品编号或备注筛选"
+            style="margin-bottom: 8px"
+          />
           <a-select
             v-model:value="selectedRepairItems[ri.id]"
             placeholder="请选择具体物品"
             :loading="itemStore.loading"
-            show-search
+            :show-search="!isMobile"
             option-filter-prop="label"
           >
             <a-select-option
-              v-for="item in availableItemsForRepair(ri.itemDefinitionId)"
+              v-for="item in filteredAvailableRepairItems(ri)"
               :key="item.id"
               :value="item.id"
               :label="item.shortId"
@@ -833,12 +867,19 @@
         style="margin-bottom: 12px"
       />
       <a-form-item v-if="effectiveItemPickerMode === 'item'" label="租赁物品" required>
+        <a-input-search
+          v-if="isMobile"
+          v-model:value="itemPickerItemKeyword"
+          allow-clear
+          placeholder="按物品编号、名称或仓库筛选"
+          style="margin-bottom: 8px"
+        />
         <a-select
           v-model:value="selectedRentalItemIds"
           mode="multiple"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="searchText"
-          :options="itemPickerOptions"
+          :options="filteredItemPickerOptions"
           :loading="itemStore.loading"
           placeholder="选择当前租赁中需要保留/新增的物品"
           :size="isMobile ? 'large' : 'middle'"
@@ -875,11 +916,18 @@
         </div>
       </a-form-item>
       <a-form-item v-if="effectiveItemPickerMode === 'definition'" label="物品定义占位" required>
+        <a-input-search
+          v-if="isMobile"
+          v-model:value="itemPickerDefinitionKeyword"
+          allow-clear
+          placeholder="按名称或分类筛选物品定义"
+          style="margin-bottom: 8px"
+        />
         <a-select
           v-model:value="definitionToAdd"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
-          :options="itemDefinitionPickerOptions"
+          :options="filteredItemDefinitionPickerOptions"
           :loading="itemDefinitionStore.loading"
           placeholder="选择待发货时再确定库存的物品定义"
           allow-clear
@@ -968,7 +1016,7 @@
       <a-form-item label="租客">
         <a-select
           v-model:value="editForm.renterId"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
           :options="renterOptions"
           :loading="renterStore.loading"
@@ -1064,7 +1112,19 @@
         <a-input v-model:value="editForm.platformOrderNo" :maxlength="100" />
       </a-form-item>
       <a-form-item label="到账账户（可选）">
+        <template v-if="isMobile">
+          <a-space v-if="paymentAccountPresetOptions.length" wrap style="margin-bottom: 8px">
+            <a-button
+              v-for="option in paymentAccountPresetOptions"
+              :key="option.value"
+              size="small"
+              @click="editForm.paymentAccount = option.value"
+            >{{ option.label }}</a-button>
+          </a-space>
+          <a-input v-model:value="editForm.paymentAccount" :maxlength="100" placeholder="选择常用账户或手动填写" allow-clear />
+        </template>
         <a-auto-complete
+          v-else
           v-model:value="editForm.paymentAccount"
           :options="paymentAccountPresetOptions"
           :maxlength="100"
@@ -1080,7 +1140,7 @@
           :options="userOptions"
           :loading="userStore.loading"
           allow-clear
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
         />
       </a-form-item>
@@ -1091,7 +1151,7 @@
           :options="userOptions"
           :loading="userStore.loading"
           allow-clear
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
         />
       </a-form-item>
@@ -1102,7 +1162,7 @@
           :options="userOptions"
           :loading="userStore.loading"
           allow-clear
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
         />
       </a-form-item>
@@ -1112,7 +1172,7 @@
           placeholder="选择预计发货人"
           :options="userOptions"
           :loading="userStore.loading"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
         />
       </a-form-item>
@@ -1193,6 +1253,7 @@ const routeRentalId = computed(() => {
   return Array.isArray(raw) ? raw[0] : String(raw || '');
 });
 const selectedShipItems = ref<Record<number, string>>({});
+const shipItemKeywords = reactive<Record<number, string>>({});
 const selectedOutboundRentalItemIds = ref<number[]>([]);
 const selectedInboundRentalItemIds = ref<number[]>([]);
 const repairShipmentVisible = ref(false);
@@ -1200,6 +1261,7 @@ const repairShipmentSaving = ref(false);
 const repairShipment = ref<RentalShipment | null>(null);
 const selectedRepairRentalItemIds = ref<number[]>([]);
 const selectedRepairItems = ref<Record<number, string>>({});
+const repairItemKeywords = reactive<Record<number, string>>({});
 const returnItemConditions = ref<Record<number, ReturnCondition>>({});
 const selectedReturnRentalItemIds = ref<number[]>([]);
 const shippedOutboundRentalItemIds = computed(() => {
@@ -1265,7 +1327,28 @@ const availableItemsForRepair = (definitionId?: number | null) => {
     && item.warehouseId === warehouseId
   );
 };
+const filterAvailableItems = (items: Item[], keyword: string, selectedId?: string) => {
+  const query = keyword.trim().toLowerCase();
+  return !isMobile.value || !query
+    ? items
+    : items.filter(item =>
+      item.id === selectedId || `${item.shortId} ${item.remarks || ''}`.toLowerCase().includes(query)
+    );
+};
+const filteredAvailableShipItems = (rentalItem: RentalItem) =>
+  filterAvailableItems(
+    availableItemsForDefinition(rentalItem.itemDefinitionId),
+    shipItemKeywords[rentalItem.id] || '',
+    selectedShipItems.value[rentalItem.id]
+  );
+const filteredAvailableRepairItems = (rentalItem: RentalItem) =>
+  filterAvailableItems(
+    availableItemsForRepair(rentalItem.itemDefinitionId),
+    repairItemKeywords[rentalItem.id] || '',
+    selectedRepairItems.value[rentalItem.id]
+  );
 const shipVisible = ref(false);
+const manualCarrierEntry = ref(false);
 const prepareVisible = ref(false);
 const prepareSaving = ref(false);
 const prepareWarehouseId = ref<number | undefined>();
@@ -1280,6 +1363,8 @@ const importing = ref(false);
 const itemPickerVisible = ref(false);
 const itemPickerSaving = ref(false);
 const itemPickerMode = ref<'item' | 'definition'>('item');
+const itemPickerItemKeyword = ref('');
+const itemPickerDefinitionKeyword = ref('');
 const selectedRentalItemIds = ref<string[]>([]);
 const selectedRentalItemPrices = reactive<Record<string, number | null>>({});
 const selectedRentalDefinitionQuantities = reactive<Record<number, number | null>>({});
@@ -1341,6 +1426,14 @@ const itemPickerOptions = computed(() => {
       label: `${item.shortId} / ${item.itemDefinitionName || item.name || '-'} / ${item.warehouseName || '-'}`,
     }));
 });
+const filteredItemPickerOptions = computed(() => {
+  const keyword = isMobile.value ? itemPickerItemKeyword.value.trim().toLowerCase() : '';
+  return keyword
+    ? itemPickerOptions.value.filter(option =>
+      selectedRentalItemIds.value.includes(option.value) || option.label.toLowerCase().includes(keyword)
+    )
+    : itemPickerOptions.value;
+});
 
 const selectedRentalItemEntries = computed(() =>
   selectedRentalItemIds.value.map(id => {
@@ -1360,6 +1453,12 @@ const itemDefinitionPickerOptions = computed(() =>
     label: `${definition.name} / ${definition.category?.name || '-'}`,
   }))
 );
+const filteredItemDefinitionPickerOptions = computed(() => {
+  const keyword = isMobile.value ? itemPickerDefinitionKeyword.value.trim().toLowerCase() : '';
+  return keyword
+    ? itemDefinitionPickerOptions.value.filter(option => option.label.toLowerCase().includes(keyword))
+    : itemDefinitionPickerOptions.value;
+});
 
 const selectedRentalDefinitionEntries = computed(() =>
   Object.entries(selectedRentalDefinitionQuantities)
@@ -1482,6 +1581,10 @@ const carrierOptions = [
   { value: '菜鸟裹裹' },
   { value: '其他' },
 ];
+const mobileCarrierSelection = computed<string | undefined>({
+  get: () => shipForm.carrier || undefined,
+  set: value => { shipForm.carrier = value || ''; },
+});
 const expressDetailsRequired = computed(() =>
   shipForm.direction === 'Outbound'
   && !!shipForm.carrier.trim()
@@ -1492,6 +1595,11 @@ const expressDetailsRequired = computed(() =>
 
 const filterCarrier = (input: string, option: { value: string }) =>
   !!option.value && option.value.toLowerCase().includes(input.toLowerCase());
+
+const toggleCarrierEntry = () => {
+  manualCarrierEntry.value = !manualCarrierEntry.value;
+  shipForm.carrier = '';
+};
 
 const itemColumns = [
   { title: '商品 ID', dataIndex: 'itemShortIdSnapshot', key: 'itemShortIdSnapshot' },
@@ -1789,6 +1897,8 @@ const hasRentalItemPrice = (item: RentalItem) => item.perItemPrice !== null && i
 const hasRentalItemMeta = (item: RentalItem) => hasRentalItemPrice(item) || !!item.returnedAt;
 
 const resetShipForm = (direction: ShipmentDirection) => {
+  manualCarrierEntry.value = false;
+  Object.keys(shipItemKeywords).forEach(key => { delete shipItemKeywords[Number(key)]; });
   shipForm.direction = direction;
   shipForm.originWarehouseId = undefined;
   shipForm.carrier = '';
@@ -1883,6 +1993,7 @@ const openShipmentDetails = (shipment: RentalShipment) => {
 
 const openRepairShipment = async (shipment?: RentalShipment) => {
   if (!shipment) return;
+  Object.keys(repairItemKeywords).forEach(key => { delete repairItemKeywords[Number(key)]; });
   repairShipment.value = shipment;
   selectedRepairRentalItemIds.value = allOpenRentalItems.value.map(item => item.id);
   selectedRepairItems.value = {};
@@ -2325,6 +2436,7 @@ const handleRentalDefinitionQuantityChange = (
 };
 
 const addRentalDefinition = (definitionId: number) => {
+  itemPickerDefinitionKeyword.value = '';
   setRentalDefinitionQuantity(
     definitionId,
     (selectedRentalDefinitionQuantities[definitionId] || 0) + 1
@@ -2369,6 +2481,8 @@ const removeSelectedRentalItem = (itemId: string) => {
 
 const openItemPicker = async () => {
   if (!rental.value) return;
+  itemPickerItemKeyword.value = '';
+  itemPickerDefinitionKeyword.value = '';
   selectedRentalItemIds.value = [...currentActiveRentalItemIds.value];
   Object.keys(selectedRentalItemPrices).forEach(itemId => {
     delete selectedRentalItemPrices[itemId];

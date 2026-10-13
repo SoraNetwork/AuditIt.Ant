@@ -11,7 +11,7 @@
         <a-select
           v-if="canPickUser"
           v-model:value="targetUser"
-          show-search
+          :show-search="!isMobile"
           option-filter-prop="label"
           size="small"
           class="target-select"
@@ -100,6 +100,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCalendarStore, type RentalCalendarEvent } from '../stores/calendarStore';
 import { useUserStore } from '../stores/userStore';
 import { formatDateTime } from '../utils/formatters';
+import { useBreakpoint } from '../composables/useBreakpoint';
 import RenterLink from './RenterLink.vue';
 
 const props = defineProps<{
@@ -116,6 +117,7 @@ const selectedDate = ref(props.initialDate ? dayjs(props.initialDate) : today);
 const authStore = useAuthStore();
 const calendarStore = useCalendarStore();
 const userStore = useUserStore();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const route = useRoute();
 const router = useRouter();
 const canPickUser = computed(() => authStore.hasPermission(PermissionCodes.ReminderDismissAny));

@@ -28,7 +28,7 @@
           <a-select
             v-if="ownerScope === 'person'"
             v-model:value="ownerName"
-            show-search
+            :show-search="!isMobile"
             allow-clear
             :loading="ownerOptionsLoading"
             :options="filteredOwnerOptions"

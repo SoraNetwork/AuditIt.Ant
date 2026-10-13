@@ -12,7 +12,7 @@
             <span class="toolbar-label">仓库：</span>
             <a-select
               v-model:value="selectedWarehouseId"
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
               :options="warehouseOptions"
               :loading="warehouseStore.loading"
@@ -27,7 +27,7 @@
             <a-select
               v-model:value="selectedCategoryId"
               allow-clear
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
               :options="categoryOptions"
               :loading="categoryStore.loading"
@@ -41,7 +41,7 @@
             <span class="toolbar-label">物品定义：</span>
             <a-select
               v-model:value="selectedDefinitionId"
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
               :options="definitionOptions"
               :loading="itemDefStore.loading"

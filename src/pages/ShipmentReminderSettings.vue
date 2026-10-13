@@ -47,7 +47,7 @@
                   placeholder="请从阿里云加载并选择模板"
                   :options="matchingSmsTemplateOptions"
                   :disabled="!formState.smsEnabled"
-                  show-search
+                  :show-search="!isMobile"
                   option-filter-prop="label"
                   @change="onSmsTemplateSelected"
                 />
@@ -132,6 +132,7 @@
               <a-select
                 v-model:value="formState.administratorUserIds"
                 mode="multiple"
+                :show-search="!isMobile"
                 allow-clear
                 placeholder="可选；会与建单人、负责人自动去重"
                 :options="activeUserOptions"
@@ -155,7 +156,7 @@
         <a-alert type="warning" show-icon message="测试会向所选员工的真实手机号发起短信或语音，请确认后再发送。" style="margin-bottom: 16px" />
         <a-form layout="vertical">
           <a-form-item label="测试接收人">
-            <a-select v-model:value="testUserIds" mode="multiple" :options="activeUserOptions" placeholder="选择已维护手机号的员工" />
+            <a-select v-model:value="testUserIds" mode="multiple" :show-search="!isMobile" :options="activeUserOptions" placeholder="选择已维护手机号的员工" />
           </a-form-item>
           <a-space wrap>
             <a-checkbox v-model:checked="testSms">发送短信</a-checkbox>

@@ -15,7 +15,7 @@
           <a-form-item label="选择库房">
             <a-select
               v-model:value="filterState.warehouseId"
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
               placeholder="请选择库房"
               :style="isMobile ? { width: '100%' } : { width: '200px' }"
@@ -34,7 +34,7 @@
           <a-form-item label="物品分类">
             <a-select
               v-model:value="filterState.categoryId"
-              show-search
+              :show-search="!isMobile"
               option-filter-prop="label"
               placeholder="所有分类"
               :style="isMobile ? { width: '100%' } : { width: '200px' }"

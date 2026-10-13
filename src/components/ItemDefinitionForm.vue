@@ -12,7 +12,7 @@
     <a-form-item label="分类" name="categoryId">
       <a-select
         v-model:value="formState.categoryId"
-        show-search
+        :show-search="!isMobile"
         option-filter-prop="label"
         placeholder="请选择一个分类"
         :loading="categoryStore.loading"
@@ -42,6 +42,7 @@ import type { PropType } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { useCategoryStore } from '../stores/categoryStore';
 import type { ItemDefinition } from '../stores/itemDefinitionStore';
+import { useBreakpoint } from '../composables/useBreakpoint';
 
 const props = defineProps({
   initialValues: {
@@ -59,6 +60,7 @@ const formState = reactive<Partial<ItemDefinition>>({
 });
 
 const categoryStore = useCategoryStore();
+const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 
 const rules = {
   name: [{ required: true, message: '请输入物品名称！' }],

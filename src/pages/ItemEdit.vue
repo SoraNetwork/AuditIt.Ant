@@ -17,7 +17,7 @@
             <a-select
               v-model:value="formState.ownerUserNames"
               mode="multiple"
-              show-search
+              :show-search="!isMobile"
               allow-clear
               option-filter-prop="label"
               placeholder="未设置"

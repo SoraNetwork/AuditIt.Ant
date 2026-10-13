@@ -12,14 +12,16 @@
                 <MobileScanInput v-model="quickFormState.shortId" placeholder="扫描或输入外部条码" />
               </a-form-item>
               <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
+                 <a-input-search v-if="isMobile" v-model:value="definitionKeyword" allow-clear placeholder="输入名称或 ID 筛选物品定义" style="margin-bottom: 8px" />
                  <a-space-compact style="width: 100%">
                   <a-select
                     v-model:value="quickFormState.itemDefinitionId"
-                    show-search
+                    :show-search="!isMobile"
                     option-filter-prop="label"
-                    placeholder="搜索或选择物品定义"
-                    :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
+                    :placeholder="isMobile ? '选择物品定义' : '搜索或选择物品定义'"
+                    :options="filteredDefinitionOptions"
                     style="width: calc(100% - 60px)"
+                    @change="definitionKeyword = ''"
                   ></a-select>
                   <a-button @click="isNewItemDefVisible = true">新建</a-button>
                 </a-space-compact>
@@ -27,7 +29,7 @@
               <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                 <a-select
                   v-model:value="quickFormState.warehouseId"
-                  show-search
+                  :show-search="!isMobile"
                   option-filter-prop="label"
                   placeholder="选择仓库"
                   :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
@@ -37,7 +39,7 @@
                 <a-select
                   v-model:value="quickFormState.ownerUserNames"
                   mode="multiple"
-                  show-search
+                  :show-search="!isMobile"
                   allow-clear
                   option-filter-prop="label"
                   placeholder="默认当前登录用户"
@@ -127,14 +129,16 @@
               <a-card title="批量导入设置" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <a-form :model="batchFormState" layout="vertical">
                   <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
+                    <a-input-search v-if="isMobile" v-model:value="definitionKeyword" allow-clear placeholder="输入名称或 ID 筛选物品定义" style="margin-bottom: 8px" />
                     <a-space-compact style="width: 100%">
                       <a-select
                         v-model:value="batchFormState.itemDefinitionId"
-                        show-search
+                        :show-search="!isMobile"
                         option-filter-prop="label"
-                        placeholder="搜索或选择物品定义"
-                        :options="itemDefinitionStore.itemDefinitions. map(d => ({ value: d.  id, label: d.name }))"
+                        :placeholder="isMobile ? '选择物品定义' : '搜索或选择物品定义'"
+                        :options="filteredDefinitionOptions"
                         style="width: calc(100% - 60px)"
+                        @change="definitionKeyword = ''"
                       ></a-select>
                       <a-button @click="isNewItemDefVisible = true">新建</a-button>
                     </a-space-compact>
@@ -142,7 +146,7 @@
                   <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                     <a-select
                       v-model:value="batchFormState.warehouseId"
-                      show-search
+                      :show-search="!isMobile"
                       option-filter-prop="label"
                       placeholder="选择仓库"
                       :options="warehouseStore.warehouses.map(w => ({ value: w.id, label: w.name }))"
@@ -152,7 +156,7 @@
                     <a-select
                       v-model:value="batchFormState.ownerUserNames"
                       mode="multiple"
-                      show-search
+                      :show-search="!isMobile"
                       allow-clear
                       option-filter-prop="label"
                       placeholder="默认当前登录用户"
@@ -321,14 +325,16 @@ GHI789"
               <a-card title="录入新物品信息" :body-style="{ padding: isMobile ? '12px' : '24px' }">
                 <a-form ref="manualFormRef" :model="manualFormState" layout="vertical">
                   <a-form-item label="物品定义" name="itemDefinitionId" :rules="[{ required: true, message: '请选择物品定义' }]">
+                     <a-input-search v-if="isMobile" v-model:value="definitionKeyword" allow-clear placeholder="输入名称或 ID 筛选物品定义" style="margin-bottom: 8px" />
                      <a-space-compact style="width: 100%">
                         <a-select
                           v-model:value="manualFormState.itemDefinitionId"
-                          show-search
+                          :show-search="!isMobile"
                           option-filter-prop="label"
-                          placeholder="搜索或选择物品定义"
-                          :options="itemDefinitionStore.itemDefinitions.  map(d => ({ value: d.id, label: d.name }))"
+                          :placeholder="isMobile ? '选择物品定义' : '搜索或选择物品定义'"
+                          :options="filteredDefinitionOptions"
                            style="width: calc(100% - 60px)"
+                          @change="definitionKeyword = ''"
                         ></a-select>
                         <a-button @click="isNewItemDefVisible = true">新建</a-button>
                       </a-space-compact>
@@ -336,7 +342,7 @@ GHI789"
                   <a-form-item label="存放仓库" name="warehouseId" :rules="[{ required: true, message: '请选择仓库' }]">
                     <a-select
                       v-model:value="manualFormState.warehouseId"
-                      show-search
+                      :show-search="!isMobile"
                       option-filter-prop="label"
                       placeholder="选择仓库"
                       :options="warehouseStore.warehouses. map(w => ({ value: w.id, label: w.name }))"
@@ -346,7 +352,7 @@ GHI789"
                     <a-select
                       v-model:value="manualFormState.ownerUserNames"
                       mode="multiple"
-                      show-search
+                      :show-search="!isMobile"
                       allow-clear
                       option-filter-prop="label"
                       placeholder="默认当前登录用户"
@@ -507,6 +513,7 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 import MobileScanInput from '../components/mobile/MobileScanInput.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
+const definitionKeyword = ref('');
 
 interface QuickRemarkDto { id: number; content: string; }
 const quickRemarks = ref<QuickRemarkDto[]>([]);
@@ -601,6 +608,12 @@ const deleteQuickRemark = async (id: number) => {
 
 // Stores
 const itemDefinitionStore = useItemDefinitionStore();
+const filteredDefinitionOptions = computed(() => {
+  const keyword = isMobile.value ? definitionKeyword.value.trim().toLowerCase() : '';
+  return itemDefinitionStore.itemDefinitions
+    .filter(definition => !keyword || `${definition.name} ${definition.id}`.toLowerCase().includes(keyword))
+    .map(definition => ({ value: definition.id, label: definition.name }));
+});
 const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
 const userStore = useUserStore();

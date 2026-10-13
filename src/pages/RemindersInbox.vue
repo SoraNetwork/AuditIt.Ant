@@ -159,7 +159,7 @@
             v-model:value="form.targetUsers"
             mode="multiple"
             allow-clear
-            show-search
+            :show-search="!isMobile"
             option-filter-prop="label"
             :options="userOptions"
             placeholder="选择一个或多个用户"

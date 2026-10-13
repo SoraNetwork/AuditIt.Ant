@@ -130,7 +130,7 @@
                 v-model:value="assignedUsers"
                 mode="multiple"
                 allow-clear
-                show-search
+                :show-search="!isMobile"
                 option-filter-prop="label"
                 :options="userOptions"
                 placeholder="选择负责人"
@@ -144,7 +144,7 @@
                 :options="userOptions"
                 :loading="userStore.loading"
                 placeholder="选择预计发货人"
-                show-search
+                :show-search="!isMobile"
                 option-filter-prop="label"
               />
             </a-form-item>
@@ -191,7 +191,19 @@
           </a-col>
           <a-col :xs="24" :span="6">
             <a-form-item label="到账账户（可选）">
+              <template v-if="isMobile">
+                <a-space v-if="paymentAccountPresetOptions.length" wrap style="margin-bottom: 8px">
+                  <a-button
+                    v-for="option in paymentAccountPresetOptions"
+                    :key="option.value"
+                    size="small"
+                    @click="form.paymentAccount = option.value"
+                  >{{ option.label }}</a-button>
+                </a-space>
+                <a-input v-model:value="form.paymentAccount" placeholder="选择常用账户或手动填写" allow-clear />
+              </template>
               <a-auto-complete
+                v-else
                 v-model:value="form.paymentAccount"
                 :options="paymentAccountPresetOptions"
                 placeholder="可选择预制账户，也可自定义或留空"
@@ -300,7 +312,7 @@
                   v-model:value="deliveryManualWarehouseIds"
                   mode="multiple"
                   allow-clear
-                  show-search
+                  :show-search="!isMobile"
                   option-filter-prop="label"
                   :options="warehouseOptions"
                   :max-tag-count="1"
@@ -494,7 +506,7 @@
           <a-select
             v-model:value="itemCategoryFilter"
             allow-clear
-            show-search
+            :show-search="!isMobile"
             option-filter-prop="label"
             placeholder="筛选分类"
             class="item-category-filter"
@@ -572,11 +584,18 @@
           <!-- 搜索定义框 -->
           <div class="search-definition-box" style="margin-bottom: 24px; max-width: 600px;">
             <div style="font-weight: 500; margin-bottom: 8px; color: #4b5563;">搜索并添加物品定义到订单：</div>
+            <a-input-search
+              v-if="isMobile"
+              v-model:value="definitionKeyword"
+              allow-clear
+              placeholder="输入名称或 ID 筛选物品定义"
+              style="margin-bottom: 8px"
+            />
             <a-select
-              show-search
-              placeholder="输入物品定义名称或 ID 搜索并选择..."
+              :show-search="!isMobile"
+              :placeholder="isMobile ? '选择物品定义' : '输入物品定义名称或 ID 搜索并选择...'"
               option-filter-prop="label"
-              :options="definitionSearchOptions"
+              :options="filteredDefinitionSearchOptions"
               :loading="itemDefStore.loading"
               style="width: 100%"
               @select="handleSelectDefinition"
@@ -873,6 +892,7 @@ const itemPriceValues = reactive<Record<string, number | null>>({});
 const submitting = ref(false);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
+const definitionKeyword = ref('');
 const itemCategoryFilter = ref<number | undefined>();
 const paymentAccountPresets = ref<string[]>([]);
 const deliveryManualWarehouseIds = ref<number[]>([]);
@@ -1126,6 +1146,12 @@ const definitionSearchOptions = computed(() => {
     label: `${def.name} / ${categoryMap.value[def.categoryId] || '无分类'} (ID: ${def.id})`
   }));
 });
+const filteredDefinitionSearchOptions = computed(() => {
+  const keyword = isMobile.value ? definitionKeyword.value.trim().toLowerCase() : '';
+  return keyword
+    ? definitionSearchOptions.value.filter(option => option.label.toLowerCase().includes(keyword))
+    : definitionSearchOptions.value;
+});
 
 const selectedDefinitionCartItems = computed(() => {
   return itemDefStore.itemDefinitions.filter(def => {
@@ -1135,6 +1161,7 @@ const selectedDefinitionCartItems = computed(() => {
 });
 
 const handleSelectDefinition = (defId: any) => {
+  definitionKeyword.value = '';
   const id = Number(defId);
   if (definitionQuantities[id]) {
     definitionQuantities[id] += 1;

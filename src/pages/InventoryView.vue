@@ -20,12 +20,12 @@
             />
           </a-form-item>
           <a-form-item label="仓库">
-            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear show-search option-filter-prop="label">
+            <a-select v-model:value="filters.warehouseId" placeholder="所有仓库" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear :show-search="!isMobile" option-filter-prop="label">
               <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id" :label="wh.name">{{ wh.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="物品分类">
-            <a-select v-model:value="filters.categoryId" placeholder="所有分类" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear show-search option-filter-prop="label">
+            <a-select v-model:value="filters.categoryId" placeholder="所有分类" :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="applyFilters" allow-clear :show-search="!isMobile" option-filter-prop="label">
               <a-select-option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id" :label="cat.name">{{ cat.name }}</a-select-option>
             </a-select>
           </a-form-item>

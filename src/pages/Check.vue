@@ -44,7 +44,7 @@
                   <a-select
                     v-model:value="candidateFilters.categoryId"
                     allow-clear
-                    show-search
+                    :show-search="!isMobile"
                     option-filter-prop="label"
                     placeholder="请选择物品分类"
                     :style="{ width: '100%', marginBottom: '8px' }"
@@ -62,7 +62,7 @@
                   <a-select
                     v-model:value="candidateFilters.warehouseId"
                     allow-clear
-                    show-search
+                    :show-search="!isMobile"
                     option-filter-prop="label"
                     placeholder="所有库房"
                     style="width: 100%"
