@@ -142,7 +142,8 @@
               <a-select
                 v-model:value="form.expectedShipperName"
                 :options="userOptions"
-                :loading="userStore.loading"
+                :loading="userStore.loading || defaultShipperLoading"
+                :disabled="defaultShipperLoading"
                 placeholder="选择预计发货人"
                 :show-search="!isMobile"
                 option-filter-prop="label"
@@ -890,6 +891,7 @@ const selectedItemIds = ref<string[]>([]);
 const definitionQuantities = reactive<Record<number, number>>({});
 const itemPriceValues = reactive<Record<string, number | null>>({});
 const submitting = ref(false);
+const defaultShipperLoading = ref(true);
 const assignedUsers = ref<string[]>([]);
 const itemKeyword = ref('');
 const definitionKeyword = ref('');
@@ -914,7 +916,7 @@ const quickForm = reactive({
 });
 
 const form = reactive({
-  expectedShipperName: authStore.user?.name || '',
+  expectedShipperName: '',
   shippingAddress: '',
   expectedShipDate: dayjs().subtract(3, 'day') as Dayjs | null,
   startDate: dayjs() as Dayjs | null,
@@ -1184,9 +1186,14 @@ const removeFromCart = (defId: number) => {
   definitionQuantities[defId] = 0;
 };
 
-const userOptions = computed(() =>
-  userStore.users.map(user => ({ label: user.name, value: user.name }))
-);
+const userOptions = computed(() => {
+  const options = userStore.users.map(user => ({ label: user.name, value: user.name }));
+  const selected = form.expectedShipperName;
+  if (selected && !options.some(option => option.value === selected)) {
+    options.push({ label: selected, value: selected });
+  }
+  return options;
+});
 
 const renterLookupHelp = computed(() => {
   if (matchedRenter.value) return '已匹配租客，可继续填写租赁信息。';
@@ -1577,6 +1584,10 @@ const showConflictModal = (payload: RentalCreateConflictResponse, originalPayloa
 };
 
 const submit = async () => {
+  if (defaultShipperLoading.value) {
+    message.info('正在加载默认发货人，请稍候');
+    return;
+  }
   if (!form.expectedShipperName.trim()) {
     message.error('请选择预计发货人');
     return;
@@ -1669,6 +1680,17 @@ watch(
   }
 );
 
+async function loadDefaultShipper() {
+  try {
+    const defaultShipperName = await rentalStore.fetchDefaultShipperName();
+    form.expectedShipperName = defaultShipperName || authStore.user?.name || '';
+  } catch {
+    message.error('加载默认发货人失败，请手动选择预计发货人');
+  } finally {
+    defaultShipperLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   const [, , , , , paymentAccountSettings] = await Promise.all([
     userStore.fetchUsers({ status: 'Active', limit: 200 }),
@@ -1677,6 +1699,7 @@ onMounted(async () => {
     loadSelectableItems(),
     warehouseStore.fetchWarehouses(),
     rentalStore.fetchPaymentAccountSettings().catch(() => ({ defaultPaymentAccount: '', paymentAccountPresets: [] })),
+    loadDefaultShipper(),
   ]);
   paymentAccountPresets.value = paymentAccountSettings.paymentAccountPresets || [];
   if (paymentAccountSettings.defaultPaymentAccount && !form.paymentAccount) {

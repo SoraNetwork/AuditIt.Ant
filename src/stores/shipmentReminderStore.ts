@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 
 export interface ShipmentReminderSettings {
+  defaultShipperUserId?: string | null;
   enabled: boolean;
   smsEnabled: boolean;
   voiceEnabled: boolean;
@@ -98,6 +99,14 @@ export const useShipmentReminderStore = defineStore('shipmentReminder', {
     async fetchRecipients(): Promise<ShipmentReminderRecipient[]> {
       const response = await apiClient.get<ShipmentReminderRecipient[]>('/shipment-reminder-settings/recipients');
       this.recipients = response.data;
+      return response.data;
+    },
+
+    async updateDefaultShipper(defaultShipperUserId: string | null): Promise<ShipmentReminderSettings> {
+      const response = await apiClient.put<ShipmentReminderSettings>('/shipment-reminder-settings/default-shipper', {
+        defaultShipperUserId,
+      });
+      this.settings = response.data;
       return response.data;
     },
 

@@ -449,6 +449,11 @@ export const useRentalStore = defineStore('rental', {
       return response.data;
     },
 
+    async fetchDefaultShipperName(): Promise<string | null> {
+      const response = await apiClient.get<{ defaultShipperName: string | null }>('/rentals/shipment-defaults');
+      return response.data.defaultShipperName;
+    },
+
     async fetchPaymentAccountSettings(): Promise<PaymentAccountSettings> {
       const response = await apiClient.get<PaymentAccountSettings>('/rentals/payment-account-default');
       return {

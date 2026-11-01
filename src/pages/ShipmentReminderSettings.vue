@@ -3,6 +3,23 @@
     <a-page-header title="发货通知设置" sub-title="预计发货日当天或已逾期仍未发货时，向建单人、负责人和指定管理员发送提醒" />
 
     <div class="page-container">
+      <a-card title="默认发货人（全局）" style="margin-bottom: 16px" :body-style="{ padding: isMobile ? '12px' : '24px' }">
+        <a-form layout="vertical" :model="{ defaultShipperUserId }" @finish="saveDefaultShipper">
+          <a-form-item label="默认预计发货人" extra="所有人新建订单时默认选择此员工，填单时仍可改选。清空后默认使用建单人；已有订单不受影响。">
+            <a-select
+              v-model:value="defaultShipperUserId"
+              :options="defaultShipperOptions"
+              :disabled="!settingsLoaded || defaultShipperSaving"
+              :show-search="!isMobile"
+              option-filter-prop="label"
+              allow-clear
+              placeholder="未设置，默认使用建单人"
+            />
+          </a-form-item>
+          <a-button type="primary" html-type="submit" :block="isMobile" :disabled="!settingsLoaded" :loading="defaultShipperSaving">保存默认发货人</a-button>
+        </a-form>
+      </a-card>
+
       <a-alert
         :type="formState.aliyunCredentialsConfigured ? 'success' : 'warning'"
         show-icon
@@ -209,6 +226,9 @@ import MobileListCard from '../components/mobile/MobileListCard.vue';
 
 const { shouldUseMobileLayout: isMobile } = useBreakpoint();
 const shipmentReminderStore = useShipmentReminderStore();
+const defaultShipperUserId = ref<string>();
+const defaultShipperSaving = ref(false);
+const settingsLoaded = ref(false);
 const templatesLoading = ref(false);
 const templatesLoaded = ref(false);
 const testSending = ref(false);
@@ -240,6 +260,14 @@ const formState = reactive<ShipmentReminderSettings>({
 
 const activeUserOptions = computed(() => shipmentReminderStore.recipients
   .map(user => ({ value: user.id, label: `${user.name}${user.mobile ? `（${user.mobile}）` : '（未维护手机号）'}` })));
+
+const defaultShipperOptions = computed(() => {
+  const options = activeUserOptions.value;
+  if (defaultShipperUserId.value && !options.some(option => option.value === defaultShipperUserId.value)) {
+    return [...options, { value: defaultShipperUserId.value, label: '原默认发货人已不可用，请重新选择', disabled: true }];
+  }
+  return options;
+});
 
 const matchingSmsTemplateOptions = computed(() => shipmentReminderStore.smsTemplates
   .filter(template => template.isApproved && template.matchesShipmentReminder)
@@ -310,6 +338,8 @@ async function load() {
       shipmentReminderStore.fetchRecipients(),
     ]);
     applySettings(settings);
+    defaultShipperUserId.value = settings.defaultShipperUserId || undefined;
+    settingsLoaded.value = true;
   } catch (error) {
     message.error(getErrorMessage(error));
   }
@@ -351,6 +381,19 @@ function onSmsTemplateSelected(templateCode: string) {
   if (!selected) return;
   formState.smsSignName = selected.signatureName;
   applyTemplateVariables(selected.variableNames);
+}
+
+async function saveDefaultShipper() {
+  defaultShipperSaving.value = true;
+  try {
+    const settings = await shipmentReminderStore.updateDefaultShipper(defaultShipperUserId.value || null);
+    defaultShipperUserId.value = settings.defaultShipperUserId || undefined;
+    message.success('全局默认发货人已保存');
+  } catch (error) {
+    message.error(getErrorMessage(error));
+  } finally {
+    defaultShipperSaving.value = false;
+  }
 }
 
 async function save() {
